@@ -1,0 +1,262 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------- tokens */
+
+@theme {
+  /*
+   * Sampled from the official logo artwork, not from spec §6.3. The brand
+   * palette supersedes the spec's ink/paper/pine/marigold where they conflict:
+   *   ink      #1F261F  (was #14181D)
+   *   paper    #F2F2F2  (was #F7F6F2)
+   *   accent   #7B23D8  purple, replaces pine
+   *   figure   #CDFE64  lime, replaces marigold — see --figure-accent below
+   * `rule` is derived rather than sampled; the artwork has no hairline colour.
+   */
+  --color-ink: #1f261f;
+  --color-ink-deep: #151915;
+  --color-paper: #f2f2f2;
+  --color-rule: #dcdbd7;
+  --color-purple: #7b23d8;
+  --color-purple-deep: #6224b2;
+
+  /* Muted ink for secondary copy. Derived, not a new hue. */
+  --color-ink-60: color-mix(in oklab, #1f261f 60%, #f2f2f2);
+  --color-ink-45: color-mix(in oklab, #1f261f 45%, #f2f2f2);
+
+  /*
+   * Two faces only, per brand direction: TASA Orbiter and TASA Explorer.
+   *   Orbiter  — display, headings, and figures. The geometric one.
+   *   Explorer — body copy, UI labels, everything at reading size.
+   *
+   * Neither family ships an italic and neither is monospaced, so:
+   *   - font-synthesis is disabled outright (see base) rather than letting the
+   *     browser fake an oblique;
+   *   - figures rely on font-variant-numeric: tabular-nums for column
+   *     alignment instead of a monospaced face.
+   */
+  --font-display: var(--font-orbiter), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-explorer), ui-sans-serif, system-ui, sans-serif;
+  --font-figure: var(--font-orbiter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale — 1.25 major third, fluid at the top end only. */
+  --text-display: clamp(2.75rem, 7vw, 5.25rem);
+  --text-h1: clamp(2rem, 4.5vw, 3rem);
+  --text-h2: clamp(1.5rem, 2.6vw, 1.9375rem);
+  --text-h3: 1.25rem;
+  --text-body: 1.0625rem;
+  --text-small: 0.9375rem;
+  --text-micro: 0.8125rem;
+}
+
+/*
+ * Lime is deliberately NOT a theme colour.
+ *
+ * Spec §6.3 reserves one colour exclusively for figures so that "when the only
+ * gold thing on the page is a number, the numbers carry the page". The colour
+ * is now the brand lime rather than marigold, but the rule is unchanged.
+ *
+ * Declaring it here as a bare custom property instead of inside @theme means
+ * Tailwind never generates `bg-lime` / `text-lime` utilities, so the
+ * restriction cannot be broken by someone who just wants a lime button. The
+ * only thing that reads this variable is .figure, which <Figure> owns.
+ *
+ * Contrast note: #CDFE64 on #F2F2F2 is ~1.03:1 and unreadable. Lime figures
+ * are therefore only legal on the ink ground (~13:1), which is why the ledger
+ * sits on dark. On paper, figures fall back to ink and carry weight instead.
+ */
+:root {
+  --figure-accent: #cdfe64;
+}
+
+/* ------------------------------------------------------------------ base */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: 1.65;
+    /* TASA has no italic and no extra weights beyond 800 — never fake either. */
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Display face: TASA Orbiter at its heaviest, tightly tracked. */
+  h1,
+  h2,
+  h3,
+  .u-display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.028em;
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.012em;
+    line-height: 1.2;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: from-font;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-purple);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-purple) 22%, transparent);
+  }
+}
+
+/* ------------------------------------------------------------- utilities */
+
+/* Numerals. The only place the figure accent is permitted to appear. */
+.figure {
+  font-family: var(--font-figure);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--figure-color, var(--color-ink));
+}
+
+/* Small caps-style labels — column headers, periods, eyebrows. */
+.u-label {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.u-rule {
+  border-color: var(--color-rule);
+}
+
+/* Dark sections invert the palette. Lime figures are only legal in here. */
+.u-inverted {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  --color-rule: color-mix(in oklab, #f2f2f2 20%, transparent);
+  --figure-color: var(--figure-accent);
+}
+
+.u-inverted a:hover {
+  color: var(--figure-accent);
+}
+
+/* ------------------------------------------------------------ ledger reveal */
+
+/*
+ * Spec §6.3: one orchestrated page-load reveal on the home ledger, and nothing
+ * else on the site moves. CSS-only, staggered by row index.
+ */
+@keyframes ledger-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ledger-rule-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.ledger-rule {
+  transform-origin: left;
+  animation: ledger-rule-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.ledger-row {
+  animation: ledger-row-in 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(160ms + var(--row, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ledger-rule,
+  .ledger-row {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------- prose */
+
+.prose {
+  max-width: 62ch;
+}
+
+.prose > * + * {
+  margin-top: 1.15em;
+}
+
+.prose h2 {
+  font-size: var(--text-h2);
+  margin-top: 2.4em;
+  margin-bottom: 0.7em;
+}
+
+.prose h3 {
+  font-size: var(--text-h3);
+  margin-top: 2em;
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.35em;
+}
+
+.prose ul {
+  list-style: disc;
+}
+
+.prose ol {
+  list-style: decimal;
+}
+
+.prose li + li {
+  margin-top: 0.4em;
+}
+
+.prose a {
+  color: var(--color-purple);
+  text-decoration: underline;
+}
+
+/* No italic in either TASA face — the quote is set apart by rule and colour. */
+.prose blockquote {
+  border-left: 2px solid var(--color-rule);
+  padding-left: 1.1em;
+  color: var(--color-ink-60);
+}
+
+.prose code {
+  font-family: var(--font-figure);
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+}
