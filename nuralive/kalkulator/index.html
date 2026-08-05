@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Kalkulator Harga Aman — Musawara</title>
+<style>
+/* ============================================================
+   TASA Typeface Collection — SIL Open Font License
+   Orbiter = antarmuka & angka · Explorer = display
+   local() dipakai lebih dulu; CDN hanya cadangan.
+   ============================================================ */
+@font-face{font-family:"TASA Orbiter";font-weight:400;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Regular"),local("TASAOrbiter-Regular"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Orbiter";font-weight:500;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Medium"),local("TASAOrbiter-Medium"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Orbiter";font-weight:700;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Bold"),local("TASAOrbiter-Bold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Explorer";font-weight:700;font-style:normal;font-display:swap;
+  src:local("TASA Explorer Bold"),local("TASAExplorer-Bold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-explorer@latest/latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Explorer";font-weight:800;font-style:normal;font-display:swap;
+  src:local("TASA Explorer ExtraBold"),local("TASAExplorer-ExtraBold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-explorer@latest/latin-800-normal.woff2") format("woff2")}
+
+:root{
+  --bg:#eceef5;
+  --in-pane:#ffffff;      /* permukaan ISIAN */
+  --in-head:#f5f6fa;
+  --field:#ffffff;        /* kolom input: putih + border tegas = boleh diketik */
+  --out-pane:#fbf8ff;     /* permukaan HASIL: bersemu ungu */
+  --out-head:#f1e8fe;
+  --out-inset:#f4ecfe;
+  --line:#e0e3ec;
+  --line2:#c8cddc;
+  --line-out:#e6dbfa;
+  --hair:rgba(15,18,28,.06);
+  --ink:#141824;
+  --ink2:#4b5263;
+  --muted:#5c6474;
+  --mus:#7A2DE3;
+  --mus-ink:#6a20cf;
+  --mus-dim:#9a5cf0;
+  --good:#0f7a4d; --good-ink:#0f7a4d;
+  --warn:#9a6206; --warn-ink:#9a6206;
+  --crit:#c02626; --crit-ink:#c02626;
+  --r:10px;
+  --shadow:0 12px 28px -14px rgba(30,20,60,.28), 0 2px 5px -2px rgba(30,20,60,.12);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg);color-scheme:light}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"TASA Orbiter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01";
+}
+.tnum{font-variant-numeric:tabular-nums}
+h1,h2,h3,.display{font-family:"TASA Explorer","TASA Orbiter",ui-sans-serif,system-ui,sans-serif}
+.wrap{max-width:1380px;margin:0 auto;padding:22px 20px 120px}
+svg.ic{width:1em;height:1em;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.125em}
+
+/* ---------------- header ---------------- */
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand svg.logo{width:30px;height:35px;flex:none}
+.brand .wm{display:flex;flex-direction:column;gap:1px;min-width:0}
+.brand .nm{font-family:"TASA Explorer",sans-serif;font-size:19px;font-weight:800;letter-spacing:-.035em;line-height:1;color:var(--ink)}
+.brand .dc{font-size:10.5px;font-weight:500;letter-spacing:.19em;text-transform:uppercase;color:var(--mus-ink);line-height:1}
+.acts{display:flex;gap:8px}
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--in-pane);border:1px solid var(--line2);border-radius:9px;
+  padding:8px 13px;cursor:pointer;color:var(--ink2);font:inherit;font-size:13.5px;
+  transition:border-color .15s,color .15s,background .15s
+}
+.btn:hover{border-color:var(--mus-dim);color:var(--ink);background:var(--in-head)}
+.btn:focus-visible{outline:2px solid var(--mus-ink);outline-offset:2px}
+
+.notice{
+  display:flex;gap:11px;background:#fff8e8;border:1px solid #ecd9a6;
+  border-radius:var(--r);padding:13px 15px;font-size:13px;line-height:1.6;color:#6d4d09;margin-bottom:18px
+}
+.notice svg.ic{width:17px;height:17px;color:var(--warn-ink);margin-top:2px}
+.notice b{color:#4d3505;font-weight:700}
+
+/* ---------------- mode ---------------- */
+.modes{display:flex;gap:6px;background:var(--in-pane);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px;max-width:600px}
+.mode{
+  flex:1;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;
+  background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:500;
+  text-align:left;transition:.15s;line-height:1.3
+}
+.mode:hover{color:var(--ink2)}
+.mode small{display:block;font-size:11.5px;font-weight:400;opacity:.85;margin-top:2px}
+.mode[aria-pressed=true]{background:var(--mus);color:#fff;border-color:#9a5cf0}
+.mode[aria-pressed=true] small{opacity:.92}
+.mode:focus-visible{outline:2px solid var(--mus-ink);outline-offset:2px}
+
+/* ---------------- split ---------------- */
+.split{display:grid;grid-template-columns:minmax(340px,420px) 1fr;gap:20px;align-items:start}
+@media(max-width:1040px){.split{grid-template-columns:1fr}}
+
+.pane{border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.pane--in{background:var(--in-pane)}
+.pane--out{background:var(--out-pane);border-color:var(--line-out);box-shadow:var(--shadow);position:sticky;top:16px}
+@media(max-width:1040px){.pane--out{position:static}}
+
+.pane-head{
+  display:flex;align-items:center;gap:10px;padding:13px 17px;
+  border-bottom:1px solid var(--line);background:var(--in-head)
+}
+.pane--out .pane-head{background:var(--out-head);border-bottom-color:var(--line-out)}
+.pane-head .step{
+  display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;
+  border-radius:6px;background:var(--line2);color:var(--ink);font-size:11.5px;font-weight:700;flex:none
+}
+.pane--out .pane-head .step{background:var(--mus);color:#fff}
+.pane-head h2{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.pane-head .why{margin-left:auto;font-size:11.5px;color:var(--muted);text-align:right;line-height:1.35}
+
+/* ---------------- form ---------------- */
+.sec{border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:none}
+.sec-h{
+  width:100%;display:flex;align-items:center;gap:9px;padding:11px 17px;background:transparent;
+  border:none;color:var(--ink2);font:inherit;font-size:11.5px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;cursor:default;text-align:left
+}
+.sec--fold .sec-h{cursor:pointer}
+.sec--fold .sec-h:hover{color:var(--ink)}
+.sec-h .chev{margin-left:auto;width:14px;height:14px;color:var(--muted);transition:transform .18s ease}
+.sec--fold.open .sec-h .chev{transform:rotate(180deg)}
+.sec--fold:not(.open) .sec-b{display:none}
+.sec-h .tag{
+  margin-left:auto;font-size:10.5px;letter-spacing:.04em;text-transform:none;font-weight:500;
+  color:var(--mus-ink);background:#f0e6fd;padding:2px 7px;border-radius:99px
+}
+.sec--fold .sec-h .tag{margin-left:auto}
+.sec--fold .sec-h .tag + .chev{margin-left:8px}
+.sec-b{padding:2px 17px 15px}
+
+.f{display:grid;grid-template-columns:1fr 152px;gap:10px;align-items:center;padding:7px 0}
+.f + .f{border-top:1px solid var(--hair)}
+.f label{font-size:13.5px;color:var(--ink);line-height:1.35}
+.f label small{display:block;color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:2px}
+.inp{position:relative;display:flex;align-items:center}
+.inp input{
+  width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;
+  background:var(--field);color:var(--ink);text-align:right;font:inherit;font-size:14px;
+  font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s
+}
+.inp input::placeholder{color:#9aa2b3}
+.inp input:hover{border-color:#a7afc4}
+.inp input:focus{outline:none;border-color:var(--mus-dim);box-shadow:0 0 0 3px rgba(122,45,227,.22)}
+.inp.pct input{padding-right:26px}
+.inp.rp input{padding-left:30px}
+.u{position:absolute;color:var(--muted);font-size:12.5px;pointer-events:none;font-variant-numeric:tabular-nums}
+.inp.pct .u{right:10px}
+.inp.rp .u{left:10px}
+
+/* pengalih satuan: % ⇄ Rp */
+.ub{
+  position:absolute;left:5px;top:50%;transform:translateY(-50%);
+  min-width:32px;height:26px;padding:0 7px;border-radius:6px;
+  border:1px solid var(--line2);background:var(--in-head);color:var(--ink2);
+  font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.13s;z-index:1
+}
+.ub:hover{border-color:var(--mus);background:#f0e6fd;color:var(--mus-ink)}
+.ub:focus-visible{outline:2px solid var(--mus-ink);outline-offset:1px}
+.ub[data-unit=rp]{background:#f0e6fd;border-color:#d9c2fb;color:var(--mus-ink)}
+.inp.dual input{padding-left:46px;padding-right:10px}
+.sw{display:flex;align-items:center;gap:8px;cursor:pointer}
+.sw input{width:16px;height:16px;accent-color:var(--mus);cursor:pointer;flex:none;margin:0}
+.tip{font-size:12px;color:var(--muted);line-height:1.55;margin:11px 0 0;padding-top:11px;border-top:1px solid var(--hair)}
+.tip b{color:var(--ink2);font-weight:500}
+
+select{
+  width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;
+  background:var(--field);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer
+}
+select:focus{outline:none;border-color:var(--mus-dim);box-shadow:0 0 0 3px rgba(122,45,227,.22)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+
+#customRows{display:flex;flex-direction:column;gap:8px}
+.crow{display:grid;grid-template-columns:1fr 86px 60px 28px;gap:6px;align-items:center}
+.crow input,.crow select{padding:7px 8px;font-size:13px;border:1px solid var(--line2);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;width:100%}
+.crow input.nm{text-align:left}
+.crow input.val{text-align:right;font-variant-numeric:tabular-nums}
+.crow .del{border:none;background:transparent;color:var(--muted);cursor:pointer;padding:4px;display:flex;border-radius:6px}
+.crow .del:hover{color:var(--crit-ink);background:rgba(224,93,93,.1)}
+.addrow{margin-top:10px;width:100%;justify-content:center}
+
+/* ---------------- OUTPUT ---------------- */
+.verdict{padding:19px 20px 20px;border-bottom:1px solid var(--line-out)}
+.vbadge{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 10px;border-radius:99px;
+  font-size:12.5px;font-weight:700;letter-spacing:.01em;margin-bottom:14px
+}
+.vbadge svg.ic{width:15px;height:15px}
+.v-ok{background:#e2f5ec;color:var(--good-ink)}
+.v-warn{background:#fdf2dc;color:var(--warn-ink)}
+.v-bad{background:#fdeaea;color:var(--crit-ink)}
+.v-dead{background:#f0e6fd;color:var(--mus-ink)}
+
+.vsay{font-size:15px;line-height:1.55;color:var(--ink2);margin:0}
+.vsay b{color:var(--ink);font-weight:500}
+.vnum{
+  display:block;font-family:"TASA Explorer",sans-serif;font-weight:800;
+  font-size:clamp(38px,6.4vw,58px);line-height:1;letter-spacing:-.045em;
+  color:var(--ink);margin:2px 0 10px;font-variant-numeric:tabular-nums
+}
+.vnum.neg{color:var(--crit-ink)}
+.vnum.off{color:var(--muted);font-size:34px}
+@keyframes settle{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
+.vnum.tick{animation:settle .34s cubic-bezier(.16,1,.3,1)}
+@media(prefers-reduced-motion:reduce){.vnum.tick{animation:none}}
+
+.msg{padding:14px 20px;border-bottom:1px solid var(--line-out);font-size:13.5px;line-height:1.62;display:flex;gap:11px}
+.msg svg.ic{width:17px;height:17px;margin-top:2px;flex:none}
+.msg b{display:block;margin-bottom:2px;font-weight:700}
+.m-bad{background:#fdeeee;color:#8f1d1d}
+.m-bad svg.ic,.m-bad b{color:var(--crit-ink)}
+.m-warn{background:#fdf6e6;color:#6d4d09}
+.m-warn svg.ic,.m-warn b{color:var(--warn-ink)}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-out);border-bottom:1px solid var(--line-out)}
+@media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--out-pane);padding:13px 16px}
+.kpi .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px}
+.kpi .v{font-size:19px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.kpi .v.g{color:var(--good-ink)} .kpi .v.r{color:var(--crit-ink)} .kpi .v.p{color:var(--mus-ink)}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+
+.blk{border-bottom:1px solid var(--line-out)}
+.blk:last-child{border-bottom:none}
+.blk-h{
+  width:100%;display:flex;align-items:center;gap:9px;padding:12px 20px;background:transparent;border:none;
+  color:var(--ink);font:inherit;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;text-align:left
+}
+.blk-h:hover{color:var(--mus-ink)}
+.blk-h .chev{margin-left:auto;width:14px;height:14px;color:var(--muted);transition:transform .18s ease}
+.blk.open .blk-h .chev{transform:rotate(180deg)}
+.blk:not(.open) .blk-b{display:none}
+.blk-b{padding-bottom:6px}
+
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:7px 20px;text-align:right;white-space:nowrap}
+th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line-out)}
+th:first-child,td:first-child{text-align:left}
+td{border-bottom:1px solid var(--hair);font-variant-numeric:tabular-nums;color:var(--ink2)}
+tr:last-child td{border-bottom:none}
+td.g{color:var(--good-ink)} td.r{color:var(--crit-ink)} td.mut{color:var(--muted)}
+tr.hl td{background:#f2e9fd;color:var(--ink)}
+tr.hl td:first-child{font-weight:700;color:var(--ink)}
+
+.wf td:first-child{display:flex;align-items:center;gap:10px;color:var(--ink2)}
+.wf .sw3{width:3px;height:15px;border-radius:2px;flex:none}
+.wf .neg{color:var(--crit)}
+.wf tr.sum td{background:var(--out-inset);color:var(--ink);font-weight:700}
+.wf tr.fin td{background:var(--out-inset);font-weight:800;font-size:15px;color:var(--ink);border-top:1px solid var(--line-out)}
+.wf .pc{color:var(--muted);font-size:12.5px}
+.flat{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:99px;background:#f0e6fd;color:var(--mus-ink);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
+.barc{width:96px;padding-right:20px}
+.bar{height:5px;border-radius:3px;min-width:2px;display:block}
+.note{padding:0 20px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin:8px 0 0}
+.note b{color:var(--ink2);font-weight:500}
+
+/* ---------------- sticky mobile result ---------------- */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;
+  background:rgba(255,255,255,.93);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line-out);padding:11px 18px calc(11px + env(safe-area-inset-bottom));
+  box-shadow:0 -8px 26px -12px rgba(30,20,60,.3)
+}
+.dock button{
+  width:100%;display:flex;align-items:center;gap:13px;background:transparent;border:none;
+  color:inherit;font:inherit;cursor:pointer;padding:0;text-align:left
+}
+.dock .dk{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1.3}
+.dock .dv{display:block;font-family:"TASA Explorer",sans-serif;font-size:23px;font-weight:800;letter-spacing:-.035em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.15}
+.dock .dv.neg{color:var(--crit-ink)}
+.dock .dot{width:9px;height:9px;border-radius:99px;flex:none}
+.dock .go{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--mus-ink);font-weight:500}
+@media(max-width:1040px){.dock{display:block}}
+
+footer{margin-top:22px;font-size:12px;color:var(--muted);line-height:1.75;max-width:76ch}
+footer b{color:var(--ink2);font-weight:500}
+code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+@media(max-width:560px){
+  .wrap{padding:16px 14px 120px}
+  .notice{font-size:12px;line-height:1.55;padding:11px 13px;gap:9px}
+  .modes{flex-direction:column;gap:4px}
+  .mode small{margin-top:1px}
+  .top{gap:12px}
+  .acts{width:100%}
+  .acts .btn{flex:1;justify-content:center}
+  .f{grid-template-columns:1fr 112px}
+  th,td{padding:7px 14px}
+  .barc{display:none}
+  .sec-b,.blk-h,.verdict,.msg,.kpi,.note{padding-left:15px;padding-right:15px}
+  .pane-head{padding-left:15px;padding-right:15px}
+  .pane-head .why{display:none}
+}
+
+@media print{
+  html,body{background:#fff}
+  .acts,.modes,.dock,.chev,.addrow,.notice{display:none!important}
+  .split{grid-template-columns:1fr;gap:14px}
+  .pane--out{position:static;box-shadow:none}
+  .sec--fold .sec-b,.blk .blk-b{display:block!important}
+  .pane{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2L2.8 20h18.4z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M3 7l6.5 6.5 3.5-3.5L21 18"/><path d="M21 13v5h-5"/></symbol>
+<symbol id="i-block" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6v.1"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M6.5 9V3.5h11V9"/><path d="M6.5 18H4.5a1.5 1.5 0 01-1.5-1.5v-5A1.5 1.5 0 014.5 10h15a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5h-2"/><rect x="6.5" y="14.5" width="11" height="6" rx="1"/></symbol>
+<symbol id="i-reset" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 108.5-8.5A8.4 8.4 0 005.6 6.6"/><path d="M3.2 3.4v4h4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15"/><path d="M9 6.5V4.2h6v2.3"/><path d="M6.5 6.5l.9 12.3a1.4 1.4 0 001.4 1.3h6.4a1.4 1.4 0 001.4-1.3l.9-12.3"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 4.5v15"/><path d="M6 13.5l6 6 6-6"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+
+<div class="top">
+  <div class="brand">
+    <!-- Lambang Musawara — direkonstruksi sebagai vektor dari logo yang dikirim -->
+    <svg class="logo" viewBox="0 0 1183 1400" aria-hidden="true">
+      <g stroke-linejoin="round" stroke-linecap="round" stroke-width="120" fill="#7A2DE3" stroke="#7A2DE3">
+        <path d="M650 129 L650 552 L60 1051 L60 628 Z"/>
+        <path d="M1123 349 L1123 772 L533 1271 L533 848 Z"/>
+      </g>
+      <path d="M706 596 L479 785 L479 1379 Z" fill="#4a1b8f"/>
+    </svg>
+    <div class="wm">
+      <span class="nm">musawara</span>
+      <span class="dc">kalkulator harga</span>
+    </div>
+  </div>
+  <div class="acts">
+    <button class="btn" id="printBtn" type="button"><svg class="ic"><use href="#i-print"/></svg>Cetak</button>
+    <button class="btn" id="resetBtn" type="button"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+  </div>
+</div>
+
+<div class="notice">
+  <svg class="ic"><use href="#i-info"/></svg>
+  <div><b>Angka preset bukan angka resmi.</b> Fee marketplace berubah beberapa kali setahun dan berbeda per kategori produk serta status toko. Ganti dengan angka dari dashboard seller kamu sendiri sebelum memutuskan harga. Tarif PPh 22 mengacu pada infografis yang kamu berikan (PMK No.37 Tahun 2025), belum diverifikasi independen, dan bisa diedit atau dimatikan.</div>
+</div>
+
+<div class="modes" role="group" aria-label="Mode perhitungan">
+  <button class="mode" data-mode="A" aria-pressed="true" type="button">Cari harga jual<small>punya HPP, mau tahu harga amannya</small></button>
+  <button class="mode" data-mode="B" aria-pressed="false" type="button">Cek margin<small>punya harga, mau tahu untungnya</small></button>
+</div>
+
+<div class="split">
+
+  <!-- ==================== 1 · ISIAN ==================== -->
+  <section class="pane pane--in" aria-labelledby="inH">
+    <div class="pane-head">
+      <span class="step">1</span>
+      <h2 id="inH">Yang kamu isi</h2>
+      <span class="why">semua bisa diubah</span>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h">Produk</div>
+      <div class="sec-b">
+        <div class="f"><label for="hpp">HPP / modal per pcs<small>harga pokok, sudah termasuk PPN beli</small></label>
+          <div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="hpp" value="50.000" inputmode="numeric"></div></div>
+        <div class="f" id="rowTarget"><label for="target">Target margin bersih<small>terhadap harga transaksi</small></label>
+          <div class="inp pct"><span class="u">%</span><input type="number" step="0.5" id="target" value="15"></div></div>
+        <div class="f" id="rowHarga" hidden><label for="harga">Harga tayang saat ini<small>sebelum diskon toko</small></label>
+          <div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="harga" value="150.000" inputmode="numeric"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h">Biaya marketplace <span class="tag" id="tagMp"></span></div>
+      <div class="sec-b">
+        <div class="f"><label for="preset">Preset</label>
+          <select id="preset">
+            <option value="infografis">Infografis 2026</option>
+            <option value="shopee">Shopee (kasar)</option>
+            <option value="tokopedia">Tokopedia (kasar)</option>
+            <option value="tiktok">TikTok Shop (kasar)</option>
+            <option value="lazada">Lazada (kasar)</option>
+            <option value="kosong">Kosong</option>
+          </select></div>
+        <p class="tip" id="presetNote" style="margin-top:9px;padding-top:9px"></p>
+        <p class="tip">Tombol <b>%</b> di kiri tiap kolom bisa diklik untuk mengganti satuan ke <b>Rp</b>, misalnya kalau biaya iklanmu flat Rp70.000 per order, bukan persentase omzet. Nilainya dikonversi otomatis pada harga yang sedang berlaku. Satuan hanya mengubah cara menghitung, bukan kapan biaya itu kena: <b>ads tetap dibebankan ke semua order</b> termasuk yang retur, <b>fee marketplace tetap hanya kena pada order sukses</b>.</p>
+        <div class="f"><label for="admin">Biaya admin &amp; layanan</label><div class="inp dual"><button class="ub" type="button" data-for="admin" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="admin" value="12" inputmode="decimal"></div></div>
+        <div class="f"><label for="gratisOngkir">Gratis ongkir<small>bagian yang disubsidi seller</small></label><div class="inp dual"><button class="ub" type="button" data-for="gratisOngkir" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="gratisOngkir" value="8" inputmode="decimal"></div></div>
+        <div class="f"><label for="ads">Ads marketplace<small>dibebankan ke semua order</small></label><div class="inp dual"><button class="ub" type="button" data-for="ads" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="ads" value="15" inputmode="decimal"></div></div>
+        <div class="f"><label for="affiliate">Affiliate / KOL</label><div class="inp dual"><button class="ub" type="button" data-for="affiliate" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="affiliate" value="10" inputmode="decimal"></div></div>
+        <div class="f"><label for="cod">Fee COD</label><div class="inp dual"><button class="ub" type="button" data-for="cod" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="cod" value="0" inputmode="decimal"></div></div>
+        <div class="f"><label for="program">Program / fulfillment<small>FS, FBT, gudang marketplace</small></label><div class="inp dual"><button class="ub" type="button" data-for="program" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="program" value="0" inputmode="decimal"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h">Logistik &amp; operasional <span class="tag">rupiah per order</span></div>
+      <div class="sec-b">
+        <div class="f"><label for="ongkir">Ongkir ditanggung seller<small>di luar subsidi; jadi 2× saat retur</small></label><div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="ongkir" value="0" inputmode="numeric"></div></div>
+        <div class="f"><label for="packing">Packing &amp; material</label><div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="packing" value="3.000" inputmode="numeric"></div></div>
+        <div class="f"><label for="cs">CS / admin per order<small>gaji tim ÷ jumlah order</small></label><div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="cs" value="2.000" inputmode="numeric"></div></div>
+        <div class="f"><label for="asuransi">Asuransi pengiriman</label><div class="inp rp"><span class="u">Rp</span><input type="text" class="rp" id="asuransi" value="0" inputmode="numeric"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h">Pajak</div>
+      <div class="sec-b">
+        <div class="f"><label class="sw" for="pphOn"><input type="checkbox" id="pphOn" checked><span>PPh Pasal 22 final<small>dipungut marketplace dari omzet</small></span></label>
+          <div class="inp pct"><span class="u">%</span><input type="number" step="0.01" id="pph" value="0.5"></div></div>
+        <div class="f"><label class="sw" for="ppnOn"><input type="checkbox" id="ppnOn"><span>PPN untuk seller PKP<small>aktifkan hanya jika kamu PKP</small></span></label>
+          <div class="inp pct"><span class="u">%</span><input type="number" step="0.1" id="ppn" value="11"></div></div>
+        <p class="tip">PPh 22 bersifat final atas omzet, bukan atas laba, jadi tetap dipotong walau produk rugi. Itu sebabnya ia dihitung sebagai biaya.</p>
+      </div>
+    </div>
+
+    <div class="sec sec--fold" id="secPromo">
+      <button class="sec-h" type="button">Promo &amp; diskon <span class="tag" id="tagPromo" hidden></span><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="sec-b">
+        <div class="f"><label for="diskon">Diskon toko / flash sale</label><div class="inp dual"><button class="ub" type="button" data-for="diskon" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="diskon" value="0" inputmode="decimal"></div></div>
+        <div class="f"><label for="voucher">Voucher &amp; cashback seller<small>ditanggung toko, bukan marketplace</small></label><div class="inp dual"><button class="ub" type="button" data-for="voucher" data-unit="pct" title="Klik untuk ganti satuan ke Rupiah">%</button><input type="text" class="num" id="voucher" value="0" inputmode="decimal"></div></div>
+        <p class="tip">Keduanya memotong harga tayang lebih dulu. Fee marketplace baru dihitung dari harga setelah diskon. Itu sebabnya diskon 10% tidak berarti margin turun 10%.</p>
+      </div>
+    </div>
+
+    <div class="sec sec--fold open" id="secRetur">
+      <button class="sec-h" type="button">Risiko retur <span class="tag" id="tagRetur" hidden></span><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="sec-b">
+        <div class="f"><label for="retur">Rate retur / batal<small>% order yang tidak jadi</small></label><div class="inp pct"><span class="u">%</span><input type="number" step="0.5" id="retur" value="3"></div></div>
+        <div class="f"><label for="recovery">Barang retur masih layak jual<small>0% = hangus total, 100% = bisa dijual lagi</small></label><div class="inp pct"><span class="u">%</span><input type="number" step="5" id="recovery" value="80"></div></div>
+        <p class="tip">Saat retur, omzet batal dan fee admin biasanya dikembalikan, tapi ongkir dua arah dan packing sudah telanjur keluar. Model ini memisahkan keduanya, bukan memukul rata.</p>
+      </div>
+    </div>
+
+    <div class="sec sec--fold" id="secExtra">
+      <button class="sec-h" type="button">Biaya tambahan <span class="tag" id="tagExtra" hidden></span><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="sec-b">
+        <div id="customRows"></div>
+        <button class="btn addrow" id="addRow" type="button"><svg class="ic"><use href="#i-plus"/></svg>Tambah komponen</button>
+        <p class="tip">Satuan <b>%</b> diperlakukan seperti fee marketplace, jadi hanya kena pada order sukses. Satuan <b>Rp</b> dianggap biaya tetap per order, kena pada semua order termasuk yang retur.</p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h">Profil tersimpan</div>
+      <div class="sec-b">
+        <div class="f"><label for="nama">Nama produk<small>opsional, untuk menamai profil</small></label>
+          <div class="inp"><input type="text" id="nama" style="text-align:left" placeholder="Produk A"></div></div>
+        <div class="two">
+          <select id="profileSel"><option value="">Pilih profil tersimpan</option></select>
+          <div style="display:flex;gap:6px">
+            <button class="btn" id="saveProfile" type="button" style="flex:1;justify-content:center">Simpan</button>
+            <button class="btn" id="delProfile" type="button" aria-label="Hapus profil"><svg class="ic"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2 · HASIL ==================== -->
+  <section class="pane pane--out" id="out" aria-labelledby="outH" aria-live="polite">
+    <div class="pane-head">
+      <span class="step">2</span>
+      <h2 id="outH">Hasil hitungan</h2>
+      <span class="why">terisi otomatis, tidak perlu diketik</span>
+    </div>
+
+    <div id="msg"></div>
+
+    <div class="verdict">
+      <div id="badge"></div>
+      <p class="vsay" id="say"></p>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="blk open" id="blkWf">
+      <button class="blk-h" type="button">Ke mana uangnya lari<svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="blk-b">
+        <div class="tw"><table class="wf"><tbody id="waterfall"></tbody></table></div>
+        <p class="note">Semua angka adalah <b>rata-rata terekspektasi per order dikirim</b> yang sudah memperhitungkan kemungkinan retur. Persentase dihitung terhadap harga transaksi.</p>
+      </div>
+    </div>
+
+    <div class="blk open" id="blkScen">
+      <button class="blk-h" type="button">Harga di berbagai target margin<svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="blk-b"><div class="tw"><table>
+        <thead><tr><th>Target margin</th><th>Harga tayang</th><th>Harga transaksi</th><th>Profit / order</th><th>Markup vs HPP</th></tr></thead>
+        <tbody id="scen"></tbody></table></div></div>
+    </div>
+
+    <div class="blk open" id="blkSens">
+      <button class="blk-h" type="button">Uji ketahanan kalau keadaan memburuk<svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <div class="blk-b">
+        <div class="tw"><table>
+          <thead><tr><th>Skenario</th><th>Margin bersih</th><th>Profit / order</th><th>Selisih</th></tr></thead>
+          <tbody id="sens"></tbody></table></div>
+        <p class="note">Diuji pada harga yang sedang ditampilkan. Kalau baris merah muncul di skenario yang realistis buat kamu, harga itu belum aman.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <b>Rumusnya.</b> <code>T</code> harga transaksi · <code>F = 1 − (admin + gratis ongkir + affiliate + COD + program + PPh + PPN + custom%)</code> · <code>D = (1−retur) × F − ads</code> · <code>K = biaya_Rp + ongkir×(1+retur) + HPP×(1 − retur×layak_jual)</code>.
+  Profit <code>= T×D − K</code> · Harga <code>T = K / (D − margin)</code> · BEP <code>T = K / D</code>.<br>
+  <b>D adalah plafon margin strukturalmu.</b> Berapa pun harga dinaikkan, margin tidak akan melewati D. Kalau D ≤ 0, tidak ada harga yang menyelamatkan produk itu; yang harus diubah struktur biayanya.<br>
+  Data tersimpan hanya di browser ini. Tidak ada yang dikirim ke mana pun.
+</footer>
+</div>
+
+<div class="dock" id="dock">
+  <button type="button" id="dockBtn">
+    <span class="dot" id="dockDot"></span>
+    <span><span class="dk" id="dockK">Harga tayang</span><span class="dv" id="dockV">—</span></span>
+    <span class="go">Lihat rincian <svg class="ic"><use href="#i-arrow"/></svg></span>
+  </button>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var fmtRp=function(n){if(!isFinite(n))return"—";var g=n<0;n=Math.round(Math.abs(n));return(g?"−":"")+"Rp"+n.toLocaleString("id-ID")};
+var fmtPct=function(x,d){if(!isFinite(x))return"—";return(x*100).toFixed(d===undefined?1:d).replace(".",",").replace("-","−")+"%"};
+var numVal=function(id){var v=parseFloat(String($(id).value).replace(",","."));return isFinite(v)?v:0};
+var pctVal=function(id){return numVal(id)/100};
+var rpVal=function(id){return parseInt(String($(id).value).replace(/\D/g,""),10)||0};
+var roundUp100=function(n){return Math.ceil(Math.round(n)/100)*100};
+var ico=function(n){return'<svg class="ic"><use href="#i-'+n+'"/></svg>'};
+
+var PRESETS={
+ infografis:{note:"Angka persis dari infografis yang kamu berikan. Satu-satunya preset dengan sumber jelas.",admin:12,gratisOngkir:8,ads:15,affiliate:10,cod:0,program:0},
+ shopee:{note:"Estimasi kasar. Fee Shopee berbeda per kategori dan status toko, jadi cek Seller Centre kamu.",admin:8,gratisOngkir:4,ads:8,affiliate:5,cod:0,program:0},
+ tokopedia:{note:"Estimasi kasar. Cek biaya layanan per kategori di Seller Dashboard kamu.",admin:6.5,gratisOngkir:4,ads:8,affiliate:5,cod:0,program:0},
+ tiktok:{note:"Estimasi kasar. Komisi affiliate TikTok Shop sangat bervariasi, jadi cek Seller Center kamu.",admin:6.5,gratisOngkir:3,ads:10,affiliate:10,cod:0,program:0},
+ lazada:{note:"Estimasi kasar. Cek skema komisi dan program di Seller Center kamu.",admin:6,gratisOngkir:3,ads:6,affiliate:4,cod:0,program:0},
+ kosong:{note:"Semua nol. Isi manual dari dashboard seller kamu. Ini cara paling akurat.",admin:0,gratisOngkir:0,ads:0,affiliate:0,cod:0,program:0}
+};
+$("preset").addEventListener("change",function(){
+  var p=PRESETS[this.value];if(!p)return;
+  ["admin","gratisOngkir","ads","affiliate","cod","program"].forEach(function(k){setUnit(k,"pct");$(k).value=p[k]});
+  $("presetNote").textContent=p.note;run();
+});
+
+/* ---- rupiah mask ---- */
+function bindRp(el){el.addEventListener("input",function(){
+  var raw=el.value.replace(/\D/g,"");
+  el.value=raw?parseInt(raw,10).toLocaleString("id-ID"):"";run();
+})}
+
+/* ---- baris biaya tambahan ---- */
+function addCustomRow(name,val,unit){
+  var d=document.createElement("div");d.className="crow";
+  d.innerHTML='<input type="text" class="nm" placeholder="Nama biaya">'+
+    '<input type="text" class="val" inputmode="decimal">'+
+    '<select><option value="pct">%</option><option value="rp">Rp</option></select>'+
+    '<button type="button" class="del" aria-label="Hapus baris">'+ico("trash")+'</button>';
+  var nm=d.children[0],vl=d.children[1],un=d.children[2],del=d.children[3];
+  nm.value=name||"";un.value=unit||"pct";vl.value=val===undefined?"":val;
+  function sync(){if(un.value==="rp"){var r=vl.value.replace(/\D/g,"");vl.value=r?parseInt(r,10).toLocaleString("id-ID"):""}run()}
+  nm.addEventListener("input",run);vl.addEventListener("input",sync);
+  un.addEventListener("change",function(){vl.value="";run()});
+  del.addEventListener("click",function(){d.remove();run()});
+  $("customRows").appendChild(d);
+}
+$("addRow").addEventListener("click",function(){addCustomRow()});
+function readCustom(){
+  var o=[];Array.prototype.forEach.call($("customRows").children,function(d){
+    var nm=d.children[0].value.trim(),unit=d.children[2].value,raw=d.children[1].value,v;
+    if(unit==="rp")v=parseInt(raw.replace(/\D/g,""),10)||0;
+    else v=parseFloat(String(raw).replace(",","."))||0;
+    if(v!==0)o.push({name:nm||"Biaya lain",unit:unit,v:v});
+  });return o;
+}
+
+/* ---- mode ---- */
+var mode="A";
+Array.prototype.forEach.call(document.querySelectorAll(".mode"),function(b){
+  b.addEventListener("click",function(){
+    document.querySelectorAll(".mode").forEach(function(x){x.setAttribute("aria-pressed","false")});
+    b.setAttribute("aria-pressed","true");mode=b.dataset.mode;
+    $("rowTarget").hidden=mode!=="A";$("rowHarga").hidden=mode!=="B";run();
+  });
+});
+
+/* ---- lipat ---- */
+document.querySelectorAll(".sec--fold > .sec-h, .blk > .blk-h").forEach(function(h){
+  h.addEventListener("click",function(){h.parentElement.classList.toggle("open")});
+});
+
+/* ---- model ---- */
+/* Komponen bersatuan ganda. Satuan hanya mengubah CARA menghitung, bukan KAPAN
+   biaya itu kena: ads tetap dibebankan ke semua order (uang iklan keluar walau
+   order batal), sedangkan fee marketplace tetap hanya kena pada order sukses
+   (saat retur fee itu dikembalikan). */
+var DUAL=["admin","gratisOngkir","ads","affiliate","cod","program","diskon","voucher"];
+var UNIT={};DUAL.forEach(function(k){UNIT[k]="pct"});
+function part(id){
+  return UNIT[id]==="rp" ? {p:0,r:rpVal(id)} : {p:pctVal(id),r:0};
+}
+function gather(){
+  var cus=readCustom(),cp=0,cr=0;
+  cus.forEach(function(c){if(c.unit==="pct")cp+=c.v/100;else cr+=c.v});
+  var admin=part("admin"),go=part("gratisOngkir"),ads=part("ads"),
+      aff=part("affiliate"),cod=part("cod"),prog=part("program"),
+      dis=part("diskon"),vou=part("voucher");
+  var pph=$("pphOn").checked?pctVal("pph"):0, ppn=$("ppnOn").checked?pctVal("ppn"):0;
+  return{
+    hpp:rpVal("hpp"),target:pctVal("target"),hargaInput:rpVal("harga"),
+    admin:admin,go:go,ads:ads,aff:aff,cod:cod,prog:prog,dis:dis,vou:vou,
+    pph:pph,ppn:ppn,
+    /* dipotong dari harga tayang */
+    d:dis.p+vou.p, vRp:dis.r+vou.r,
+    /* fee yang hanya kena pada order sukses */
+    sucPct:admin.p+go.p+aff.p+cod.p+prog.p+pph+ppn+cp,
+    sucRp:admin.r+go.r+aff.r+cod.r+prog.r,
+    /* iklan: kena pada semua order */
+    adsPct:ads.p, adsRp:ads.r,
+    ongkir:rpVal("ongkir"),asuransi:rpVal("asuransi"),packing:rpVal("packing"),cs:rpVal("cs"),
+    r:pctVal("retur"),rec:pctVal("recovery"),cus:cus,cusPct:cp,cusRp:cr};
+}
+function model(i,ov){
+  ov=ov||{};
+  var r=ov.r!==undefined?ov.r:i.r;
+  var sucPct=i.sucPct+(ov.dSucPct||0), sucRp=i.sucRp+(ov.dSucRp||0);
+  var adsPct=i.adsPct+(ov.dAdsPct||0), adsRp=i.adsRp+(ov.dAdsRp||0);
+  var F=1-sucPct, D=(1-r)*F-adsPct;
+  var opsRp=i.asuransi+i.packing+i.cs+i.cusRp;
+  var K=adsRp+opsRp+(1-r)*sucRp+i.ongkir*(1+r)+i.hpp*(1-r*i.rec);
+  return{F:F,D:D,K:K,opsRp:opsRp,sucPct:sucPct,sucRp:sucRp,adsPct:adsPct,adsRp:adsRp,r:r};
+}
+/* T = harga transaksi. P = harga tayang; voucher nominal ditambahkan kembali
+   sebelum dibagi faktor diskon persen. */
+function toP(i,T){return (T+i.vRp)/(1-i.d)}
+function toT(i,P){return P*(1-i.d)-i.vRp}
+function priceFor(m,i,mg){if(m.D<=mg)return null;var T=m.K/(m.D-mg);return{T:T,P:toP(i,T)}}
+function profitAt(m,T){return T*m.D-m.K}
+
+/* ---- penanda seksi terlipat ---- */
+function both(pct,rp){
+  var a=[];
+  if(pct>0)a.push(fmtPct(pct,pct*100%1?1:0));
+  if(rp>0)a.push(fmtRp(rp));
+  return a.join(" + ");
+}
+function marks(i){
+  var t=$("tagPromo"),v=both(i.d,i.vRp);
+  if(v){t.hidden=false;t.textContent="diskon "+v}else t.hidden=true;
+  t=$("tagRetur");
+  if(i.r>0){t.hidden=false;t.textContent="retur "+fmtPct(i.r)}else t.hidden=true;
+  t=$("tagExtra");
+  if(i.cus.length){t.hidden=false;t.textContent=i.cus.length+" komponen"}else t.hidden=true;
+  var mpPct=i.admin.p+i.go.p+i.ads.p+i.aff.p+i.cod.p+i.prog.p;
+  var mpRp=i.admin.r+i.go.r+i.ads.r+i.aff.r+i.cod.r+i.prog.r;
+  $("tagMp").textContent=(both(mpPct,mpRp)||"0%")+" total";
+}
+
+/* ---- render ---- */
+var lastNum="",lastT=0,lastP=0;
+function paintNum(el,txt,cls){
+  el.className="vnum "+(cls||"");
+  el.textContent=txt;
+  if(txt!==lastNum){void el.offsetWidth;el.classList.add("tick");lastNum=txt}
+}
+function setMsg(kind,title,body){
+  $("msg").innerHTML=kind?'<div class="msg m-'+kind+'">'+ico(kind==="bad"?"warn":"info")+
+    '<div><b>'+title+'</b>'+body+'</div></div>':"";
+}
+function setDock(k,v,neg,color){
+  $("dockK").textContent=k;$("dockV").textContent=v;
+  $("dockV").className="dv"+(neg?" neg":"");$("dockDot").style.background=color;
+}
+
+function run(){
+  var i=gather(),m=model(i);
+  marks(i);
+  var badge=$("badge"),say=$("say");
+  setMsg(null);
+
+  function dead(title,body,badgeTxt){
+    setMsg("bad",title,body);
+    badge.innerHTML='<span class="vbadge v-dead">'+ico("block")+(badgeTxt||"MUSTAHIL")+'</span>';
+    say.innerHTML='<span class="vnum off">—</span>Tidak ada angka harga yang jujur untuk ditampilkan di sini.';
+    lastNum="";
+    $("kpis").innerHTML="";$("waterfall").innerHTML="";$("scen").innerHTML="";
+    $("sens").innerHTML='<tr><td colspan="4" class="mut">Tidak bisa diuji tanpa harga yang valid.</td></tr>';
+    setDock("Status","Mustahil",true,"var(--mus)");
+  }
+
+  if(i.d>=1){return dead("Diskon tidak masuk akal",
+    "Total diskon toko + voucher = "+fmtPct(i.d)+". Harga transaksi jadi nol atau negatif.","INPUT TIDAK VALID")}
+
+  if(mode==="A"&&m.K<=0){
+    setMsg("warn","Biaya nominal belum diisi",
+      "HPP, packing, dan ongkir semuanya nol. Karena semua biaya lain berupa persentase, secara matematis harga berapa pun memenuhi target, dan hasilnya tidak berarti apa-apa. Isi HPP dulu.");
+    badge.innerHTML='<span class="vbadge v-dead">'+ico("info")+'BELUM BISA DIHITUNG</span>';
+    say.innerHTML='<span class="vnum off">—</span>Isi HPP di kolom sebelah untuk mulai.';
+    lastNum="";$("kpis").innerHTML="";$("waterfall").innerHTML="";$("scen").innerHTML="";
+    $("sens").innerHTML='<tr><td colspan="4" class="mut">Isi HPP untuk mulai menguji.</td></tr>';
+    setDock("Harga tayang","—",false,"var(--muted)");return;
+  }
+
+  var T,P;
+  if(mode==="A"){
+    if(m.D<=0){return dead("Struktur biaya sudah menelan seluruh omzet",
+      "Biaya persenan menelan "+fmtPct(m.sucPct+m.adsPct)+" dari setiap rupiah penjualan"+
+      (i.r>0?", ditambah retur "+fmtPct(i.r):"")+". Yang tersisa untuk HPP dan profit: "+fmtPct(m.D)+
+      ". Menaikkan harga tidak menolong: setiap tambahan omzet justru menambah rugi. Yang harus dipangkas adalah biayanya. "+
+      "Biaya bersatuan Rupiah tidak menyebabkan ini, karena ia tidak ikut naik saat harga naik.")}
+    if(m.D<=i.target){
+      var bigs=[["ads",i.ads],["admin",i.admin],["affiliate",i.aff],["gratis ongkir",i.go]]
+        .filter(function(x){return x[1].p>0})
+        .sort(function(a,b){return b[1].p-a[1].p}).slice(0,3)
+        .map(function(x){return x[0]+" "+fmtPct(x[1].p)}).join(", ");
+      return dead("Target margin "+fmtPct(i.target)+" tidak tercapai berapa pun harganya",
+      "Plafon margin strukturalmu "+fmtPct(m.D)+", batas teoritis saat harga dinaikkan tak terhingga. Turunkan target ke bawah "+
+      fmtPct(m.D)+", atau pangkas biaya persenan"+(bigs?". Yang terbesar sekarang: "+bigs:"")+".")}
+    var res=priceFor(m,i,i.target);T=res.T;P=res.P;
+  }else{
+    P=i.hargaInput;T=toT(i,P);
+    if(T<=0){
+      var kosong=P<=0;
+      setMsg("warn",kosong?"Harga belum diisi":"Harga habis dimakan diskon",
+        kosong?"Masukkan harga tayang di kolom sebelah untuk melihat marginnya."
+             :"Setelah diskon "+fmtPct(i.d)+" dan voucher "+fmtRp(i.vRp)+", pembeli membayar nol atau kurang. Turunkan diskonnya atau naikkan harga tayang.");
+      badge.innerHTML='<span class="vbadge v-dead">'+ico("info")+(kosong?'MENUNGGU HARGA':'INPUT TIDAK VALID')+'</span>';
+      say.innerHTML='<span class="vnum off">—</span>';lastNum="";
+      $("kpis").innerHTML="";$("waterfall").innerHTML="";$("scen").innerHTML="";$("sens").innerHTML="";
+      setDock("Margin","—",false,"var(--muted)");return;}
+  }
+  lastT=T;lastP=P;
+
+  var profit=profitAt(m,T),margin=profit/T;
+  var bepT=m.D>0?m.K/m.D:Infinity, bepP=isFinite(bepT)?toP(i,bepT):Infinity;
+
+  var vc,vi,vt,dotc;
+  if(margin<-0.0005){vc="v-bad";vi="down";vt="RUGI";dotc="var(--crit)"}
+  else if(margin<0.005){vc="v-bad";vi="warn";vt="IMPAS, TIDAK UNTUNG";dotc="var(--crit)"}
+  else if(margin<0.10){vc="v-warn";vi="warn";vt="TIPIS";dotc="var(--warn)"}
+  else if(margin<0.15){vc="v-warn";vi="warn";vt="CUKUP, BELUM LEGA";dotc="var(--warn)"}
+  else{vc="v-ok";vi="check";vt="AMAN";dotc="var(--good)"}
+  badge.innerHTML='<span class="vbadge '+vc+'">'+ico(vi)+vt+'</span>';
+
+  var num=document.createElement("span");
+  if(mode==="A"){
+    var shown=roundUp100(P);
+    say.innerHTML='Pasang di<span class="vnum" id="vnum"></span>'+
+      ((i.d>0||i.vRp>0)?'Setelah potongan <b>'+both(i.d,i.vRp)+'</b>, pembeli membayar <b>'+fmtRp(T)+'</b>. ':'')+
+      'Profit bersih <b>'+fmtRp(profit)+'</b> per order, margin <b>'+fmtPct(margin)+'</b>.';
+    paintNum($("vnum"),fmtRp(shown),"");
+    setDock("Harga tayang",fmtRp(shown),false,dotc);
+  }else{
+    say.innerHTML='Margin bersihnya<span class="vnum" id="vnum"></span>'+
+      'Profit <b>'+fmtRp(profit)+'</b> per order. Titik impas <b>'+fmtRp(bepP)+'</b>, dan '+
+      (P>bepP?'harga kamu <b>'+fmtPct((P-bepP)/P)+'</b> di atasnya.':'<b>harga kamu di bawah titik impas.</b>');
+    paintNum($("vnum"),fmtPct(margin),margin<0?"neg":"");
+    setDock("Margin bersih",fmtPct(margin),margin<0,dotc);
+  }
+
+  if(margin>=-0.0005&&margin<0.005){
+    setMsg("bad","Harga ini hanya balik modal","Semua biaya tertutup, profit nol. Kerja penuh satu order tanpa sisa apa pun.");
+  }else if(margin<0){
+    setMsg("bad","Rugi "+fmtRp(-profit)+" per order","Titik impasnya "+fmtRp(bepP)+". Semakin banyak terjual, semakin besar ruginya.");
+  }else if(margin<0.10){
+    setMsg("warn","Margin tipis","Di bawah 10%, satu kenaikan ongkir atau satu gelombang retur bisa membuatnya negatif. Lihat uji ketahanan di bawah.");
+  }
+
+  var markup=i.hpp>0?(T-i.hpp)/i.hpp:NaN;
+  $("kpis").innerHTML=[
+    ["Harga transaksi",fmtRp(T),(i.d>0||i.vRp>0)?"setelah potongan "+both(i.d,i.vRp):"tanpa diskon",""],
+    ["Profit / order",fmtRp(profit),"rata-rata terekspektasi",profit>=0?"g":"r"],
+    ["Margin bersih",fmtPct(margin),"profit ÷ harga transaksi",margin>=0.15?"g":(margin<0?"r":"")],
+    ["Markup vs HPP",isFinite(markup)?fmtPct(markup,0):"—","harga transaksi vs modal",""],
+    ["Harga BEP",isFinite(bepP)?fmtRp(bepP):"—","titik impas, margin 0%",""],
+    ["Plafon margin",fmtPct(m.D),"batas maksimum struktural","p"]
+  ].map(function(s){return'<div class="kpi"><div class="k">'+s[0]+'</div><div class="v '+s[3]+'">'+s[1]+'</div><div class="s">'+s[2]+'</div></div>'}).join("");
+
+  renderWaterfall(i,m,T);renderScen(i,m);renderSens(i,T);
+}
+
+var FLAT='<span class="flat">flat</span>';
+function renderWaterfall(i,m,T){
+  var tb=$("waterfall"),P=toP(i,T),settle=(1-i.r)*T,rows=[];
+  rows.push({t:"Harga tayang",v:P,type:"base",c:"var(--mus-ink)"});
+  if(i.d>0||i.vRp>0){
+    rows.push({t:"Diskon toko &amp; voucher <span class='mut'>(dari harga tayang)</span>",
+      v:-(P-T),c:"var(--warn)",pct:both(i.d,i.vRp)});
+    rows.push({t:"Harga transaksi (dibayar pembeli)",v:T,type:"sum"});
+  }
+  if(i.r>0)rows.push({t:"Omzet batal karena retur ("+fmtPct(i.r)+")",v:-(i.r*T),c:"#7c4bc0"});
+  /* fee yang hanya kena pada order sukses; bersatuan Rp ikut dikalikan (1−retur) */
+  [["Biaya admin &amp; layanan",i.admin,"#2f6fd0"],
+   ["Gratis ongkir (subsidi seller)",i.go,"#12806a"],
+   ["Affiliate / KOL",i.aff,"#7c4bc0"],
+   ["Fee COD",i.cod,"#737b8c"],
+   ["Program / fulfillment",i.prog,"#737b8c"]].forEach(function(f){
+     if(f[1].p>0)rows.push({t:f[0],v:-f[1].p*settle,c:f[2]});
+     if(f[1].r>0)rows.push({t:f[0]+" "+FLAT,v:-f[1].r*(1-i.r),c:f[2]});
+   });
+  [["PPh Pasal 22",i.pph,"var(--crit)"],["PPN",i.ppn,"var(--crit)"]]
+    .forEach(function(f){if(f[1]>0)rows.push({t:f[0],v:-f[1]*settle,c:f[2]})});
+  i.cus.forEach(function(c){if(c.unit==="pct")rows.push({t:c.name,v:-(c.v/100)*settle,c:"#737b8c"})});
+  if(i.adsPct>0)rows.push({t:"Ads marketplace <span class='mut'>(semua order)</span>",v:-i.adsPct*T,c:"var(--crit)"});
+  if(i.adsRp>0)rows.push({t:"Ads marketplace "+FLAT+" <span class='mut'>(semua order)</span>",v:-i.adsRp,c:"var(--crit)"});
+  if(i.ongkir>0)rows.push({t:"Ongkir ditanggung seller",v:-i.ongkir*(1+i.r),c:"#12806a"});
+  if(i.asuransi>0)rows.push({t:"Asuransi pengiriman",v:-i.asuransi,c:"#12806a"});
+  if(i.packing>0)rows.push({t:"Packing &amp; material",v:-i.packing,c:"var(--warn)"});
+  if(i.cs>0)rows.push({t:"CS / admin per order",v:-i.cs,c:"var(--warn)"});
+  i.cus.forEach(function(c){if(c.unit==="rp")rows.push({t:c.name,v:-c.v,c:"#737b8c"})});
+  if(i.hpp>0)rows.push({t:"HPP efektif"+(i.r>0&&i.rec>0?" <span class='mut'>(retur "+fmtPct(i.rec,0)+" layak jual)</span>":""),
+    v:-i.hpp*(1-i.r*i.rec),c:"var(--good)"});
+
+  var profit=T*m.D-m.K;
+
+  /* Nilai yang ditampilkan diturunkan dari selisih saldo berjalan yang sudah
+     dibulatkan, bukan dari pembulatan tiap baris sendiri-sendiri. Tanpa ini,
+     galat pembulatan menumpuk dan kolomnya tidak bertemu saat dijumlahkan. */
+  var run=P, prev=Math.round(P);
+  rows.forEach(function(r){
+    if(r.type==="base"){r.disp=Math.round(P);return}
+    if(r.type==="sum"){r.disp=Math.round(run);prev=r.disp;return}
+    run+=r.v;
+    var cur=Math.round(run);
+    r.disp=cur-prev; prev=cur;
+  });
+
+  var mx=Math.abs(profit)||1;
+  rows.forEach(function(r){if(r.type!=="base"&&r.type!=="sum")mx=Math.max(mx,Math.abs(r.disp))});
+
+  tb.innerHTML=rows.map(function(r){
+    var bw=(r.type==="base"||r.type==="sum")?0:Math.abs(r.disp)/mx*100;
+    var pct=r.pct!==undefined?r.pct:((r.type==="base"||r.type==="sum")?"":fmtPct(Math.abs(r.v)/T));
+    return'<tr class="'+(r.type==="sum"?"sum":"")+'"><td><span class="sw3" style="background:'+(r.c||"var(--line2)")+'"></span>'+r.t+'</td>'+
+      '<td class="pc">'+pct+'</td><td class="'+(r.disp<0?"neg":"")+'">'+fmtRp(r.disp)+'</td>'+
+      '<td class="barc">'+(bw?'<span class="bar" style="width:'+bw+'%;background:'+(r.c||"var(--line2)")+'"></span>':"")+'</td></tr>';
+  }).join("")+
+  '<tr class="fin"><td><span class="sw3" style="background:'+(profit>=0?"var(--good)":"var(--crit)")+'"></span>Profit bersih</td>'+
+  '<td class="pc">'+fmtPct(profit/T)+'</td><td class="'+(profit<0?"neg":"")+'">'+fmtRp(profit)+'</td>'+
+  '<td class="barc"><span class="bar" style="width:'+(Math.abs(profit)/mx*100)+'%;background:'+(profit>=0?"var(--good)":"var(--crit)")+'"></span></td></tr>';
+}
+
+function renderScen(i,m){
+  $("scen").innerHTML=[0,.05,.10,.15,.20,.25,.30].map(function(mg){
+    var lbl=mg===0?"0% (titik impas)":fmtPct(mg,0);
+    var res=priceFor(m,i,mg);
+    var hl=(mode==="A"&&Math.abs(mg-i.target)<1e-4)?' class="hl"':"";
+    if(!res)return'<tr'+hl+'><td>'+lbl+'</td><td colspan="4" class="mut">tidak tercapai, plafon '+fmtPct(m.D)+'</td></tr>';
+    var pr=profitAt(m,res.T),mk=i.hpp>0?(res.T-i.hpp)/i.hpp:NaN;
+    return'<tr'+hl+'><td>'+lbl+'</td><td>'+fmtRp(roundUp100(res.P))+'</td><td>'+fmtRp(res.T)+'</td>'+
+      '<td class="'+(pr>=0?"g":"r")+'">'+fmtRp(pr)+'</td><td class="mut">'+(isFinite(mk)?fmtPct(mk,0):"—")+'</td></tr>';
+  }).join("");
+}
+
+/* Skenario menyesuaikan satuan tiap komponen: yang persen dinaikkan dalam poin,
+   yang Rupiah dinaikkan dalam nominal. */
+function bump(id,part,frac,step){
+  if(UNIT[id]==="rp"){
+    var add=Math.max(step,Math.round(part.r*frac/500)*500);
+    return{label:"naik "+fmtRp(add)+" (→ "+fmtRp(part.r+add)+")",add:add,rp:true};
+  }
+  return{label:"naik "+(frac*100)+" poin (→ "+fmtPct(part.p+frac)+")",add:frac,rp:false};
+}
+function renderSens(i,T){
+  var base=model(i),bm=profitAt(base,T)/T;
+  var a5=bump("ads",i.ads,.05,5000), a10=bump("ads",i.ads,.10,10000), ad2=bump("admin",i.admin,.02,2000);
+  var oA5=a5.rp?{dAdsRp:a5.add}:{dAdsPct:a5.add};
+  var oA10=a10.rp?{dAdsRp:a10.add}:{dAdsPct:a10.add};
+  var oAd2=ad2.rp?{dSucRp:ad2.add}:{dSucPct:ad2.add};
+  var oBoth={r:i.r+.05};if(a5.rp)oBoth.dAdsRp=a5.add;else oBoth.dAdsPct=a5.add;
+  $("sens").innerHTML=[
+    ["Kondisi sekarang",{}],
+    ["Ads "+a5.label,oA5],
+    ["Ads "+a10.label,oA10],
+    ["Retur naik 5 poin (→ "+fmtPct(i.r+.05)+")",{r:i.r+.05}],
+    ["Retur naik 10 poin (→ "+fmtPct(i.r+.10)+")",{r:i.r+.10}],
+    ["Fee admin "+ad2.label,oAd2],
+    ["Ads dan retur memburuk bersamaan",oBoth]
+  ].map(function(c,x){
+    var mm=model(i,c[1]),p=profitAt(mm,T),mg=p/T,dl=mg-bm;
+    return'<tr'+(x===0?' class="hl"':"")+'><td>'+c[0]+'</td>'+
+      '<td class="'+(mg<0?"r":(mg>=.15?"g":""))+'">'+fmtPct(mg)+'</td>'+
+      '<td class="'+(p<0?"r":"")+'">'+fmtRp(p)+'</td>'+
+      '<td class="mut">'+(x===0?"—":(dl>=0?"+":"−")+fmtPct(Math.abs(dl)))+'</td></tr>';
+  }).join("");
+}
+
+/* ---- profil ---- */
+var FIELDS=["nama","hpp","target","harga","admin","gratisOngkir","ads","affiliate","cod","program",
+  "pph","ppn","diskon","voucher","ongkir","asuransi","packing","cs","retur","recovery"];
+var KEY="musawara.kalkHarga.v2";
+function loadStore(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return{}}}
+function saveStore(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){alert("Gagal menyimpan. Penyimpanan browser penuh atau diblokir.")}}
+function refreshProfiles(sel){
+  var s=loadStore(),n=Object.keys(s).sort();
+  $("profileSel").innerHTML='<option value="">Pilih profil tersimpan</option>'+
+    n.map(function(x){return'<option value="'+x.replace(/"/g,"&quot;")+'">'+x+'</option>'}).join("");
+  if(sel)$("profileSel").value=sel;
+}
+$("saveProfile").addEventListener("click",function(){
+  var def=$("nama").value.trim()||"Profil "+(Object.keys(loadStore()).length+1);
+  var name=prompt("Simpan sebagai:",def);if(!name)return;
+  var snap={mode:mode,pphOn:$("pphOn").checked,ppnOn:$("ppnOn").checked,custom:[],unit:{}};
+  DUAL.forEach(function(k){snap.unit[k]=UNIT[k]});
+  FIELDS.forEach(function(f){snap[f]=$(f).value});
+  Array.prototype.forEach.call($("customRows").children,function(d){
+    snap.custom.push([d.children[0].value,d.children[1].value,d.children[2].value])});
+  var s=loadStore();s[name]=snap;saveStore(s);refreshProfiles(name);
+});
+$("delProfile").addEventListener("click",function(){
+  var n=$("profileSel").value;if(!n)return;
+  if(!confirm('Hapus profil "'+n+'"?'))return;
+  var s=loadStore();delete s[n];saveStore(s);refreshProfiles();
+});
+$("profileSel").addEventListener("change",function(){
+  var s=loadStore()[this.value];if(!s)return;
+  DUAL.forEach(function(k){setUnit(k,(s.unit&&s.unit[k])||"pct")});
+  FIELDS.forEach(function(f){if(s[f]!==undefined)$(f).value=s[f]});
+  $("pphOn").checked=!!s.pphOn;$("ppnOn").checked=!!s.ppnOn;
+  $("customRows").innerHTML="";(s.custom||[]).forEach(function(c){addCustomRow(c[0],c[1],c[2])});
+  if(s.mode&&s.mode!==mode)document.querySelector('.mode[data-mode="'+s.mode+'"]').click();else run();
+});
+
+/* ---- misc ---- */
+$("printBtn").addEventListener("click",function(){window.print()});
+$("resetBtn").addEventListener("click",function(){if(confirm("Kembalikan semua isian ke angka awal?"))location.reload()});
+$("dockBtn").addEventListener("click",function(){$("out").scrollIntoView({behavior:"smooth",block:"start"})});
+
+/* ---- pengalih satuan % ⇄ Rp ---- */
+function setUnit(id,u,convert){
+  var el=$(id), btn=document.querySelector('.ub[data-for="'+id+'"]');
+  if(!el||!btn||UNIT[id]===u&&!convert)  {UNIT[id]=u;btn.dataset.unit=u;btn.textContent=u==="rp"?"Rp":"%";
+    btn.title=u==="rp"?"Klik untuk ganti satuan ke persen":"Klik untuk ganti satuan ke Rupiah";return}
+  var prev=UNIT[id];
+  UNIT[id]=u;
+  btn.dataset.unit=u;
+  btn.textContent=u==="rp"?"Rp":"%";
+  btn.title=u==="rp"?"Klik untuk ganti satuan ke persen":"Klik untuk ganti satuan ke Rupiah";
+  el.classList.toggle("rp",u==="rp");
+  if(convert&&prev!==u){
+    /* diskon dan voucher memotong harga tayang; sisanya dihitung dari harga transaksi */
+    var basis=(id==="diskon"||id==="voucher")?lastP:lastT;
+    if(basis>0){
+      if(u==="rp"){
+        var frac=parseFloat(String(el.value).replace(",","."))||0;
+        el.value=Math.round(frac/100*basis).toLocaleString("id-ID");
+      }else{
+        var rp=parseInt(String(el.value).replace(/\D/g,""),10)||0;
+        el.value=String(+(rp/basis*100).toFixed(2)).replace(".",",");
+      }
+    }else el.value="";
+  }
+}
+document.querySelectorAll(".ub").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    var id=btn.dataset.for;
+    setUnit(id,UNIT[id]==="rp"?"pct":"rp",true);
+    run();
+  });
+});
+
+/* input bersatuan ganda: masking rupiah hanya saat mode Rp */
+document.querySelectorAll("input.num").forEach(function(el){
+  el.addEventListener("input",function(){
+    if(UNIT[el.id]==="rp"){
+      var raw=el.value.replace(/\D/g,"");
+      el.value=raw?parseInt(raw,10).toLocaleString("id-ID"):"";
+    }else{
+      el.value=el.value.replace(/[^\d.,]/g,"");
+    }
+    run();
+  });
+});
+
+document.querySelectorAll("input.rp").forEach(bindRp);
+document.querySelectorAll("input[type=number],input[type=checkbox]").forEach(function(el){
+  el.addEventListener("input",run);el.addEventListener("change",run)});
+
+$("presetNote").textContent=PRESETS.infografis.note;
+DUAL.forEach(function(k){setUnit(k,"pct")});
+refreshProfiles();run();
+})();
+</script>
+</body>
+</html>
