@@ -9,8 +9,17 @@ import { getCaseStudies, getCaseStudy } from '@/lib/content'
 // Next 16: params is a Promise in pages, layouts, and metadata.
 type Props = { params: Promise<{ slug: string }> }
 
+/**
+ * Static export needs at least one param or the build fails with
+ * `missing "generateStaticParams()"`. When Supabase is unconfigured the content
+ * layer returns nothing, so fall back to the three known brand slugs — those
+ * pages then render the "being prepared" state below rather than 404ing.
+ */
+const FALLBACK_SLUGS = ['musafar', 'nuralive', 'musaland']
+
 export async function generateStaticParams() {
   const studies = await getCaseStudies()
+  if (studies.length === 0) return FALLBACK_SLUGS.map((slug) => ({ slug }))
   return studies.map((study) => ({ slug: study.slug }))
 }
 
@@ -27,7 +36,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CaseStudyPage({ params }: Props) {
   const { slug } = await params
   const study = await getCaseStudy(slug)
-  if (!study) notFound()
+
+  // A known brand whose case study is not published yet says so. An unknown
+  // slug is a genuine 404.
+  if (!study) {
+    if (!FALLBACK_SLUGS.includes(slug)) notFound()
+    return (
+      <Container className="py-24">
+        <Link href="/work" className="u-label text-ink-45 no-underline hover:text-purple">
+          ← Karya
+        </Link>
+        <h1 className="mt-8 text-h1">Studi kasus sedang disiapkan.</h1>
+        <p className="mt-5 max-w-[48ch] text-ink-60">
+          Halaman ini akan terbit setelah isinya selesai ditinjau.
+        </p>
+      </Container>
+    )
+  }
 
   return (
     <article>

@@ -12,7 +12,7 @@ schema here is shaped so those tables hang off `clients` without a rewrite.
 ## Stack
 
 Next.js 16 (App Router, Turbopack) · React 19 · Tailwind 4 · Supabase (Postgres)
-· deployed on Vercel.
+· **static export deployed to Cloudflare Pages**.
 
 > Next 16 has breaking changes against older App Router habits: `params` and
 > `searchParams` are Promises, Turbopack is the default bundler, and `middleware`
@@ -25,14 +25,60 @@ Next.js 16 (App Router, Turbopack) · React 19 · Tailwind 4 · Supabase (Postgr
 npm install && npm run dev
 ```
 
-Without Supabase credentials the site serves a **development fixture**
-(`src/lib/fixtures.ts`) so it runs out of the box. The fixture contains
-unverified figures and invented salary ranges. `src/lib/content.ts` refuses to
-serve it on any Vercel `production` or `preview` deployment and fails the build
-instead.
+Without Supabase credentials `npm run dev` serves a **development fixture**
+(`src/lib/fixtures.ts`) so the site runs out of the box. The fixture contains
+unverified figures and invented salary ranges, and is only ever served in
+development: `src/lib/content.ts` keys on `NODE_ENV`, so any production build
+serves empty content instead. Pages fall back to their empty states rather than
+failing the build, which keeps genuinely static routes — notably the price
+calculator — deployable with no database at all.
 
 To run against a real database, copy `.env.example` to `.env.local` and fill it
 in.
+
+## Deploying (Cloudflare Pages)
+
+The site builds to a static export in `out/`. Connect the GitHub repo in
+Cloudflare Pages with:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Output directory | `out` |
+| Node version | 20 or newer |
+
+Environment variables (Settings → Environment variables). All are optional —
+without them the site still deploys, pages render their empty states, and the
+careers form reports honestly that it is not connected:
+
+```
+NEXT_PUBLIC_SUPABASE_URL       # read at build time to prerender content,
+NEXT_PUBLIC_SUPABASE_ANON_KEY  # and at runtime by the careers endpoint
+NEXT_PUBLIC_SITE_URL           # https://musawara.id
+RESEND_API_KEY                 # optional: careers email notifications
+CAREERS_NOTIFY_FROM
+CAREERS_NOTIFY_TO
+```
+
+Content is prerendered at build time, so **publishing a change in Supabase
+requires a redeploy**. Trigger one from the Pages dashboard, or add a Deploy
+Hook and call it after editing content.
+
+### What static export costs
+
+`output: 'export'` rules out Server Actions, rewrites, redirects, headers, ISR,
+and the default `next/image` loader. Concretely:
+
+- The careers form posts to a Cloudflare Pages Function
+  (`functions/api/apply.ts`) rather than a Server Action.
+- `/nuralive/price-calculator` resolves because Cloudflare Pages serves a
+  directory index; there is no rewrite. Verified against a directory-index
+  static server, not against Cloudflare itself — confirm on first deploy.
+- `/work/[slug]` falls back to the three known brand slugs when the database is
+  empty, because static export fails outright on a dynamic route with no params.
+
+Moving to `@opennextjs/cloudflare` on Workers would restore all of it, and will
+probably be necessary for the Phase 2 admin dashboard, which needs auth and SSR.
 
 ## Database
 
@@ -77,8 +123,9 @@ Everything below is unconfirmed and will ship wrong if not corrected.
 - [ ] **Company contact details** in `src/lib/company.ts` — office address, email, and WhatsApp number are placeholders marked `NEEDS CONFIRMATION`.
 - [ ] **Salary ranges** on both seeded roles.
 - [ ] **Editorial pass on all Bahasa copy.** Case studies, services, and about-page copy are drafts written from the spec, not from interviews.
-- [ ] **Domain**, and `NEXT_PUBLIC_SITE_URL` to match.
+- [ ] **Domain** is musawara.id; set `NEXT_PUBLIC_SITE_URL` to match.
 - [ ] Resend credentials, or careers notifications silently no-op (applications still save).
+- [ ] Confirm the contact email domain — the Google Workspace account is on `musawaracreative.com`, not `musawara.id`.
 
 ## Design system
 
@@ -121,5 +168,11 @@ under `prefers-reduced-motion`.
 
 ## Verified
 
-First load 223 KB (1 MB budget) · 11 static pages · no console errors · no
-horizontal scroll at 375px · typecheck and production build clean.
+First load 223 KB (1 MB budget) · no console errors · no horizontal scroll at
+375px · typecheck clean for both the app and `functions/` · static export builds
+and every route resolves under directory-index serving, including
+`/nuralive/price-calculator`.
+
+Not verified: the migration SQL has never been executed against a real Postgres
+(no Docker on the build machine), and nothing has been deployed to Cloudflare
+yet.

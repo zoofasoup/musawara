@@ -1,29 +1,20 @@
 'use client'
 
-import { useActionState, useId } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useId, useState } from 'react'
 
-import { submitApplication, type ApplyState } from '@/app/careers/actions'
 import type { JobOpening } from '@/lib/types'
 
-const INITIAL: ApplyState = { status: 'idle' }
+type FieldName = 'full_name' | 'email' | 'whatsapp' | 'portfolio_url'
+
+type ApplyState = {
+  status: 'idle' | 'sending' | 'success' | 'error'
+  message?: string
+  fieldErrors?: Partial<Record<FieldName, string>>
+}
 
 const inputClass =
   'mt-1.5 w-full border border-rule bg-transparent px-3 py-2.5 text-body ' +
   'outline-none transition-colors focus:border-purple'
-
-function Submit() {
-  const { pending } = useFormStatus()
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="mt-2 bg-ink px-6 py-3 text-small font-semibold text-paper transition-opacity hover:opacity-85 disabled:opacity-50"
-    >
-      {pending ? 'Mengirim…' : 'Kirim lamaran'}
-    </button>
-  )
-}
 
 function Field({
   id,
@@ -96,8 +87,46 @@ function Field({
 }
 
 export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
-  const [state, action] = useActionState(submitApplication, INITIAL)
+  const [state, setState] = useState<ApplyState>({ status: 'idle' })
   const uid = useId()
+
+  /*
+   * Posts to a Cloudflare Pages Function rather than a Server Action: the site
+   * is a static export, so Server Actions do not exist. See functions/api/apply.ts.
+   */
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    setState({ status: 'sending' })
+
+    try {
+      const response = await fetch('/api/apply', {
+        method: 'POST',
+        body: new FormData(form),
+      })
+      const result = (await response.json()) as {
+        ok: boolean
+        message?: string
+        fieldErrors?: Partial<Record<FieldName, string>>
+      }
+
+      if (result.ok) {
+        setState({ status: 'success', message: result.message })
+        form.reset()
+      } else {
+        setState({
+          status: 'error',
+          message: result.message ?? 'Lamaran gagal terkirim.',
+          fieldErrors: result.fieldErrors,
+        })
+      }
+    } catch {
+      setState({
+        status: 'error',
+        message: 'Tidak dapat terhubung. Periksa koneksi lalu coba lagi.',
+      })
+    }
+  }
 
   if (state.status === 'success') {
     return (
@@ -111,7 +140,7 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
   }
 
   return (
-    <form action={action} className="max-w-[38rem] space-y-6">
+    <form onSubmit={onSubmit} className="max-w-[38rem] space-y-6">
       {state.status === 'error' && state.message ? (
         <p role="alert" className="border-l-2 border-purple pl-4 text-small">
           {state.message}
@@ -187,7 +216,13 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
         <input id={`${uid}-cw`} name="company_website" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <Submit />
+      <button
+        type="submit"
+        disabled={state.status === 'sending'}
+        className="mt-2 bg-ink px-6 py-3 text-small font-semibold text-paper transition-opacity hover:opacity-85 disabled:opacity-50"
+      >
+        {state.status === 'sending' ? 'Mengirim…' : 'Kirim lamaran'}
+      </button>
     </form>
   )
 }

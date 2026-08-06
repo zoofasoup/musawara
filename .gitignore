@@ -14,3 +14,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# static export output
+out/
