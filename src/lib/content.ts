@@ -31,14 +31,14 @@ type ContentMode = 'live' | 'fixtures' | 'empty'
 function contentMode(): ContentMode {
   if (isSupabaseConfigured) return 'live'
 
-  // VERCEL_ENV is 'production' or 'preview' on any Vercel deploy, and undefined
-  // locally — so `next build` run locally to check the bundle still gets the
-  // fixture, while a real deployment never does.
-  const deployment = process.env.VERCEL_ENV
-  if (deployment === 'production' || deployment === 'preview') {
+  // Deliberately NOT keyed on a hosting provider's env var. An earlier version
+  // checked VERCEL_ENV, which is never set on Cloudflare — so the guard was
+  // dead and the unverified fixture figures would have shipped to the live
+  // domain. NODE_ENV is set to 'production' by `next build` everywhere.
+  if (process.env.NODE_ENV === 'production') {
     console.warn(
-      `[content] Supabase not configured on a ${deployment} deployment. ` +
-        'Serving empty content — fixtures are never published.',
+      '[content] Supabase not configured in a production build. Serving ' +
+        'empty content — fixtures are never published.',
     )
     return 'empty'
   }
