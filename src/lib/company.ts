@@ -14,8 +14,10 @@ export const COMPANY = {
   // NEEDS CONFIRMATION — full street address, district, postcode.
   addressLines: ['Bekasi, Jawa Barat', 'Alamat lengkap menyusul'],
 
-  // NEEDS CONFIRMATION — official contact address.
-  email: 'halo@musawara.co.id',
+  // NEEDS CONFIRMATION — official contact address. Domain is musawara.id per
+  // the owner; note the Google Workspace account is on musawaracreative.com,
+  // so this may need to be an address there instead.
+  email: 'halo@musawara.id',
 
   // NEEDS CONFIRMATION — company WhatsApp number in international format.
   whatsappNumber: '',

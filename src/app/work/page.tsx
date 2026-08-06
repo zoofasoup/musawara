@@ -23,6 +23,12 @@ export default async function WorkPage() {
       />
 
       <Container className="py-6">
+        {studies.length === 0 ? (
+          <p className="max-w-[48ch] py-16 text-ink-60">
+            Studi kasus sedang disiapkan dan akan terbit di sini.
+          </p>
+        ) : null}
+
         <ul>
           {studies.map((study) => (
             <li key={study.id} className="border-b border-rule">

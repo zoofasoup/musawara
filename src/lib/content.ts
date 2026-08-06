@@ -12,33 +12,50 @@ import type { CaseStudy, JobOpening, LedgerRow } from './types'
  * shipping placeholder figures to a real domain is the exact failure this
  * project is trying to prevent.
  */
-function useFixtures(): boolean {
-  if (isSupabaseConfigured) return false
+type ContentMode = 'live' | 'fixtures' | 'empty'
 
-  // The signal that matters is "is this a real deployment", not "is this a
-  // production build" — `next build` run locally to check the bundle is not a
-  // deployment. VERCEL_ENV is set to 'production' or 'preview' on any Vercel
-  // deploy and is undefined locally.
+/**
+ * Decides where content comes from.
+ *
+ *   live     — Supabase is configured; read from it.
+ *   fixtures — local development without credentials; serve the dev fixture.
+ *   empty    — a real deployment without credentials; serve nothing.
+ *
+ * The 'empty' case matters: an earlier version threw here, which meant a
+ * deployment without Supabase failed the whole build. That also took down
+ * genuinely static routes that need no database at all — notably the NurAlive
+ * price calculator in public/. Refusing to publish unverified fixtures does not
+ * require refusing to publish the site, so content-backed pages fall back to
+ * their empty states and everything else deploys normally.
+ */
+function contentMode(): ContentMode {
+  if (isSupabaseConfigured) return 'live'
+
+  // VERCEL_ENV is 'production' or 'preview' on any Vercel deploy, and undefined
+  // locally — so `next build` run locally to check the bundle still gets the
+  // fixture, while a real deployment never does.
   const deployment = process.env.VERCEL_ENV
   if (deployment === 'production' || deployment === 'preview') {
-    throw new Error(
-      `Supabase is not configured on a ${deployment} deployment. Refusing to ` +
-        'serve development fixture content. Set NEXT_PUBLIC_SUPABASE_URL and ' +
-        'NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+    console.warn(
+      `[content] Supabase not configured on a ${deployment} deployment. ` +
+        'Serving empty content — fixtures are never published.',
     )
+    return 'empty'
   }
 
   console.warn(
     '[content] Supabase not configured — serving development fixtures. ' +
       'These contain UNVERIFIED figures and must never reach a real domain.',
   )
-  return true
+  return 'fixtures'
 }
 
 const CLIENT_FIELDS = 'name, slug, category'
 
 export async function getLedger(): Promise<LedgerRow[]> {
-  if (useFixtures()) return fixtureLedger
+  const mode = contentMode()
+  if (mode === 'empty') return []
+  if (mode === 'fixtures') return fixtureLedger
 
   const { data, error } = await getSupabase()
     .from('ledger_entries')
@@ -53,7 +70,9 @@ export async function getLedger(): Promise<LedgerRow[]> {
 }
 
 export async function getCaseStudies(): Promise<CaseStudy[]> {
-  if (useFixtures()) return fixtureCaseStudies
+  const mode = contentMode()
+  if (mode === 'empty') return []
+  if (mode === 'fixtures') return fixtureCaseStudies
 
   const { data, error } = await getSupabase()
     .from('case_studies')
@@ -68,7 +87,9 @@ export async function getCaseStudies(): Promise<CaseStudy[]> {
 }
 
 export async function getCaseStudy(slug: string): Promise<CaseStudy | null> {
-  if (useFixtures()) {
+  const mode = contentMode()
+  if (mode === 'empty') return null
+  if (mode === 'fixtures') {
     return fixtureCaseStudies.find((entry) => entry.slug === slug) ?? null
   }
 
@@ -86,7 +107,9 @@ export async function getCaseStudy(slug: string): Promise<CaseStudy | null> {
 }
 
 export async function getJobOpenings(): Promise<JobOpening[]> {
-  if (useFixtures()) return fixtureJobs
+  const mode = contentMode()
+  if (mode === 'empty') return []
+  if (mode === 'fixtures') return fixtureJobs
 
   const { data, error } = await getSupabase()
     .from('job_openings')
