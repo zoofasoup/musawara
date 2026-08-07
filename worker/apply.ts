@@ -1,16 +1,16 @@
 /**
- * Cloudflare Pages Function — careers application endpoint.
+ * Careers application endpoint, routed from worker/index.ts.
  *
- * The site is a static export, so there are no Server Actions. Cloudflare Pages
- * serves anything under functions/ as an endpoint alongside the static assets,
- * which is how POST /api/apply works.
+ * The site is a Next.js static export, so there are no Server Actions. This
+ * runs on the assets Worker, which wrangler.jsonc limits to /api/* via
+ * run_worker_first so ordinary page loads never invoke it.
  *
- * Set these in Cloudflare Pages → Settings → Environment variables:
+ * Set these as Worker secrets/vars:
  *   SUPABASE_URL, SUPABASE_ANON_KEY   (required to store applications)
  *   RESEND_API_KEY, CAREERS_NOTIFY_FROM, CAREERS_NOTIFY_TO  (optional email)
  */
 
-type Env = {
+export type Env = {
   SUPABASE_URL?: string
   SUPABASE_ANON_KEY?: string
   // The build reads these to prerender content; accepted here too so the same
@@ -39,7 +39,7 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export async function handleApply(request: Request, env: Env): Promise<Response> {
   let form: FormData
   try {
     form = await request.formData()

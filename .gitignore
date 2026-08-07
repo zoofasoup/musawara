@@ -7,13 +7,11 @@ build/
 # env
 .env
 .env*.local
+.dev.vars
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# vercel
-.vercel
-
-# static export output
-out/
+# cloudflare
+.wrangler/

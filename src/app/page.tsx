@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 import { Container } from '@/components/Container'
 import { Logo } from '@/components/Logo'
 import { COMPANY } from '@/lib/company'
@@ -31,14 +29,9 @@ export default function HomePage() {
           <a href={`mailto:${COMPANY.email}`} className="u-label">
             {COMPANY.email}
           </a>
-          {COMPANY.whatsappNumber ? (
-            <a href={COMPANY.whatsappUrl} rel="noopener" className="u-label">
-              WhatsApp
-            </a>
-          ) : null}
-          <Link href="/careers" className="u-label">
-            Karier →
-          </Link>
+          <a href={COMPANY.whatsappUrl} rel="noopener" className="u-label">
+            {COMPANY.whatsappDisplay}
+          </a>
         </div>
       </Container>
     </section>

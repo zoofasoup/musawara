@@ -36,8 +36,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "functions",
     "node_modules",
-    "out"
+    "out",
+    "worker"
   ]
 }

@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import { TASA_Explorer, TASA_Orbiter } from 'next/font/google'
 
-import { SiteFooter } from '@/components/SiteFooter'
-import { SiteHeader } from '@/components/SiteHeader'
-
 import './globals.css'
 
 // Brand direction permits these two families and nothing else.
@@ -50,19 +47,9 @@ export default function RootLayout({
       lang="id"
       className={`${orbiter.variable} ${explorer.variable}`}
     >
-      <body className="flex min-h-screen flex-col">
-        <a
-          href="#konten"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
-        >
-          Lompat ke konten
-        </a>
-        <SiteHeader />
-        <main id="konten" className="flex-1">
-          {children}
-        </main>
-        <SiteFooter />
-      </body>
+      {/* Header, nav, and footer live in the (site) route group, not here —
+          the holding page at / has none of them. */}
+      <body className="flex min-h-screen flex-col">{children}</body>
     </html>
   )
 }

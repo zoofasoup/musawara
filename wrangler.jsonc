@@ -1,0 +1,26 @@
+{
+  // musawara.id — Worker aset statis.
+  //
+  // "directory" menunjuk ke ./out, bukan ./public: situs ini Next.js static
+  // export, jadi yang dilayani adalah hasil build. Isi ./public tetap ikut
+  // tersalin ke ./out saat build, termasuk kalkulator dan logo.
+  //
+  // "main" dipakai hanya untuk /api/*. Karena "run_worker_first" dibatasi ke
+  // /api/*, permintaan halaman biasa tetap dilayani langsung dari aset tanpa
+  // menjalankan kode Worker, jadi tidak terhitung sebagai invokasi.
+  "name": "musawara-web",
+  "compatibility_date": "2026-08-01",
+  "main": "worker/index.ts",
+
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    // "auto-trailing-slash" membuat /nuralive/price-calculator dilayani dari
+    // /nuralive/price-calculator/index.html tanpa perlu menulis .html di URL.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+
+  "observability": { "enabled": true }
+}

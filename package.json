@@ -1,13 +1,16 @@
 {
-  "name": "musawara",
+  "name": "musawara-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit && tsc --noEmit -p functions/tsconfig.json",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
@@ -26,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.118.0"
   }
 }
