@@ -114,9 +114,14 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           <div className="mr-auto h-10 w-48 skeleton" />
         )}
         {!share && user?.role === "admin" && (
-          <Link to={`/c/${clientId}/brand`} className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
-            Brand knowledge
-          </Link>
+          <div className="flex gap-2">
+            <Link to={`/c/${clientId}/brand`} className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
+              Brand knowledge
+            </Link>
+            <Link to={`/c/${clientId}/onboarding`} className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
+              Onboarding
+            </Link>
+          </div>
         )}
         <DateRangePicker value={range} onChange={setRange} />
       </div>
