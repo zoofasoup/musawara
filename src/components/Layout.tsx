@@ -33,6 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     user?.role === "admin"
       ? [
           { to: "/", label: "Overview" },
+          { to: "/board", label: "Board" },
           { to: "/settings", label: "Settings" },
         ]
       : user?.client_id

@@ -12,6 +12,7 @@ import { ShareView } from "./pages/ShareView";
 import { AdminSettings } from "./pages/AdminSettings";
 import { BrandKnowledge } from "./pages/BrandKnowledge";
 import { Onboarding } from "./pages/Onboarding";
+import { Board } from "./pages/Board";
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, ready } = useAuth();
@@ -92,6 +93,15 @@ export function App() {
           element={
             <ProtectedRoute requireAdmin>
               <ClientRoute page={Onboarding} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/board"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Board />
             </ProtectedRoute>
           }
         />
