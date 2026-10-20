@@ -5,7 +5,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
       <span className="text-[15px] font-bold tracking-tight text-ink">musawara</span>
-      {!compact && <span className="hidden text-[11px] font-medium uppercase tracking-widest text-musawara sm:inline">ads intelligence</span>}
+      {!compact && <span className="text-[11px] font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
     </span>
   );
 }
@@ -49,7 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
           <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="shrink-0">
-            <Wordmark />
+            <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
           <nav className="flex items-center gap-1">
             {links.map((l) => (
