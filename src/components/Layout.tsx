@@ -47,25 +47,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-4">
           <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="shrink-0">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center sm:gap-1">
             {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
                 end={l.to === "/" || l.to === `/c/${user?.client_id}`}
                 className={({ isActive }) =>
-                  `rounded-lg px-2.5 py-1.5 text-[13px] font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
+                  `whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
                 }
               >
                 {l.label}
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <span className="hidden text-xs text-muted sm:inline">
               {user?.name}
               {client ? ` · ${client.name}` : ""}
@@ -75,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 await logout();
                 navigate("/login");
               }}
-              className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink"
+              className="whitespace-nowrap rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
             >
               Sign out
             </button>
