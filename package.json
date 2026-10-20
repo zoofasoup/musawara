@@ -9,8 +9,8 @@
     "check": "tsc --noEmit",
     "start": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
-    "db:migrate:local": "wrangler d1 execute musawara-ads --local --file=migrations/0001_init.sql && wrangler d1 execute musawara-ads --local --file=migrations/0002_brand_knowledge.sql",
-    "db:migrate:remote": "wrangler d1 execute musawara-ads --remote --file=migrations/0001_init.sql && wrangler d1 execute musawara-ads --remote --file=migrations/0002_brand_knowledge.sql",
+    "db:migrate:local": "wrangler d1 migrations apply musawara-ads --local",
+    "db:migrate:remote": "wrangler d1 migrations apply musawara-ads --remote",
     "db:seed:local": "node scripts/generate-seed.mjs .seed.sql && wrangler d1 execute musawara-ads --local --file=.seed.sql"
   },
   "dependencies": {
