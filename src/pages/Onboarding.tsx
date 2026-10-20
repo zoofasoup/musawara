@@ -11,10 +11,10 @@ type State = {
   brand: { filled: number; total: number };
 };
 
-const btn = "rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
+const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 export function Onboarding({ clientId }: { clientId: number }) {
-  const { data, error, loading, reload } = useApi<State>(`/admin/clients/${clientId}/onboarding`);
+  const { data, error, reload } = useApi<State>(`/admin/clients/${clientId}/onboarding`);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string>();
 
@@ -32,7 +32,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
   }
 
   if (error) return <ErrorState message={error} onRetry={reload} />;
-  if (loading || !data) return <CardSkeleton lines={6} />;
+  if (!data) return <CardSkeleton lines={6} />;
 
   const done = data.items.filter((i) => i.done).length;
 
@@ -76,11 +76,11 @@ export function Onboarding({ clientId }: { clientId: number }) {
 
       <p className="text-sm text-ink2">
         Brand knowledge: <span className="tnum">{data.brand.filled} of {data.brand.total}</span> sections filled.{" "}
-        <Link to={`/c/${clientId}/brand`} className="text-musawara underline-offset-2 hover:underline">
+        <Link to={`/c/${clientId}/brand`} className="text-ink underline underline-offset-2">
           Open brand knowledge
         </Link>
       </p>
-      {actionError && <p className="text-xs text-crit">{actionError}</p>}
+      {actionError && <p role="alert" className="text-xs text-crit">{actionError}</p>}
     </div>
   );
 }

@@ -14,8 +14,8 @@ const COLUMNS = [
   { key: "done", label: "Done" },
 ];
 
-const field = "min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink";
-const btn = "rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
+const field = "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink";
+const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 function today() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -77,17 +77,17 @@ export function Board() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="New task" className={`${field} flex-[2]`} />
-        <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee" className={`${field} flex-1`} />
+        <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="New task" aria-label="Task title" className={`${field} w-full sm:w-auto sm:flex-[2]`} />
+        <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee" aria-label="Assignee" className={`${field} w-full sm:w-auto sm:flex-1`} />
         <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className={field} aria-label="Due date" />
         <button className={btn}>Add task</button>
       </form>
-      {error && <p className="text-xs text-crit">{error}</p>}
+      {error && <p role="alert" className="text-xs text-crit">{error}</p>}
 
-      {tasks.loading ? (
+      {tasks.loading && !tasks.data ? (
         <CardSkeleton lines={5} />
       ) : list.length === 0 ? (
-        <EmptyState title="No tasks yet" hint="Add the first one above." />
+        <EmptyState title={clientFilter ? "No tasks for this client" : "No tasks yet"} hint={clientFilter ? "Add one above." : "Add the first one above."} />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {COLUMNS.map((col) => {
@@ -99,7 +99,7 @@ export function Board() {
                   {items.map((t) => (
                     <div key={t.id} className="rounded-xl border border-border bg-surface p-3">
                       <p className="text-sm font-medium text-ink">{t.title}</p>
-                      <p className="mt-0.5 text-xs text-muted">
+                      <p className="mt-0.5 text-xs text-ink2">
                         {t.client_name}
                         {t.assignee ? ` · ${t.assignee}` : ""}
                       </p>
@@ -112,14 +112,20 @@ export function Board() {
                         <select
                           value={t.status}
                           onChange={(e) => act(() => api(`/admin/tasks/${t.id}`, { method: "PUT", body: { status: e.target.value } }))}
-                          className={`${field} flex-1 py-1.5 text-xs`}
+                          className={`${field} flex-1 text-xs`}
                           aria-label={`Status of ${t.title}`}
                         >
                           {COLUMNS.map((c) => (
                             <option key={c.key} value={c.key}>{c.label}</option>
                           ))}
                         </select>
-                        <button className="text-xs text-muted hover:text-crit" onClick={() => act(() => api(`/admin/tasks/${t.id}`, { method: "DELETE" }))}>
+                        <button
+                          className="inline-flex min-h-11 items-center px-3 text-xs text-muted hover:text-crit"
+                          onClick={() => {
+                            if (!window.confirm(`Delete "${t.title}"?`)) return;
+                            void act(() => api(`/admin/tasks/${t.id}`, { method: "DELETE" }));
+                          }}
+                        >
                           Delete
                         </button>
                       </div>

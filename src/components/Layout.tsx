@@ -5,7 +5,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
       <span className="text-[15px] font-bold tracking-tight text-ink">musawara</span>
-      {!compact && <span className="text-[11px] font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
+      {!compact && <span className="hidden text-[11px] font-medium uppercase tracking-widest text-musawara sm:inline">ads intelligence</span>}
     </span>
   );
 }

@@ -15,6 +15,12 @@ export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 
 export type TaskInput = { client_id: number; title: string; status: string; assignee: string | null; due_date: string | null };
 
+function isRealDate(d: unknown): d is string {
+  if (typeof d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = new Date(`${d}T00:00:00Z`);
+  return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === d;
+}
+
 /** Validates a task body. `partial` allows omitted fields (PUT); POST requires client_id and title. */
 export function parseTaskInput(body: any, partial: boolean): { error: string } | { value: Partial<TaskInput> } {
   const b = body ?? {};
@@ -33,10 +39,10 @@ export function parseTaskInput(body: any, partial: boolean): { error: string } |
   }
   if (b.assignee !== undefined) {
     if (b.assignee !== null && (typeof b.assignee !== "string" || b.assignee.length > 60)) return { error: "Assignee must be under 60 characters" };
-    out.assignee = b.assignee ? b.assignee.trim() : null;
+    out.assignee = b.assignee ? b.assignee.trim() || null : null;
   }
   if (b.due_date !== undefined) {
-    if (b.due_date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.due_date)) return { error: "Due date must be YYYY-MM-DD" };
+    if (b.due_date !== null && !isRealDate(b.due_date)) return { error: "Due date must be YYYY-MM-DD" };
     out.due_date = b.due_date;
   }
   return { value: out };

@@ -115,10 +115,10 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         )}
         {!share && user?.role === "admin" && (
           <div className="flex gap-2">
-            <Link to={`/c/${clientId}/brand`} className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
+            <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
               Brand knowledge
             </Link>
-            <Link to={`/c/${clientId}/onboarding`} className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
+            <Link to={`/c/${clientId}/onboarding`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
               Onboarding
             </Link>
           </div>
