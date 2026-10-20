@@ -17,6 +17,7 @@ export const SECTIONS: BrandSection[] = [
 ];
 
 export const SECTION_KEYS = new Set(SECTIONS.map((s) => s.key));
+export const SECTION_COUNT = SECTIONS.length;
 
 /** One markdown document with only the filled sections, ready to paste into an AI prompt. */
 export function brandMarkdown(

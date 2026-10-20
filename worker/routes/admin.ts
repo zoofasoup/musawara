@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AdAccountRow, Env, Vars } from "../types";
 import { requireAdmin } from "../middleware";
 import { randomToken } from "../lib/auth";
@@ -7,7 +7,8 @@ import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "..
 import { rederiveResults, syncAccount } from "../lib/sync";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
-import { SECTION_KEYS } from "../lib/brand";
+import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
+import { ONBOARDING_TEMPLATE, parseTaskInput } from "../lib/ops";
 import { addDays, ymdInTz } from "../lib/dates";
 
 const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -178,6 +179,95 @@ admin.delete("/clients/:id/brand-links/:linkId", async (c) => {
   await c.env.DB.prepare("DELETE FROM brand_links WHERE id=? AND client_id=?")
     .bind(c.req.param("linkId"), c.req.param("id"))
     .run();
+  return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------- onboarding
+async function onboardingState(c: Context<{ Bindings: Env; Variables: Vars }>, clientId: string) {
+  const items = await c.env.DB.prepare(
+    "SELECT id, label, done, done_at FROM onboarding_items WHERE client_id=? ORDER BY sort, id"
+  )
+    .bind(clientId)
+    .all();
+  const filled = await c.env.DB.prepare(
+    "SELECT COUNT(*) n FROM brand_knowledge WHERE client_id=? AND TRIM(body) <> ''"
+  )
+    .bind(clientId)
+    .first<{ n: number }>();
+  return { items: items.results, brand: { filled: filled?.n ?? 0, total: SECTION_COUNT } };
+}
+
+admin.get("/clients/:id/onboarding", async (c) => c.json(await onboardingState(c, c.req.param("id"))));
+
+admin.post("/clients/:id/onboarding/start", async (c) => {
+  const id = c.req.param("id");
+  const client = await c.env.DB.prepare("SELECT id FROM clients WHERE id=?").bind(id).first();
+  if (!client) return c.json({ error: "Client not found" }, 404);
+  const existing = await c.env.DB.prepare("SELECT COUNT(*) n FROM onboarding_items WHERE client_id=?").bind(id).first<{ n: number }>();
+  if (!existing?.n) {
+    await c.env.DB.batch(
+      ONBOARDING_TEMPLATE.map((label, i) =>
+        c.env.DB.prepare("INSERT INTO onboarding_items (client_id, label, sort) VALUES (?,?,?)").bind(id, label, i)
+      )
+    );
+  }
+  return c.json(await onboardingState(c, id));
+});
+
+admin.put("/onboarding/:itemId", async (c) => {
+  const { done } = await c.req.json().catch(() => ({}));
+  if (typeof done !== "boolean") return c.json({ error: "done must be true or false" }, 400);
+  const res = await c.env.DB.prepare("UPDATE onboarding_items SET done=?, done_at=CASE WHEN ? THEN datetime('now') END WHERE id=?")
+    .bind(done ? 1 : 0, done ? 1 : 0, c.req.param("itemId"))
+    .run();
+  if (!res.meta.changes) return c.json({ error: "Item not found" }, 404);
+  return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------- tasks (project board)
+admin.get("/tasks", async (c) => {
+  const clientId = c.req.query("client_id");
+  const rows = await c.env.DB.prepare(
+    `SELECT t.id, t.client_id, c.name client_name, t.title, t.status, t.assignee, t.due_date
+     FROM tasks t JOIN clients c ON c.id=t.client_id
+     ${clientId ? "WHERE t.client_id=?" : ""}
+     ORDER BY t.due_date IS NULL, t.due_date, t.id`
+  )
+    .bind(...(clientId ? [clientId] : []))
+    .all();
+  return c.json({ tasks: rows.results });
+});
+
+admin.post("/tasks", async (c) => {
+  const parsed = parseTaskInput(await c.req.json().catch(() => ({})), false);
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const v = parsed.value;
+  const client = await c.env.DB.prepare("SELECT id FROM clients WHERE id=?").bind(v.client_id).first();
+  if (!client) return c.json({ error: "Client not found" }, 404);
+  const task = await c.env.DB.prepare(
+    "INSERT INTO tasks (client_id, title, status, assignee, due_date) VALUES (?,?,?,?,?) RETURNING *"
+  )
+    .bind(v.client_id, v.title, v.status ?? "todo", v.assignee ?? null, v.due_date ?? null)
+    .first();
+  return c.json({ task });
+});
+
+admin.put("/tasks/:id", async (c) => {
+  const parsed = parseTaskInput(await c.req.json().catch(() => ({})), true);
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const entries = Object.entries(parsed.value).filter(([k]) => k !== "client_id");
+  if (!entries.length) return c.json({ error: "Nothing to update" }, 400);
+  const task = await c.env.DB.prepare(
+    `UPDATE tasks SET ${entries.map(([k]) => `${k}=?`).join(", ")}, updated_at=datetime('now') WHERE id=? RETURNING *`
+  )
+    .bind(...entries.map(([, v]) => v), c.req.param("id"))
+    .first();
+  if (!task) return c.json({ error: "Task not found" }, 404);
+  return c.json({ task });
+});
+
+admin.delete("/tasks/:id", async (c) => {
+  await c.env.DB.prepare("DELETE FROM tasks WHERE id=?").bind(c.req.param("id")).run();
   return c.json({ ok: true });
 });
 
