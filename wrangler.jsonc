@@ -15,12 +15,31 @@
   "assets": {
     "directory": "./out",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/admin/*"],
     // "auto-trailing-slash" membuat /nuralive/price-calculator dilayani dari
     // /nuralive/price-calculator/index.html tanpa perlu menulis .html di URL.
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "musawara-ads",
+      "migrations_dir": "./admin/migrations",
+      // Ganti dengan ID asli dari `wrangler d1 create musawara-ads` sebelum deploy.
+      // Nilai apa pun cukup untuk dev lokal.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+
+  // 20:00 UTC = 03:00 WIB. Sinkronisasi Meta malam hari (admin/worker/lib/sync.ts).
+  "triggers": { "crons": ["0 20 * * *"] },
+
+  "vars": { "APP_NAME": "Musawara Admin" },
+
+  // Secret: JWT_SECRET (wajib), META_ACCESS_TOKEN (opsional), ditambah secret
+  // situs di worker/apply.ts. Set dengan `wrangler secret put`; lokal lewat .dev.vars.
 
   "observability": { "enabled": true }
 }

@@ -33,6 +33,9 @@ export async function api<T = any>(
 }
 
 /** Declarative GET with loading/error/reload — pass null to skip. */
+// Mount point of the SPA, without trailing slash ("/admin" in production).
+export const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export function useApi<T = any>(path: string | null) {
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);

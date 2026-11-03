@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, useApi } from "../lib/api";
+import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
 function ClientsSection() {
@@ -223,7 +223,7 @@ function UsersSection() {
         method: "POST",
         body: { email, role, client_id: role === "client" ? Number(clientId) : null },
       });
-      setInviteUrl(window.location.origin + res.path);
+      setInviteUrl(window.location.origin + BASE + res.path);
       setEmail("");
       setAdding(false);
       reload();

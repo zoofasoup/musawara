@@ -4,13 +4,14 @@
 
 import { Hono } from "hono";
 import type { Env, Vars } from "./types";
+export type { Env as AdminEnv } from "./types";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import clientRoutes from "./routes/clients";
 import shareRoutes from "./routes/share";
 import { syncAllAccounts } from "./lib/sync";
 
-const app = new Hono<{ Bindings: Env; Variables: Vars }>();
+export const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 app.route("/api/auth", authRoutes);
 app.route("/api/admin", adminRoutes);
@@ -25,11 +26,10 @@ app.onError((err, c) => {
   return c.json({ error: "Internal error" }, 500);
 });
 
-export default {
-  fetch: app.fetch,
-  // Nightly at 03:00 Asia/Jakarta (20:00 UTC) — re-pulls 28 days for every
-  // active account because Meta restates history (attribution windows).
-  scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(syncAllAccounts(env));
-  },
-} satisfies ExportedHandler<Env>;
+// Nightly at 03:00 Asia/Jakarta (20:00 UTC) — re-pulls 28 days for every
+// active account because Meta restates history (attribution windows).
+export function scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  ctx.waitUntil(syncAllAccounts(env));
+}
+
+export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>;

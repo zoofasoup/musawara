@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  // Served under musawara.id/admin by the combined Worker (see ../wrangler.jsonc).
+  base: "/admin/",
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {

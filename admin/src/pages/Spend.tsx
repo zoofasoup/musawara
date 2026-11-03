@@ -1,0 +1,245 @@
+// Unified spend: Meta (synced) + marketplace/other spend entered by hand.
+
+import { useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { api, useApi } from "../lib/api";
+import { presets, todayJakarta, type DateRange } from "../lib/dates";
+import { fmtCompact, fmtDay, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
+import { DateRangePicker } from "../components/DateRangePicker";
+import { KpiCard } from "../components/KpiCard";
+import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+
+const SOURCES = [
+  { key: "meta", label: "Meta Ads", color: "var(--color-chart-1)" },
+  { key: "shopee", label: "Shopee", color: "var(--color-chart-2)" },
+  { key: "tiktok", label: "TikTok", color: "var(--color-chart-3)" },
+  { key: "tokopedia", label: "Tokopedia", color: "var(--color-chart-4)" },
+  { key: "other", label: "Other", color: "var(--color-muted)" },
+];
+const label = (key: string) => SOURCES.find((s) => s.key === key)?.label ?? key;
+const MANUAL_SOURCES = SOURCES.filter((s) => s.key !== "meta");
+
+type Summary = {
+  total: number;
+  previous_total: number;
+  by_source: Array<{ source: string; category: string; amount: number }>;
+  by_client: Array<{ client_id: number | null; client_name: string | null; amount: number }>;
+  trend: Array<{ date: string; source: string; amount: number }>;
+};
+type Entry = {
+  id: number;
+  client_name: string | null;
+  source: string;
+  category: string;
+  date: string;
+  amount: number;
+  note: string | null;
+};
+
+const field = "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink";
+const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
+
+export function Spend() {
+  const [range, setRange] = useState<DateRange>(presets()[2]);
+  const [clientId, setClientId] = useState("");
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ source: "shopee", category: "ads", client_id: "", date: todayJakarta(), amount: "", note: "" });
+
+  const qs = `from=${range.from}&to=${range.to}${clientId ? `&client_id=${clientId}` : ""}`;
+  const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
+  const summary = useApi<Summary>(`/admin/spend?${qs}`);
+  const entries = useApi<{ entries: Entry[] }>(`/admin/spend/entries?${qs}`);
+
+  const days = useMemo(() => {
+    const byDate = new Map<string, Record<string, number | string>>();
+    for (const r of summary.data?.trend ?? []) {
+      const d = byDate.get(r.date) ?? { date: r.date };
+      d[r.source] = ((d[r.source] as number) ?? 0) + r.amount;
+      byDate.set(r.date, d);
+    }
+    return [...byDate.values()];
+  }, [summary.data]);
+
+  const sources = useMemo(() => {
+    const m = new Map<string, { ads: number; fee: number }>();
+    for (const r of summary.data?.by_source ?? []) {
+      const s = m.get(r.source) ?? { ads: 0, fee: 0 };
+      s[r.category as "ads" | "fee"] += r.amount;
+      m.set(r.source, s);
+    }
+    return [...m.entries()]
+      .map(([key, v]) => ({ key, ...v, total: v.ads + v.fee }))
+      .sort((a, b) => b.total - a.total);
+  }, [summary.data]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      await api("/admin/spend/entries", { body: { ...form, amount: Number(form.amount) } });
+      setForm({ ...form, amount: "", note: "" });
+      summary.reload();
+      entries.reload();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function remove(id: number) {
+    await api(`/admin/spend/entries/${id}`, { method: "DELETE" });
+    summary.reload();
+    entries.reload();
+  }
+
+  const d = summary.data;
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-ink">Spend</h1>
+        <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={field} aria-label="Filter by client">
+          <option value="">All clients</option>
+          <option value="none">Company-wide</option>
+          {clients.data?.clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <DateRangePicker value={range} onChange={setRange} />
+
+      {summary.error ? (
+        <ErrorState message={summary.error} onRetry={summary.reload} />
+      ) : summary.loading && !d ? (
+        <CardSkeleton lines={5} />
+      ) : (
+        d && (
+          <>
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
+              <KpiCard label="Total spend" value={fmtRp(d.total)} current={d.total} previous={d.previous_total} direction="neutral" />
+              {sources.slice(0, 3).map((s) => (
+                <div key={s.key} className="rounded-xl border border-border bg-surface p-3.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{label(s.key)}</p>
+                  <p className="tnum mt-1 truncate text-xl font-semibold text-ink">{fmtRp(s.total)}</p>
+                  <p className="tnum mt-1 text-xs text-ink2">{fmtPct(d.total ? (s.total / d.total) * 100 : 0, 0)} of total</p>
+                </div>
+              ))}
+            </div>
+
+            {days.length === 0 ? (
+              <EmptyState title="No spend in this range" hint="Meta syncs nightly. Add marketplace spend below." />
+            ) : (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink2">
+                  {sources.map((s) => (
+                    <span key={s.key} className="inline-flex items-center gap-1.5">
+                      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SOURCES.find((x) => x.key === s.key)?.color }} />
+                      {label(s.key)}
+                    </span>
+                  ))}
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer>
+                    <BarChart data={days} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
+                      <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
+                      <YAxis tickFormatter={(v: number) => fmtCompact(v)} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                      <Tooltip
+                        cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                        content={({ active, payload, label: l }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div className="rounded-lg border border-border2 bg-surface2 px-3 py-2 text-xs shadow-xl">
+                              <p className="mb-1 font-semibold text-ink">{fmtDayFull(String(l))}</p>
+                              {payload.map((p) => (
+                                <p key={String(p.dataKey)} className="tnum text-ink2">
+                                  {label(String(p.dataKey))}: <span className="text-ink">{fmtRp(p.value as number)}</span>
+                                </p>
+                              ))}
+                            </div>
+                          );
+                        }}
+                      />
+                      {sources.map((s) => (
+                        <Bar key={s.key} dataKey={s.key} stackId="spend" fill={SOURCES.find((x) => x.key === s.key)?.color} maxBarSize={28} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <SectionTitle>By source</SectionTitle>
+                <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+                  {sources.map((s) => (
+                    <li key={s.key} className="tnum flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
+                      <span className="text-ink">{label(s.key)}</span>
+                      <span className="text-right">
+                        <span className="font-semibold text-ink">{fmtRp(s.total)}</span>
+                        {s.fee > 0 && <span className="block text-[11px] text-muted">ads {fmtRp(s.ads)} · fees {fmtRp(s.fee)}</span>}
+                      </span>
+                    </li>
+                  ))}
+                  {sources.length === 0 && <li className="px-4 py-3 text-sm text-muted">–</li>}
+                </ul>
+              </div>
+              <div>
+                <SectionTitle>By client</SectionTitle>
+                <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+                  {d.by_client.map((c) => (
+                    <li key={c.client_id ?? "none"} className="tnum flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
+                      <span className="truncate text-ink">{c.client_name ?? "Company-wide"}</span>
+                      <span className="font-semibold text-ink">{fmtRp(c.amount)}</span>
+                    </li>
+                  ))}
+                  {d.by_client.length === 0 && <li className="px-4 py-3 text-sm text-muted">–</li>}
+                </ul>
+              </div>
+            </div>
+          </>
+        )
+      )}
+
+      <div>
+        <SectionTitle>Marketplace spend</SectionTitle>
+        <form onSubmit={add} className="mb-3 flex flex-wrap gap-2">
+          <select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className={field} aria-label="Source">
+            {MANUAL_SOURCES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field} aria-label="Category">
+            <option value="ads">Ads</option>
+            <option value="fee">Fees</option>
+          </select>
+          <select value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} className={field} aria-label="Client">
+            <option value="">Company-wide</option>
+            {clients.data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={field} aria-label="Date" />
+          <input type="number" required min="1" step="any" inputMode="numeric" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount (Rp)" aria-label="Amount in Rupiah" className={`${field} w-full sm:w-40`} />
+          <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Note" aria-label="Note" maxLength={200} className={`${field} w-full sm:w-auto sm:flex-1`} />
+          <button className={btn}>Add</button>
+        </form>
+        {error && <p role="alert" className="mb-2 text-xs text-crit">{error}</p>}
+        {entries.error ? (
+          <ErrorState message={entries.error} onRetry={entries.reload} />
+        ) : entries.data?.entries.length ? (
+          <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+            {entries.data.entries.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="tnum block text-ink">{fmtRp(e.amount)} · {label(e.source)} · {e.category === "fee" ? "fees" : "ads"}</span>
+                  <span className="block truncate text-[11px] text-muted">
+                    {fmtDayFull(e.date)} · {e.client_name ?? "Company-wide"}{e.note ? ` · ${e.note}` : ""}
+                  </span>
+                </span>
+                <button onClick={() => remove(e.id)} aria-label={`Delete entry ${fmtRp(e.amount)} ${label(e.source)}`} className={btn}>Delete</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState title="No manual entries in this range" hint="Add Shopee, TikTok or Tokopedia spend above." />
+        )}
+      </div>
+    </div>
+  );
+}

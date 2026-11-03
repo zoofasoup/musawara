@@ -1,0 +1,105 @@
+// Unified spend across Meta (auto-synced) and manually entered marketplace spend.
+// Mounted under /api/admin/spend, so requireAdmin from admin.ts applies.
+
+import { Hono } from "hono";
+import type { Env, Vars } from "../types";
+import { addDays } from "../lib/dates";
+
+const spend = new Hono<{ Bindings: Env; Variables: Vars }>();
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const SOURCES = ["shopee", "tiktok", "tokopedia", "other"];
+const CATEGORIES = ["ads", "fee"];
+
+function dayCount(from: string, to: string): number {
+  return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+}
+
+/** Optional client filter appended to a WHERE clause; "none" = company-wide rows. */
+function clientClause(raw: string | undefined): { sql: string; binds: unknown[] } {
+  if (!raw) return { sql: "", binds: [] };
+  if (raw === "none") return { sql: " AND client_id IS NULL", binds: [] };
+  return { sql: " AND client_id = ?", binds: [Number(raw)] };
+}
+
+spend.get("/", async (c) => {
+  const from = c.req.query("from") ?? "";
+  const to = c.req.query("to") ?? "";
+  if (!YMD.test(from) || !YMD.test(to) || from > to) return c.json({ error: "Invalid date range" }, 400);
+
+  const filter = clientClause(c.req.query("client_id"));
+  const where = `date BETWEEN ? AND ?${filter.sql}`;
+  const binds = [from, to, ...filter.binds];
+
+  const len = dayCount(from, to);
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(len - 1));
+
+  const [bySource, byClient, trend, prev] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT source, category, SUM(amount) amount FROM spend_daily WHERE ${where} GROUP BY source, category`
+    ).bind(...binds).all<{ source: string; category: string; amount: number }>(),
+    c.env.DB.prepare(
+      `SELECT d.client_id, c.name client_name, SUM(d.amount) amount
+       FROM (SELECT client_id, amount FROM spend_daily WHERE ${where}) d
+       LEFT JOIN clients c ON c.id = d.client_id
+       GROUP BY d.client_id ORDER BY amount DESC`
+    ).bind(...binds).all<{ client_id: number | null; client_name: string | null; amount: number }>(),
+    c.env.DB.prepare(
+      `SELECT date, source, SUM(amount) amount FROM spend_daily WHERE ${where} GROUP BY date, source ORDER BY date`
+    ).bind(...binds).all<{ date: string; source: string; amount: number }>(),
+    c.env.DB.prepare(`SELECT COALESCE(SUM(amount), 0) amount FROM spend_daily WHERE ${where}`)
+      .bind(prevFrom, prevTo, ...filter.binds)
+      .first<{ amount: number }>(),
+  ]);
+
+  const total = bySource.results.reduce((s, r) => s + r.amount, 0);
+  return c.json({
+    range: { from, to },
+    total,
+    previous_total: prev?.amount ?? 0,
+    by_source: bySource.results,
+    by_client: byClient.results,
+    trend: trend.results,
+  });
+});
+
+spend.get("/entries", async (c) => {
+  const from = c.req.query("from") ?? "";
+  const to = c.req.query("to") ?? "";
+  if (!YMD.test(from) || !YMD.test(to) || from > to) return c.json({ error: "Invalid date range" }, 400);
+  const filter = clientClause(c.req.query("client_id"));
+  const rows = await c.env.DB.prepare(
+    `SELECT e.id, e.client_id, c.name client_name, e.source, e.category, e.date, e.amount, e.note
+     FROM (SELECT * FROM spend_entries WHERE date BETWEEN ? AND ?${filter.sql}) e
+     LEFT JOIN clients c ON c.id = e.client_id
+     ORDER BY e.date DESC, e.id DESC LIMIT 200`
+  ).bind(from, to, ...filter.binds).all();
+  return c.json({ entries: rows.results });
+});
+
+spend.post("/entries", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const amount = Number(b.amount);
+  const clientId = b.client_id === "" || b.client_id == null ? null : Number(b.client_id);
+  if (!SOURCES.includes(b.source)) return c.json({ error: "Invalid source" }, 400);
+  if (!CATEGORIES.includes(b.category ?? "ads")) return c.json({ error: "Invalid category" }, 400);
+  if (typeof b.date !== "string" || !YMD.test(b.date)) return c.json({ error: "Invalid date" }, 400);
+  if (!Number.isFinite(amount) || amount <= 0) return c.json({ error: "Amount must be greater than 0" }, 400);
+  if (clientId !== null) {
+    const exists = await c.env.DB.prepare("SELECT 1 FROM clients WHERE id=?").bind(clientId).first();
+    if (!exists) return c.json({ error: "Unknown client" }, 400);
+  }
+  const note = typeof b.note === "string" && b.note.trim() ? b.note.trim().slice(0, 200) : null;
+  const res = await c.env.DB.prepare(
+    "INSERT INTO spend_entries (client_id, source, category, date, amount, note) VALUES (?,?,?,?,?,?)"
+  ).bind(clientId, b.source, b.category ?? "ads", b.date, amount, note).run();
+  return c.json({ id: res.meta.last_row_id });
+});
+
+spend.delete("/entries/:id", async (c) => {
+  await c.env.DB.prepare("DELETE FROM spend_entries WHERE id=?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+export default spend;

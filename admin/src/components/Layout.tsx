@@ -32,8 +32,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const links =
     user?.role === "admin"
       ? [
-          { to: "/", label: "Overview" },
+          { to: "/", label: "Overview", short: "Home" },
           { to: "/board", label: "Board" },
+          { to: "/spend", label: "Spend" },
           { to: "/settings", label: "Settings" },
         ]
       : user?.client_id
@@ -47,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-4">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-1 px-4 sm:gap-4">
           <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="shrink-0">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
@@ -58,10 +59,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 to={l.to}
                 end={l.to === "/" || l.to === `/c/${user?.client_id}`}
                 className={({ isActive }) =>
-                  `whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
+                  `whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
                 }
               >
-                {l.label}
+                {l.short ? (
+                  <>
+                    <span className="sm:hidden">{l.short}</span>
+                    <span className="hidden sm:inline">{l.label}</span>
+                  </>
+                ) : (
+                  l.label
+                )}
               </NavLink>
             ))}
           </nav>
@@ -75,7 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 await logout();
                 navigate("/login");
               }}
-              className="whitespace-nowrap rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
+              className="whitespace-nowrap rounded-lg border border-border bg-surface px-1.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
             >
               Sign out
             </button>

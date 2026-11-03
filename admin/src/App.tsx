@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 
@@ -12,6 +13,7 @@ import { ShareView } from "./pages/ShareView";
 import { AdminSettings } from "./pages/AdminSettings";
 import { BrandKnowledge } from "./pages/BrandKnowledge";
 import { Onboarding } from "./pages/Onboarding";
+import { Spend } from "./pages/Spend";
 import { Board } from "./pages/Board";
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
@@ -39,7 +41,7 @@ function RootRedirect() {
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={BASE}>
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -102,6 +104,15 @@ export function App() {
           element={
             <ProtectedRoute requireAdmin>
               <Board />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/spend"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Spend />
             </ProtectedRoute>
           }
         />

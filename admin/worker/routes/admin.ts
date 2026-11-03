@@ -10,9 +10,11 @@ import { clientSparkline, clientTotals } from "../lib/metrics";
 import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
 import { ONBOARDING_TEMPLATE, parseTaskInput } from "../lib/ops";
 import { addDays, ymdInTz } from "../lib/dates";
+import spend from "./spend";
 
 const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 admin.use("*", requireAdmin);
+admin.route("/spend", spend);
 
 // Friendly names for common Meta action types (result-type picker).
 const ACTION_TYPE_LABELS: Record<string, string> = {
