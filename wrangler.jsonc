@@ -27,9 +27,7 @@
       "binding": "DB",
       "database_name": "musawara-ads",
       "migrations_dir": "./admin/migrations",
-      // Ganti dengan ID asli dari `wrangler d1 create musawara-ads` sebelum deploy.
-      // Nilai apa pun cukup untuk dev lokal.
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "1b93c912-9d32-4c47-a310-0a2ada2ff98c"
     }
   ],
 
