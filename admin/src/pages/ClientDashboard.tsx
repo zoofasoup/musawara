@@ -1,6 +1,7 @@
 // The client dashboard — one component for all three surfaces:
 // admin drill-in, client viewer login, and the read-only share link.
 
+import { onAccent } from "../lib/color";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
@@ -74,7 +75,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
 
   const resultLabel = meta.data?.resultLabel ?? "Results";
-  const accent = meta.data?.client.brand_color ?? "#d4a24e";
+  const accent = meta.data?.client.brand_color ?? "#7a2de3";
 
   const kpis = useMemo(() => {
     const c = summary.data?.current;
@@ -94,7 +95,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   if (meta.error) return <ErrorState message={meta.error} onRetry={meta.reload} />;
 
   return (
-    <div style={{ ["--accent" as any]: accent }}>
+    <div style={{ ["--accent" as any]: accent, ["--on-accent" as any]: onAccent(accent) }}>
       {/* header */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         {meta.data ? (

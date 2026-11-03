@@ -143,11 +143,11 @@ export function Spend() {
                       <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
                       <YAxis tickFormatter={(v: number) => fmtCompact(v)} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
                       <Tooltip
-                        cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                        cursor={{ fill: "var(--color-hair)" }}
                         content={({ active, payload, label: l }) => {
                           if (!active || !payload?.length) return null;
                           return (
-                            <div className="rounded-lg border border-border2 bg-surface2 px-3 py-2 text-xs shadow-xl">
+                            <div className="rounded-lg border border-border2 bg-surface px-3 py-2 text-xs shadow-panel">
                               <p className="mb-1 font-semibold text-ink">{fmtDayFull(String(l))}</p>
                               {payload.map((p) => (
                                 <p key={String(p.dataKey)} className="tnum text-ink2">

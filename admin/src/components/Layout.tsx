@@ -1,10 +1,15 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { BASE } from "../lib/api";
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-      <span className="text-[15px] font-bold tracking-tight text-ink">musawara</span>
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <img
+        src={`${BASE}/logo/${compact ? "musawara-mark" : "musawara-lockup"}.png`}
+        alt="musawara"
+        className="h-7 w-auto"
+      />
       {!compact && <span className="text-[11px] font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
     </span>
   );
@@ -17,8 +22,8 @@ export function ClientAvatar({ name, logoUrl, color, size = 8 }: { name: string;
   }
   return (
     <span
-      style={{ width: px, height: px, background: `color-mix(in oklab, ${color} 25%, transparent)`, color }}
-      className="inline-flex items-center justify-center rounded-lg text-sm font-bold"
+      style={{ width: px, height: px, background: `color-mix(in oklab, ${color} 25%, transparent)` }}
+      className="inline-flex items-center justify-center rounded-lg text-sm font-bold text-ink"
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
@@ -47,9 +52,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-1 px-4 sm:gap-4">
-          <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="shrink-0">
+          <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="inline-flex min-h-11 shrink-0 items-center">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
           <nav className="flex items-center sm:gap-1">
@@ -59,7 +64,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 to={l.to}
                 end={l.to === "/" || l.to === `/c/${user?.client_id}`}
                 className={({ isActive }) =>
-                  `whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
+                  `inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
                 }
               >
                 {l.short ? (
@@ -83,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 await logout();
                 navigate("/login");
               }}
-              className="whitespace-nowrap rounded-lg border border-border bg-surface px-1.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg border border-border bg-surface px-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
             >
               Sign out
             </button>

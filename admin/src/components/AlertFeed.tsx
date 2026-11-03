@@ -51,7 +51,7 @@ export function AlertFeed({
           {onAck && !a.acknowledged && (
             <button
               onClick={() => onAck(a.id)}
-              className="shrink-0 rounded-lg border border-border2 bg-surface2 px-2 py-1 text-[11px] font-medium text-ink2 hover:bg-surface3 hover:text-ink"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border2 bg-surface px-3 text-[11px] font-medium text-ink2 hover:bg-surface3 hover:text-ink"
             >
               Ack
             </button>

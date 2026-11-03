@@ -57,7 +57,7 @@ export function Invite() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-border2 bg-surface2 px-3 py-2 text-sm text-ink outline-none focus:border-musawara"
+                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
               />
             </label>
             <label className="block">
@@ -68,7 +68,7 @@ export function Invite() {
                 disabled={Boolean(data!.invite.email)}
                 value={data!.invite.email ?? email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-border2 bg-surface2 px-3 py-2 text-sm text-ink outline-none focus:border-musawara disabled:opacity-60"
+                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara disabled:opacity-60"
               />
             </label>
             <label className="block">
@@ -80,14 +80,14 @@ export function Invite() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-border2 bg-surface2 px-3 py-2 text-sm text-ink outline-none focus:border-musawara"
+                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
               />
             </label>
             {submitError && <p className="text-xs text-crit">{submitError}</p>}
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-lg bg-musawara py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
+              className="min-h-11 w-full rounded-lg bg-musawara text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               {busy ? "Creating…" : "Create account"}
             </button>

@@ -1,42 +1,96 @@
 @import "tailwindcss";
 
 /*
- * Dark-mode-first agency dashboard theme.
- * Chart palette validated (dataviz six checks) against --color-surface:
- *   #4a86e8 (spend) · #bc8317 (CPR) · #279a81 · #a571d6
+ * Light theme taken from the HPP calculator (public/nuralive/price-calculator).
+ * Brand rules: TASA Orbiter (UI, numbers) and TASA Explorer (display) only;
+ * purple from the logo; lime is only allowed on an ink ground, so it is unused.
+ * local() first, CDN as fallback, same as the calculator.
  */
+@font-face{font-family:"TASA Orbiter";font-weight:400;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Regular"),local("TASAOrbiter-Regular"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Orbiter";font-weight:500;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Medium"),local("TASAOrbiter-Medium"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Orbiter";font-weight:700;font-style:normal;font-display:swap;
+  src:local("TASA Orbiter Bold"),local("TASAOrbiter-Bold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-orbiter@latest/latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Explorer";font-weight:700;font-style:normal;font-display:swap;
+  src:local("TASA Explorer Bold"),local("TASAExplorer-Bold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-explorer@latest/latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"TASA Explorer";font-weight:800;font-style:normal;font-display:swap;
+  src:local("TASA Explorer ExtraBold"),local("TASAExplorer-ExtraBold"),
+      url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-explorer@latest/latin-800-normal.woff2") format("woff2")}
+
 @theme {
-  --color-bg: #0b0f14;
-  --color-surface: #11161d;
-  --color-surface2: #182029;
-  --color-surface3: #1f2a36;
-  --color-border: #232c38;
-  --color-border2: #2f3b49;
-  --color-ink: #e6edf3;
-  --color-ink2: #94a5b5;
-  --color-muted: #64748b;
-  --color-chart-1: #4a86e8;
-  --color-chart-2: #bc8317;
-  --color-chart-3: #279a81;
-  --color-chart-4: #a571d6;
-  --color-good: #34a870;
-  --color-warn: #d08a2b;
-  --color-crit: #e05d5d;
-  --color-musawara: #7A2DE3;
+  --font-sans: "TASA Orbiter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "TASA Explorer", "TASA Orbiter", ui-sans-serif, system-ui, sans-serif;
+  /* No weight above 500 for body UI; 700 stays for Explorer display numbers. */
+  --font-weight-semibold: 500;
+  --font-weight-bold: 700;
+
+  --color-bg: #eceef5;
+  --color-surface: #ffffff;   /* input and content panels */
+  --color-surface2: #f5f6fa;  /* quiet fills, hover */
+  --color-surface3: #e9ecf4;  /* active segment, skeleton */
+  --color-out: #fbf8ff;       /* result panels, tinted purple */
+  --color-border: #e0e3ec;
+  --color-border2: #c8cddc;   /* inputs: firm edge = typeable */
+  --color-hair: rgba(15, 18, 28, 0.06);
+  --color-ink: #141824;
+  --color-ink2: #4b5263;
+  --color-muted: #5c6474;
+  --color-musawara: #7a2de3;
+  --color-musawara-ink: #6a20cf;
+  --color-good: #0f7a4d;
+  --color-warn: #9a6206;
+  --color-crit: #c02626;
+  /* Categorical chart series, each >= 3:1 on white. */
+  --color-chart-1: #7a2de3;
+  --color-chart-2: #b5700a;
+  --color-chart-3: #0f7a4d;
+  --color-chart-4: #2563a8;
+  --shadow-panel: 0 12px 28px -14px rgba(30, 20, 60, 0.28), 0 2px 5px -2px rgba(30, 20, 60, 0.12);
 }
 
 :root {
-  --accent: #7A2DE3; /* Musawara purple; overridden per client via brand_color */
+  --accent: #7a2de3; /* Musawara purple; overridden per client via brand_color */
+  --on-accent: #ffffff;
 }
 
 html {
   background: var(--color-bg);
-  color-scheme: dark;
+  color-scheme: light;
+  font-synthesis: none;
 }
 
 body {
   @apply bg-bg text-ink antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+}
+
+/* Touch targets: 44px on phones and tablets (inline text links excluded). */
+@media (max-width: 1023px) {
+  button,
+  select,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]) {
+    min-height: 2.75rem;
+  }
+  button {
+    min-width: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* dense numeric tables everywhere */

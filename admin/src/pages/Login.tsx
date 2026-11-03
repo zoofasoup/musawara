@@ -41,7 +41,7 @@ export function Login() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-border2 bg-surface2 px-3 py-2 text-sm text-ink outline-none focus:border-musawara"
+              className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
             />
           </label>
           <label className="block">
@@ -52,14 +52,14 @@ export function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-border2 bg-surface2 px-3 py-2 text-sm text-ink outline-none focus:border-musawara"
+              className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
             />
           </label>
           {error && <p className="text-xs text-crit">{error}</p>}
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-lg bg-musawara py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
+            className="min-h-11 w-full rounded-lg bg-musawara text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>

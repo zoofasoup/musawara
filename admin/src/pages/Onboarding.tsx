@@ -76,7 +76,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
 
       <p className="text-sm text-ink2">
         Brand knowledge: <span className="tnum">{data.brand.filled} of {data.brand.total}</span> sections filled.{" "}
-        <Link to={`/c/${clientId}/brand`} className="text-ink underline underline-offset-2">
+        <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center text-ink underline underline-offset-2">
           Open brand knowledge
         </Link>
       </p>
