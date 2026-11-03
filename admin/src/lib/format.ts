@@ -1,0 +1,65 @@
+// Indonesian formatting: Rp with dot thousands separators, dates in Asia/Jakarta.
+
+const idNum = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
+
+export function fmtRp(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return "–";
+  return "Rp " + idNum.format(Math.round(v));
+}
+
+export function fmtNum(v: number | null | undefined, decimals = 0): string {
+  if (v == null || !isFinite(v)) return "–";
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: 0,
+  }).format(v);
+}
+
+export function fmtCompact(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return "–";
+  return new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+}
+
+export function fmtPct(v: number | null | undefined, decimals = 2): string {
+  if (v == null || !isFinite(v)) return "–";
+  return new Intl.NumberFormat("id-ID", { maximumFractionDigits: decimals }).format(v) + "%";
+}
+
+/** "12 Jul" from a YYYY-MM-DD string (date-only, no timezone math needed). */
+export function fmtDay(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, d))
+  );
+}
+
+export function fmtDayFull(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+/** SQLite datetime('now') strings are UTC — display in Asia/Jakarta. */
+export function fmtDateTime(sqlUtc: string | null | undefined): string {
+  if (!sqlUtc) return "–";
+  const date = new Date(sqlUtc.replace(" ", "T") + "Z");
+  if (isNaN(date.getTime())) return "–";
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+export function hoursSince(sqlUtc: string | null | undefined): number | null {
+  if (!sqlUtc) return null;
+  const date = new Date(sqlUtc.replace(" ", "T") + "Z");
+  if (isNaN(date.getTime())) return null;
+  return (Date.now() - date.getTime()) / 3_600_000;
+}

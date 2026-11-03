@@ -1,0 +1,161 @@
+// Shared aggregation queries for the dashboard endpoints. All ratios are derived
+// from summed raw values (Ads Manager definitions): CTR = clicks/impressions,
+// CPM = spend/impressions*1000, CPR = spend/results, frequency = impressions/reach.
+// Range "reach" is approximated by summing daily reach (true deduped range reach
+// isn't derivable from daily rows) — documented assumption.
+
+import type { Env } from "../types";
+
+export type Totals = {
+  spend: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  link_clicks: number;
+  results: number;
+  ctr: number | null;
+  cpm: number | null;
+  cpr: number | null;
+  frequency: number | null;
+};
+
+type RawSums = {
+  spend: number | null;
+  impressions: number | null;
+  reach: number | null;
+  clicks: number | null;
+  link_clicks: number | null;
+  results: number | null;
+};
+
+export function finalize(r: RawSums | null | undefined): Totals {
+  const spend = r?.spend ?? 0;
+  const impressions = r?.impressions ?? 0;
+  const reach = r?.reach ?? 0;
+  const clicks = r?.clicks ?? 0;
+  const results = r?.results ?? 0;
+  return {
+    spend,
+    impressions,
+    reach,
+    clicks,
+    link_clicks: r?.link_clicks ?? 0,
+    results,
+    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
+    cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
+    cpr: results > 0 ? spend / results : null,
+    frequency: reach > 0 ? impressions / reach : null,
+  };
+}
+
+const SUM_COLS = `SUM(spend) spend, SUM(impressions) impressions, SUM(reach) reach,
+  SUM(clicks) clicks, SUM(link_clicks) link_clicks, SUM(COALESCE(results,0)) results`;
+
+/** Whole-client totals for a date range (campaign level avoids double counting). */
+export async function clientTotals(env: Env, clientId: number, from: string, to: string): Promise<Totals> {
+  const row = await env.DB.prepare(
+    `SELECT ${SUM_COLS}
+     FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+     WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?`
+  )
+    .bind(clientId, from, to)
+    .first<RawSums>();
+  return finalize(row);
+}
+
+export async function clientTrend(env: Env, clientId: number, from: string, to: string) {
+  const rows = await env.DB.prepare(
+    `SELECT i.date, ${SUM_COLS}
+     FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+     WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?
+     GROUP BY i.date ORDER BY i.date`
+  )
+    .bind(clientId, from, to)
+    .all<RawSums & { date: string }>();
+  return rows.results.map((r) => ({ date: r.date, ...finalize(r) }));
+}
+
+export type EntityRow = Totals & {
+  entity_id: string;
+  name: string | null;
+  level: string;
+  parent_id: string | null;
+  status: string | null;
+  effective_status: string | null;
+  objective: string | null;
+  daily_budget: number | null;
+  thumbnail_url: string | null;
+  previous: Totals;
+};
+
+/**
+ * Per-entity aggregates for a range, joined with entity metadata and the
+ * previous equal-length period for deltas. `parentId` drills down a level.
+ */
+export async function clientEntities(
+  env: Env,
+  clientId: number,
+  level: "campaign" | "adset" | "ad",
+  from: string,
+  to: string,
+  prevFrom: string,
+  prevTo: string,
+  parentId?: string
+): Promise<EntityRow[]> {
+  const parentFilter = parentId ? "AND i.parent_id = ?" : "";
+  const bind = (f: string, t: string) => (parentId ? [clientId, level, f, t, parentId] : [clientId, level, f, t]);
+  const query = (f: string, t: string) =>
+    env.DB.prepare(
+      `SELECT i.entity_id, MAX(i.entity_name) entity_name, ${SUM_COLS}
+       FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+       WHERE a.client_id=? AND i.level=? AND i.date BETWEEN ? AND ? ${parentFilter}
+       GROUP BY i.entity_id`
+    ).bind(...bind(f, t));
+
+  const [current, previous, meta] = await Promise.all([
+    query(from, to).all<RawSums & { entity_id: string; entity_name: string | null }>(),
+    query(prevFrom, prevTo).all<RawSums & { entity_id: string; entity_name: string | null }>(),
+    env.DB.prepare(
+      `SELECT e.entity_id, e.name, e.status, e.effective_status, e.objective, e.daily_budget, e.parent_id, e.thumbnail_url
+       FROM entities e JOIN ad_accounts a ON a.id = e.ad_account_id
+       WHERE a.client_id=? AND e.level=?`
+    )
+      .bind(clientId, level)
+      .all<any>(),
+  ]);
+
+  const prevMap = new Map(previous.results.map((r) => [r.entity_id, r]));
+  const metaMap = new Map(meta.results.map((r: any) => [r.entity_id, r]));
+
+  return current.results
+    .map((r) => {
+      const m = metaMap.get(r.entity_id);
+      return {
+        entity_id: r.entity_id,
+        name: m?.name ?? r.entity_name,
+        level,
+        parent_id: m?.parent_id ?? null,
+        status: m?.status ?? null,
+        effective_status: m?.effective_status ?? null,
+        objective: m?.objective ?? null,
+        daily_budget: m?.daily_budget ?? null,
+        thumbnail_url: m?.thumbnail_url ?? null,
+        ...finalize(r),
+        previous: finalize(prevMap.get(r.entity_id)),
+      };
+    })
+    .sort((a, b) => b.spend - a.spend);
+}
+
+/** Daily spend series per client for admin-home sparklines. */
+export async function clientSparkline(env: Env, clientId: number, from: string, to: string) {
+  const rows = await env.DB.prepare(
+    `SELECT i.date, SUM(i.spend) spend
+     FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+     WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?
+     GROUP BY i.date ORDER BY i.date`
+  )
+    .bind(clientId, from, to)
+    .all<{ date: string; spend: number }>();
+  return rows.results;
+}

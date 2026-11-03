@@ -1,0 +1,33 @@
+{
+  // Musawara Ads Intelligence — single Worker serves /api/* (Hono) + built SPA assets.
+  "name": "musawara-ads",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-05-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "musawara-ads",
+      // Replace with the real ID from `wrangler d1 create musawara-ads` before deploying.
+      // Any value works for local dev (`wrangler dev` uses a local SQLite file).
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "triggers": {
+    // 20:00 UTC = 03:00 Asia/Jakarta (WIB, UTC+7)
+    "crons": ["0 20 * * *"]
+  },
+  "vars": {
+    "APP_NAME": "Musawara Ads Intelligence"
+  },
+  "observability": { "enabled": true }
+  // Secrets (set with `wrangler secret put <NAME>`; use .dev.vars locally):
+  //   JWT_SECRET        — JWT signing key (also derives the encryption key for the Meta token at rest)
+  //   META_ACCESS_TOKEN — optional; Meta system user token. Can also be pasted in Admin Settings
+  //                       (stored AES-GCM-encrypted in D1). The env secret takes precedence.
+}
