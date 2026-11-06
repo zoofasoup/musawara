@@ -2,16 +2,23 @@ import { useState } from "react";
 import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 import { ClientAvatar } from "../components/Layout";
-import { fmtDateTime, fmtDay, fmtDayFull, fmtNum } from "../lib/format";
+import { fmtDateTime, fmtDayFull, fmtNum } from "../lib/format";
 
-/** Calendar-month chunks from `months` months ago through the current month. */
-function monthChunks(months: number): Array<{ since: string; until: string }> {
-  const now = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date()) + "T00:00:00Z");
-  return Array.from({ length: months + 1 }, (_, i) => {
-    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - i), 1));
-    const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0));
-    return { since: first.toISOString().slice(0, 10), until: last.toISOString().slice(0, 10) };
-  });
+const ymdAdd = (ymd: string, days: number) =>
+  new Date(Date.parse(ymd + "T00:00:00Z") + days * 86_400_000).toISOString().slice(0, 10);
+
+/** 14-day chunks from the 1st of the month `months` months ago through today (Jakarta). */
+function backfillChunks(months: number): Array<{ since: string; until: string }> {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+  const [y, m] = today.split("-").map(Number);
+  let since = new Date(Date.UTC(y, m - 1 - months, 1)).toISOString().slice(0, 10);
+  const out: Array<{ since: string; until: string }> = [];
+  while (since <= today) {
+    const until = ymdAdd(since, 13);
+    out.push({ since, until: until > today ? today : until });
+    since = ymdAdd(since, 14);
+  }
+  return out;
 }
 
 /** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
@@ -195,7 +202,7 @@ function SyncStatus({ a }: { a: any }) {
           <span className="text-muted">Data: </span>
           {a.data_from ? (
             <span className="text-ink2">
-              {fmtDay(a.data_from)} – {fmtDayFull(a.data_to)} · {fmtNum(a.data_days)} days · {fmtNum(a.campaigns)} campaigns
+              {fmtDayFull(a.data_from)} – {fmtDayFull(a.data_to)} · {fmtNum(a.data_days)} days · {fmtNum(a.campaigns)} campaigns
             </span>
           ) : (
             <span className="text-ink2">none yet</span>
@@ -230,15 +237,37 @@ function SyncStatus({ a }: { a: any }) {
 
 function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
   const [progress, setProgress] = useState<string | null>(null);
-  const run = async () => {
-    const chunks = monthChunks(12);
-    if (!confirm(`Pull the last 13 months of history from Meta (${chunks.length} steps)? Existing data is updated, nothing is deleted.`)) return;
-    try {
-      for (let i = 0; i < chunks.length; i++) {
-        setProgress(`${i + 1}/${chunks.length}`);
-        await api(`/admin/accounts/${accountId}/backfill`, { method: "POST", body: chunks[i] });
+
+  // Meta sometimes rejects a big window ("temporarily unavailable"): on failure,
+  // retry once, then split the range in half; only ranges that still fail at
+  // <= 3 days are reported and skipped, so one bad stretch never blocks the rest.
+  const pull = async (since: string, until: string, failed: string[]): Promise<void> => {
+    setProgress(fmtDayFull(since));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await api(`/admin/accounts/${accountId}/backfill`, { method: "POST", body: { since, until } });
+        return;
+      } catch (err: any) {
+        if (/token|permission|not found/i.test(err.message)) throw err;
+        await new Promise((r) => setTimeout(r, 2000));
       }
-      alert("History pulled.");
+    }
+    if (since < until && Date.parse(until) - Date.parse(since) > 3 * 86_400_000) {
+      const mid = ymdAdd(since, Math.floor((Date.parse(until) - Date.parse(since)) / 86_400_000 / 2));
+      await pull(since, mid, failed);
+      await pull(ymdAdd(mid, 1), until, failed);
+    } else {
+      failed.push(since === until ? fmtDayFull(since) : `${fmtDayFull(since)} – ${fmtDayFull(until)}`);
+    }
+  };
+
+  const run = async () => {
+    const chunks = backfillChunks(12);
+    if (!confirm(`Pull the last 13 months of history from Meta? Existing data is updated, nothing is deleted. This can take a few minutes.`)) return;
+    const failed: string[] = [];
+    try {
+      for (const c of chunks) await pull(c.since, c.until, failed);
+      alert(failed.length ? `History pulled, but Meta refused these ranges (run Backfill again later):\n${failed.join("\n")}` : "History pulled.");
     } catch (err: any) {
       alert(err.message);
     } finally {
