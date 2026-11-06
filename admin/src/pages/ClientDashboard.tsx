@@ -37,10 +37,15 @@ type Summary = {
 type Totals = {
   spend: number;
   results: number;
+  leads: number;
+  purchases: number;
+  purchase_value: number;
   reach: number;
   ctr: number | null;
   cpm: number | null;
   cpr: number | null;
+  cpl: number | null;
+  roas: number | null;
   frequency: number | null;
 };
 
@@ -82,8 +87,18 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
     const c = summary.data?.current;
     const p = summary.data?.previous;
     const singular = resultLabel.replace(/s$/, "");
+    const hasPurchases = (c?.purchases ?? 0) > 0 || (p?.purchases ?? 0) > 0;
     return [
       { label: "Spend", value: fmtRp(c?.spend), cur: c?.spend, prev: p?.spend, dir: "neutral" as const },
+      { label: "Leads", value: fmtNum(c?.leads), cur: c?.leads, prev: p?.leads, dir: "higher-better" as const },
+      { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
+      ...(hasPurchases
+        ? [
+            { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
+            { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
+            { label: "ROAS", value: fmtNum(c?.roas ?? null, 2), cur: c?.roas, prev: p?.roas, dir: "higher-better" as const },
+          ]
+        : []),
       { label: resultLabel, value: fmtNum(c?.results), cur: c?.results, prev: p?.results, dir: "higher-better" as const },
       { label: `Cost / ${singular}`, value: fmtRp(c?.cpr), cur: c?.cpr, prev: p?.cpr, dir: "lower-better" as const },
       { label: "CTR", value: fmtPct(c?.ctr), cur: c?.ctr, prev: p?.ctr, dir: "higher-better" as const },

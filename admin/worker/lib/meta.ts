@@ -7,15 +7,13 @@ import { decryptString } from "./secretbox";
 export const META_API_VERSION = "v23.0";
 const BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
-export const INSIGHT_FIELDS = [
+const BASE_FIELDS = [
   "spend",
   "impressions",
-  "reach",
   "clicks",
   "inline_link_clicks",
   "ctr",
   "cpm",
-  "frequency",
   "actions",
   "cost_per_action_type",
   "campaign_id",
@@ -25,7 +23,30 @@ export const INSIGHT_FIELDS = [
   "ad_id",
   "ad_name",
   "date_start",
-].join(",");
+];
+const REACH_FIELDS = ["reach", "frequency"];
+const EXTRA_FIELDS = [
+  "action_values",
+  "purchase_roas",
+  "video_play_actions",
+  "video_thruplay_watched_actions",
+  "video_avg_time_watched_actions",
+];
+// Quality rankings only exist per ad.
+const RANKING_FIELDS = ["quality_ranking", "engagement_rate_ranking", "conversion_rate_ranking"];
+
+/**
+ * Insight fields for a level. `extras` = the richer set (values, ROAS, video,
+ * rankings); `withReach` is false for data older than Meta's 13-month reach window.
+ */
+export function insightFields(level: "campaign" | "adset" | "ad", opts: { extras: boolean; withReach: boolean }): string {
+  return [
+    ...BASE_FIELDS,
+    ...(opts.withReach ? REACH_FIELDS : []),
+    ...(opts.extras ? EXTRA_FIELDS : []),
+    ...(opts.extras && level === "ad" ? RANKING_FIELDS : []),
+  ].join(",");
+}
 
 export class MetaApiError extends Error {
   code: number;
@@ -145,7 +166,7 @@ export async function validateToken(env: Env): Promise<{ ok: boolean; name?: str
 
 export async function fetchAccountInfo(env: Env, metaAccountId: string) {
   const id = metaAccountId.startsWith("act_") ? metaAccountId : `act_${metaAccountId}`;
-  return metaGet(env, id, { fields: "id,name,currency,timezone_name,account_status" }, 1);
+  return metaGet(env, id, { fields: "id,name,currency,timezone_name,account_status,created_time" }, 1);
 }
 
 export async function fetchInsights(
@@ -153,27 +174,36 @@ export async function fetchInsights(
   metaAccountId: string,
   level: "campaign" | "adset" | "ad",
   since: string,
-  until: string
+  until: string,
+  withReach = true
 ): Promise<any[]> {
   const id = metaAccountId.startsWith("act_") ? metaAccountId : `act_${metaAccountId}`;
-  return metaGetAll(env, `${id}/insights`, {
-    level,
-    fields: INSIGHT_FIELDS,
-    time_increment: "1",
-    time_range: JSON.stringify({ since, until }),
-    limit: "500",
-  });
+  const get = (extras: boolean) =>
+    metaGetAll(env, `${id}/insights`, {
+      level,
+      fields: insightFields(level, { extras, withReach }),
+      time_increment: "1",
+      time_range: JSON.stringify({ since, until }),
+      limit: "500",
+    });
+  try {
+    return await get(true);
+  } catch (e) {
+    // A rejected extra field (code 100) must not break the core sync: retry with the base set.
+    if (e instanceof MetaApiError && e.code === 100) return get(false);
+    throw e;
+  }
 }
 
 export async function fetchEntityTree(env: Env, metaAccountId: string) {
   const id = metaAccountId.startsWith("act_") ? metaAccountId : `act_${metaAccountId}`;
   const [campaigns, adsets, ads] = [
     await metaGetAll(env, `${id}/campaigns`, {
-      fields: "id,name,status,effective_status,objective,daily_budget",
+      fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget",
       limit: "200",
     }),
     await metaGetAll(env, `${id}/adsets`, {
-      fields: "id,name,status,effective_status,daily_budget,campaign_id",
+      fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,campaign_id",
       limit: "200",
     }),
     await metaGetAll(env, `${id}/ads`, {

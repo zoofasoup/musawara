@@ -6,6 +6,7 @@ import type { AdAccountRow, AccountSettingsRow, Env } from "../types";
 import { fetchEntityTree, fetchInsights } from "./meta";
 import { runAlertRules, checkSyncFailureAlert } from "./alerts";
 import { addDays, ymdInTz } from "./dates";
+import { buildExtras, deriveKpis } from "./history";
 
 export const SYNC_LOOKBACK_DAYS = 28;
 const BATCH_SIZE = 80;
@@ -51,36 +52,45 @@ const UPSERT_INSIGHT = `
 INSERT INTO insights_daily
   (ad_account_id, level, entity_id, entity_name, parent_id, campaign_id, date,
    spend, impressions, reach, clicks, link_clicks, ctr, cpm, frequency,
-   results, cost_per_result, actions_json, updated_at)
-VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+   results, cost_per_result, actions_json, leads, purchases, purchase_value, extras_json, updated_at)
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
 ON CONFLICT(ad_account_id, level, entity_id, date) DO UPDATE SET
   entity_name=excluded.entity_name, parent_id=excluded.parent_id, campaign_id=excluded.campaign_id,
   spend=excluded.spend, impressions=excluded.impressions, reach=excluded.reach,
   clicks=excluded.clicks, link_clicks=excluded.link_clicks, ctr=excluded.ctr,
   cpm=excluded.cpm, frequency=excluded.frequency, results=excluded.results,
   cost_per_result=excluded.cost_per_result, actions_json=excluded.actions_json,
-  updated_at=datetime('now')`;
+  leads=excluded.leads, purchases=excluded.purchases, purchase_value=excluded.purchase_value,
+  extras_json=excluded.extras_json, updated_at=datetime('now')`;
 
 const UPSERT_ENTITY = `
 INSERT INTO entities
   (ad_account_id, level, entity_id, name, status, effective_status, objective,
-   daily_budget, parent_id, thumbnail_url, updated_at)
-VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))
+   daily_budget, parent_id, thumbnail_url, optimization_goal, lifetime_budget, updated_at)
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
 ON CONFLICT(ad_account_id, level, entity_id) DO UPDATE SET
   name=excluded.name, status=excluded.status, effective_status=excluded.effective_status,
   objective=excluded.objective, daily_budget=excluded.daily_budget, parent_id=excluded.parent_id,
-  thumbnail_url=COALESCE(excluded.thumbnail_url, entities.thumbnail_url), updated_at=datetime('now')`;
+  thumbnail_url=COALESCE(excluded.thumbnail_url, entities.thumbnail_url),
+  optimization_goal=COALESCE(excluded.optimization_goal, entities.optimization_goal),
+  lifetime_budget=excluded.lifetime_budget, updated_at=datetime('now')`;
 
 /**
  * Pull campaign/adset/ad insights for [since, until] and upsert them, one level
  * at a time (sequential, rate-limit friendly). Used by the daily sync and by
  * the history backfill, which feeds it one month at a time.
  */
-export async function pullInsights(env: Env, account: AdAccountRow, since: string, until: string): Promise<number> {
+export async function pullInsights(
+  env: Env,
+  account: AdAccountRow,
+  since: string,
+  until: string,
+  withReach = true
+): Promise<number> {
   const cfg = await getResultConfig(env, account.id);
   let rows = 0;
   for (const level of ["campaign", "adset", "ad"] as const) {
-    const data = await fetchInsights(env, account.meta_account_id, level, since, until);
+    const data = await fetchInsights(env, account.meta_account_id, level, since, until, withReach);
     const stmts: D1PreparedStatement[] = [];
     for (const r of data) {
       const entityId = level === "campaign" ? r.campaign_id : level === "adset" ? r.adset_id : r.ad_id;
@@ -91,6 +101,7 @@ export async function pullInsights(env: Env, account: AdAccountRow, since: strin
       const impressions = Number(r.impressions) || 0;
       const clicks = Number(r.clicks) || 0;
       const results = deriveResults(r.actions, r.campaign_id ?? null, cfg);
+      const kpi = deriveKpis(r);
       stmts.push(
         env.DB.prepare(UPSERT_INSIGHT).bind(
           account.id,
@@ -110,13 +121,23 @@ export async function pullInsights(env: Env, account: AdAccountRow, since: strin
           r.frequency != null ? Number(r.frequency) : null,
           results,
           results && results > 0 ? spend / results : null,
-          r.actions ? JSON.stringify(r.actions) : null
+          r.actions ? JSON.stringify(r.actions) : null,
+          kpi.leads,
+          kpi.purchases,
+          kpi.purchase_value,
+          buildExtras(r)
         )
       );
     }
     rows += stmts.length;
     await runBatched(env, stmts);
   }
+  // Record the range only after all three levels landed.
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO insights_coverage (ad_account_id, date_from, date_to, with_reach, pulled_at) VALUES (?,?,?,?,datetime('now'))"
+  )
+    .bind(account.id, since, until, withReach ? 1 : 0)
+    .run();
   return rows;
 }
 
@@ -143,7 +164,9 @@ export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jo
           objective,
           e.daily_budget != null ? Number(e.daily_budget) / 100 : null, // Meta returns minor units
           parentId,
-          thumb
+          thumb,
+          e.optimization_goal ?? null,
+          e.lifetime_budget != null ? Number(e.lifetime_budget) / 100 : null
         )
       );
     for (const c of tree.campaigns) push("campaign", c, null, c.objective ?? null, null);

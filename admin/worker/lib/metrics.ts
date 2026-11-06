@@ -13,9 +13,14 @@ export type Totals = {
   clicks: number;
   link_clicks: number;
   results: number;
+  leads: number; // messaging conversations started
+  purchases: number;
+  purchase_value: number;
   ctr: number | null;
   cpm: number | null;
   cpr: number | null;
+  cpl: number | null; // cost per lead
+  roas: number | null; // purchase value / spend
   frequency: number | null;
 };
 
@@ -26,6 +31,9 @@ type RawSums = {
   clicks: number | null;
   link_clicks: number | null;
   results: number | null;
+  leads: number | null;
+  purchases: number | null;
+  purchase_value: number | null;
 };
 
 export function finalize(r: RawSums | null | undefined): Totals {
@@ -34,6 +42,8 @@ export function finalize(r: RawSums | null | undefined): Totals {
   const reach = r?.reach ?? 0;
   const clicks = r?.clicks ?? 0;
   const results = r?.results ?? 0;
+  const leads = r?.leads ?? 0;
+  const purchase_value = r?.purchase_value ?? 0;
   return {
     spend,
     impressions,
@@ -41,15 +51,21 @@ export function finalize(r: RawSums | null | undefined): Totals {
     clicks,
     link_clicks: r?.link_clicks ?? 0,
     results,
+    leads,
+    purchases: r?.purchases ?? 0,
+    purchase_value,
     ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
     cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
     cpr: results > 0 ? spend / results : null,
+    cpl: leads > 0 ? spend / leads : null,
+    roas: spend > 0 && purchase_value > 0 ? purchase_value / spend : null,
     frequency: reach > 0 ? impressions / reach : null,
   };
 }
 
 const SUM_COLS = `SUM(spend) spend, SUM(impressions) impressions, SUM(reach) reach,
-  SUM(clicks) clicks, SUM(link_clicks) link_clicks, SUM(COALESCE(results,0)) results`;
+  SUM(clicks) clicks, SUM(link_clicks) link_clicks, SUM(COALESCE(results,0)) results,
+  SUM(leads) leads, SUM(purchases) purchases, SUM(purchase_value) purchase_value`;
 
 /** Whole-client totals for a date range (campaign level avoids double counting). */
 export async function clientTotals(env: Env, clientId: number, from: string, to: string): Promise<Totals> {

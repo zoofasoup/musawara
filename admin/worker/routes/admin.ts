@@ -5,6 +5,7 @@ import { randomToken } from "../lib/auth";
 import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
 import { pullInsights, rederiveResults, syncAccount } from "../lib/sync";
+import { halfMonthChunks, isCovered, MAX_HISTORY_DAYS, mergeRanges, REACH_WINDOW_DAYS } from "../lib/history";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
 import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
@@ -450,26 +451,75 @@ admin.post("/accounts/:id/sync", async (c) => {
 });
 
 /**
- * History backfill, one chunk (<= 31 days) per call so a Worker request stays
- * short and a failure only loses that chunk; the admin UI walks month by month.
- * Meta keeps ~37 months of insights (reach per day only ~13 months).
+ * History backfill. The admin UI asks for a plan (half-month chunks, with the
+ * already-final ones marked covered), then posts only the missing chunks, one
+ * per call, so a Worker request stays short and a failure loses one chunk.
+ * Meta keeps ~37 months of insights; reach per day only ~13 months.
  */
+async function loadCoverage(env: Env, accountId: number) {
+  const rows = await env.DB.prepare("SELECT date_from, date_to FROM insights_coverage WHERE ad_account_id=?")
+    .bind(accountId)
+    .all<{ date_from: string; date_to: string }>();
+  return mergeRanges(rows.results);
+}
+
+admin.get("/accounts/:id/history-plan", async (c) => {
+  const account = await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE id=?")
+    .bind(c.req.param("id"))
+    .first<AdAccountRow>();
+  if (!account) return c.json({ error: "Account not found" }, 404);
+  const today = ymdInTz(account.timezone);
+  const range = c.req.query("range") ?? "13m";
+  const limit = addDays(today, -MAX_HISTORY_DAYS);
+  let from: string;
+  if (range === "all") {
+    if (!(await getMetaToken(c.env))) return c.json({ error: "No Meta access token configured." }, 400);
+    let created: string | null = null;
+    try {
+      const info = await fetchAccountInfo(c.env, account.meta_account_id);
+      created = typeof info?.created_time === "string" ? info.created_time.slice(0, 10) : null;
+    } catch (e: any) {
+      return c.json({ error: `Could not read the account's creation date: ${e.message}` }, 502);
+    }
+    from = created && created > limit ? created : limit;
+  } else {
+    const months = range === "3m" ? 2 : 12;
+    const [y, m] = today.split("-").map(Number);
+    from = new Date(Date.UTC(y, m - 1 - months, 1)).toISOString().slice(0, 10);
+  }
+  const merged = await loadCoverage(c.env, account.id);
+  const chunks = halfMonthChunks(from, today).map((ch) => ({ ...ch, covered: isCovered(ch, merged, today) }));
+  const reachCutoff = addDays(today, -REACH_WINDOW_DAYS);
+  return c.json({
+    from,
+    to: today,
+    chunks,
+    covered: chunks.filter((ch) => ch.covered).length,
+    reach_limited_before: reachCutoff,
+    capped_by_meta: from === limit,
+  });
+});
+
 admin.post("/accounts/:id/backfill", async (c) => {
   const account = await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE id=?")
     .bind(c.req.param("id"))
     .first<AdAccountRow>();
   if (!account) return c.json({ error: "Account not found" }, 404);
   if (!(await getMetaToken(c.env))) return c.json({ error: "No Meta access token configured." }, 400);
-  const { since, until } = await c.req.json().catch(() => ({}));
+  const { since, until, force } = await c.req.json().catch(() => ({}));
   const ymd = /^\d{4}-\d{2}-\d{2}$/;
   if (!ymd.test(since) || !ymd.test(until) || since > until) return c.json({ error: "Invalid date range" }, 400);
   const today = ymdInTz(account.timezone);
   const end = until > today ? today : until;
-  if (since < addDays(today, -1125)) return c.json({ error: "Meta only keeps about 37 months of insights" }, 400);
+  if (since < addDays(today, -MAX_HISTORY_DAYS)) return c.json({ error: "Meta only keeps about 37 months of insights" }, 400);
   if (since > end || end > addDays(since, 30)) return c.json({ error: "Range must be 31 days or less" }, 400);
+  if (!force && isCovered({ since, until: end }, await loadCoverage(c.env, account.id), today)) {
+    return c.json({ ok: true, skipped: true, since, until: end });
+  }
+  const withReach = since >= addDays(today, -REACH_WINDOW_DAYS);
   try {
-    const rows = await pullInsights(c.env, account, since, end);
-    return c.json({ ok: true, rows, since, until: end });
+    const rows = await pullInsights(c.env, account, since, end, withReach);
+    return c.json({ ok: true, rows, since, until: end, withReach });
   } catch (e: any) {
     return c.json({ error: `Backfill failed for ${since}: ${e.message}` }, 502);
   }

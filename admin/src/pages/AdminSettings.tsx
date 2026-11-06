@@ -7,20 +7,6 @@ import { fmtDateTime, fmtDayFull, fmtNum } from "../lib/format";
 const ymdAdd = (ymd: string, days: number) =>
   new Date(Date.parse(ymd + "T00:00:00Z") + days * 86_400_000).toISOString().slice(0, 10);
 
-/** 14-day chunks from the 1st of the month `months` months ago through today (Jakarta). */
-function backfillChunks(months: number): Array<{ since: string; until: string }> {
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
-  const [y, m] = today.split("-").map(Number);
-  let since = new Date(Date.UTC(y, m - 1 - months, 1)).toISOString().slice(0, 10);
-  const out: Array<{ since: string; until: string }> = [];
-  while (since <= today) {
-    const until = ymdAdd(since, 13);
-    out.push({ since, until: until > today ? today : until });
-    since = ymdAdd(since, 14);
-  }
-  return out;
-}
-
 /** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
 async function photoToDataUrl(file: File): Promise<string> {
   const bmp = await createImageBitmap(file);
@@ -235,7 +221,11 @@ function SyncStatus({ a }: { a: any }) {
   );
 }
 
+type PlanChunk = { since: string; until: string; covered: boolean };
+type Plan = { from: string; to: string; chunks: PlanChunk[]; covered: number; reach_limited_before: string; capped_by_meta: boolean };
+
 function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
+  const [range, setRange] = useState<"3m" | "13m" | "all">("all");
   const [progress, setProgress] = useState<string | null>(null);
 
   // Meta sometimes rejects a big window ("temporarily unavailable"): on failure,
@@ -252,7 +242,7 @@ function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () =
         await new Promise((r) => setTimeout(r, 2000));
       }
     }
-    if (since < until && Date.parse(until) - Date.parse(since) > 3 * 86_400_000) {
+    if (Date.parse(until) - Date.parse(since) > 3 * 86_400_000) {
       const mid = ymdAdd(since, Math.floor((Date.parse(until) - Date.parse(since)) / 86_400_000 / 2));
       await pull(since, mid, failed);
       await pull(ymdAdd(mid, 1), until, failed);
@@ -262,12 +252,21 @@ function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () =
   };
 
   const run = async () => {
-    const chunks = backfillChunks(12);
-    if (!confirm(`Pull the last 13 months of history from Meta? Existing data is updated, nothing is deleted. This can take a few minutes.`)) return;
-    const failed: string[] = [];
     try {
-      for (const c of chunks) await pull(c.since, c.until, failed);
-      alert(failed.length ? `History pulled, but Meta refused these ranges (run Backfill again later):\n${failed.join("\n")}` : "History pulled.");
+      setProgress("planning");
+      const plan = await api<Plan>(`/admin/accounts/${accountId}/history-plan?range=${range}`);
+      const todo = plan.chunks.filter((c) => !c.covered);
+      if (todo.length === 0) {
+        alert(`Everything from ${fmtDayFull(plan.from)} is already pulled. Nothing to do.`);
+        return;
+      }
+      const note =
+        (plan.capped_by_meta ? "\nMeta only keeps about 37 months, so that is as far back as it goes." : "") +
+        (plan.from < plan.reach_limited_before ? `\nReach and frequency are not available before ${fmtDayFull(plan.reach_limited_before)}.` : "");
+      if (!confirm(`Pull ${todo.length} of ${plan.chunks.length} ranges from ${fmtDayFull(plan.from)}? ${plan.covered} already complete will be skipped.${note}`)) return;
+      const failed: string[] = [];
+      for (const c of todo) await pull(c.since, c.until, failed);
+      alert(failed.length ? `Done, but Meta refused these ranges (run it again later):\n${failed.join("\n")}` : "History pulled.");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -276,13 +275,26 @@ function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () =
     }
   };
   return (
-    <button
-      onClick={run}
-      disabled={progress !== null}
-      className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
-    >
-      {progress ? `Pulling ${progress}…` : "Backfill 13 mo"}
-    </button>
+    <div className="flex items-center gap-1">
+      <select
+        value={range}
+        disabled={progress !== null}
+        onChange={(e) => setRange(e.target.value as typeof range)}
+        aria-label="History range"
+        className="min-h-11 rounded border border-border2 bg-surface px-2 text-xs text-ink"
+      >
+        <option value="all">All available</option>
+        <option value="13m">Last 13 months</option>
+        <option value="3m">Last 3 months</option>
+      </select>
+      <button
+        onClick={run}
+        disabled={progress !== null}
+        className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
+      >
+        {progress ? `Pulling ${progress}…` : "Backfill"}
+      </button>
+    </div>
   );
 }
 
