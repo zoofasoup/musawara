@@ -41,6 +41,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { to: "/board", label: "Board" },
           { to: "/spend", label: "Spend" },
           { to: "/conversions", label: "Sales", short: "Sales" },
+          { to: "/organic", label: "Organic" },
           { to: "/settings", label: "Settings" },
         ]
       : user?.client_id

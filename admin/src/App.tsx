@@ -16,6 +16,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Spend } from "./pages/Spend";
 import { Board } from "./pages/Board";
 import { Conversions } from "./pages/Conversions";
+import { Organic } from "./pages/Organic";
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, ready } = useAuth();
@@ -100,6 +101,14 @@ export function App() {
           }
         />
 
+        <Route
+          path="/organic"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Organic />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/board"
           element={

@@ -64,7 +64,7 @@ export function AdminSettings() {
           icon="key"
           label="Meta"
           value={token.loading ? "Checking…" : tokenOk ? "Connected" : token.data?.configured ? "Token rejected" : "Not connected"}
-          sub={tokenOk ? "Read-only token" : "Needs a token"}
+          sub={tokenOk ? "One token for all Meta" : "Needs a token"}
           tone={token.loading ? "neutral" : tokenOk ? "good" : token.data?.configured ? "crit" : "warn"}
         />
         <Tile href="#clients" icon="building" label="Clients" value={String(clientList.length)} sub={clientList.length ? "with own dashboards" : "None yet"} tone={clientList.length ? "good" : "neutral"} />

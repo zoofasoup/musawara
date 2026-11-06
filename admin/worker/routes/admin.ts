@@ -13,11 +13,13 @@ import { ONBOARDING_TEMPLATE, parseTaskInput } from "../lib/ops";
 import { addDays, ymdInTz } from "../lib/dates";
 import spend from "./spend";
 import conversions from "./conversions";
+import organic from "./organic";
 
 const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 admin.use("*", requireAdmin);
 admin.route("/spend", spend);
 admin.route("/conversions", conversions);
+admin.route("/organic", organic);
 
 // Friendly names for common Meta action types (result-type picker).
 const ACTION_TYPE_LABELS: Record<string, string> = {

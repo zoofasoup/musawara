@@ -10,6 +10,7 @@ import adminRoutes from "./routes/admin";
 import clientRoutes from "./routes/clients";
 import shareRoutes from "./routes/share";
 import { syncAllAccounts } from "./lib/sync";
+import { pollAllStories } from "./lib/organic";
 
 export const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -26,10 +27,12 @@ app.onError((err, c) => {
   return c.json({ error: "Internal error" }, 500);
 });
 
-// Nightly at 03:00 Asia/Jakarta (20:00 UTC) — re-pulls 28 days for every
-// active account because Meta restates history (attribution windows).
-export function scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-  ctx.waitUntil(syncAllAccounts(env));
+// Hourly: record new Instagram stories (they vanish after 24h). At 03:00
+// Asia/Jakarta (20:00 UTC) also re-pull 28 days of ads for every active account,
+// because Meta restates history (attribution windows).
+export function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  ctx.waitUntil(pollAllStories(env));
+  if (new Date(controller.scheduledTime).getUTCHours() === 20) ctx.waitUntil(syncAllAccounts(env));
 }
 
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>;
