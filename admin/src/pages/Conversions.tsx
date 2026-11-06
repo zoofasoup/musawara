@@ -8,7 +8,7 @@ import { api, useApi } from "../lib/api";
 import { Icon } from "../components/icons";
 import { fmtDateTime, fmtNum, fmtRp } from "../lib/format";
 import {
-  buildRows, FIELD_LABEL, guessMapping, parseFile, type Field, type Mapping, type PreparedRow, type RowStatus,
+  buildRows, COLUMN_GUIDE, FIELD_LABEL, guessMapping, parseFile, templateCsv, type Field, type Mapping, type PreparedRow, type RowStatus,
 } from "../lib/conversions";
 import { Btn, Empty, inputCls, Panel, Pill, selectCls, useNotify, type Notify, type Tone } from "./settings/kit";
 
@@ -54,6 +54,43 @@ function Step({ n, title, hint, children, done }: { n: number; title: string; hi
       </div>
       <div className="sm:pl-10">{children}</div>
     </section>
+  );
+}
+
+function downloadTemplate() {
+  const url = URL.createObjectURL(new Blob([templateCsv()], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "template-penjualan-offline.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function FileGuide() {
+  return (
+    <details className="group mb-3 rounded-xl border border-border bg-surface">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-ink">
+        <Icon name="info" className="h-4 w-4 text-ink2" />
+        Isi file yang dibutuhkan
+        <Icon name="chevronDown" className="ml-auto h-4 w-4 text-muted transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="space-y-3 border-t border-border p-4">
+        <ul className="divide-y divide-border text-xs">
+          {COLUMN_GUIDE.map((c) => (
+            <li key={c.title} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2">
+              <span className="w-40 shrink-0 font-medium text-ink">{c.title}</span>
+              <Pill tone={c.need === "required" ? "crit" : c.need === "recommended" ? "warn" : "neutral"}>
+                {c.need === "required" ? "Wajib" : c.need === "recommended" ? "Disarankan" : "Opsional"}
+              </Pill>
+              <span className="min-w-0 flex-1 text-ink2">{c.note}</span>
+              <span className="font-mono text-[11px] text-muted">{c.example}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[11px] text-muted">Satu baris = satu penjualan. Baris pertama harus judul kolom. Judul lain tetap bisa dipakai, kolomnya dicocokkan di langkah 3.</p>
+        <Btn icon="database" onClick={downloadTemplate}>Unduh template (CSV)</Btn>
+      </div>
+    </details>
   );
 }
 
@@ -296,6 +333,7 @@ export function Conversions() {
       </Step>
 
       <Step n={2} title="Upload your sales file" hint="CSV or Excel (.xlsx). The first row must be the column titles." done={Boolean(raw)}>
+        <FileGuide />
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); if (ready) void onFile(e.dataTransfer.files?.[0]); }}

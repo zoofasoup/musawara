@@ -40,6 +40,24 @@ export function guessMapping(headers: string[]): Mapping {
   return m;
 }
 
+// ---------------------------------------------------------------- template
+/** Header row of the downloadable template; guessMapping recognises every title. */
+export const TEMPLATE_HEADERS = ["No Invoice", "Tanggal Bayar", "Nominal", "No WhatsApp", "Email", "Nama Depan", "Nama Belakang"];
+
+/** Header-only CSV (UTF-8 BOM so Excel opens it cleanly). No example rows on purpose: a sample row uploaded by mistake would become a real event. */
+export function templateCsv(): string {
+  return "\uFEFF" + TEMPLATE_HEADERS.join(",") + "\r\n";
+}
+
+export const COLUMN_GUIDE: Array<{ title: string; need: "required" | "recommended" | "optional"; note: string; example: string }> = [
+  { title: "No Invoice", need: "recommended", note: "Kode booking atau invoice yang unik per penjualan. Ini perlindungan terkuat dari dobel.", example: "INV-2026-0142" },
+  { title: "Tanggal Bayar", need: "required", note: "Tanggal penjualan. Format 27/10/2026 atau 2026-10-27. Maksimal 62 hari ke belakang.", example: "27/10/2026" },
+  { title: "Nominal", need: "required", note: "Harga paket yang dibayar, angka saja. Boleh 'Rp 30.000.000' atau 30000000.", example: "30000000" },
+  { title: "No WhatsApp", need: "required", note: "Wajib salah satu dengan Email. Boleh 0812..., +62812..., atau 62812...", example: "081234567890" },
+  { title: "Email", need: "optional", note: "Menambah peluang cocok kalau nomor HP berbeda dengan yang di Meta.", example: "nama@gmail.com" },
+  { title: "Nama Depan / Belakang", need: "optional", note: "Membantu pencocokan. Boleh dikosongkan.", example: "Budi" },
+];
+
 // ---------------------------------------------------------------- parsing
 export function parseCsv(text: string): string[][] {
   const t = text.replace(/^﻿/, "");
