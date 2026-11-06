@@ -2,8 +2,10 @@ import { useState } from "react";
 import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
-function ClientsSection() {
-  const { data, loading, error, reload } = useApi<{ clients: any[] }>("/admin/clients");
+type ClientsState = ReturnType<typeof useApi<{ clients: any[] }>>;
+
+function ClientsSection({ state }: { state: ClientsState }) {
+  const { data, loading, error, reload } = state;
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
@@ -88,8 +90,7 @@ function ClientsSection() {
   );
 }
 
-function AdAccountsSection() {
-  const { data: clientsData } = useApi<{ clients: any[] }>("/admin/clients");
+function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clients: any[] } | undefined; reloadClients: () => void }) {
   const { data, loading, error, reload } = useApi<{ accounts: any[] }>("/admin/accounts");
   const [adding, setAdding] = useState(false);
   const [clientId, setClientId] = useState("");
@@ -107,6 +108,7 @@ function AdAccountsSection() {
       setMetaAccountId("");
       setAdding(false);
       reload();
+      reloadClients();
     } catch (err: any) {
       alert(err.message);
     }
@@ -203,8 +205,7 @@ function AdAccountsSection() {
   );
 }
 
-function UsersSection() {
-  const { data: clientsData } = useApi<{ clients: any[] }>("/admin/clients");
+function UsersSection({ clientsData }: { clientsData: { clients: any[] } | undefined }) {
   const { data, loading, error, reload } = useApi<{ users: any[]; invites: any[] }>("/admin/users");
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState("");
@@ -431,6 +432,7 @@ function MetaTokenSection() {
 }
 
 export function AdminSettings() {
+  const clients = useApi<{ clients: any[] }>("/admin/clients");
   return (
     <div className="mx-auto max-w-4xl space-y-10 pb-20">
       <div>
@@ -438,9 +440,9 @@ export function AdminSettings() {
         <p className="text-sm text-muted">Manage agency clients, ad accounts, and team access.</p>
       </div>
 
-      <ClientsSection />
-      <AdAccountsSection />
-      <UsersSection />
+      <ClientsSection state={clients} />
+      <AdAccountsSection clientsData={clients.data} reloadClients={clients.reload} />
+      <UsersSection clientsData={clients.data} />
       <MetaTokenSection />
     </div>
   );
