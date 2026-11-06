@@ -18,7 +18,7 @@ import { ClientAvatar } from "../components/Layout";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
 
 type Meta = {
-  client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string };
+  client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
   accounts: Array<{
     id: number;
     account_name: string | null;
@@ -87,6 +87,23 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const kpis = useMemo(() => {
     const c = summary.data?.current;
     const p = summary.data?.previous;
+    // Target CPA is the most one sale may cost. ROAS needed to break even = average
+    // sale value / target CPA, so it follows the real (varying) package prices.
+    const target = meta.data?.client.target_cpa ?? null;
+    const avgSale = c && c.purchases > 0 ? c.purchase_value / c.purchases : null;
+    const needRoas = target && avgSale ? avgSale / target : null;
+    const cpaNote: { text: string; tone?: "good" | "crit" | "muted" } | undefined = !target
+      ? undefined
+      : c?.cpa == null
+        ? { text: `Target ${fmtRp(target)}`, tone: "muted" }
+        : c.cpa <= target
+          ? { text: `On target (${fmtRp(target)})`, tone: "good" }
+          : { text: `${Math.round((c.cpa / target - 1) * 100)}% over target ${fmtRp(target)}`, tone: "crit" };
+    const roasNote: { text: string; tone?: "good" | "crit" | "muted" } | undefined = needRoas
+      ? c?.roas != null && c.roas >= needRoas
+        ? { text: `Above the ${fmtNum(needRoas, 1)}x needed`, tone: "good" }
+        : { text: `Needs ${fmtNum(needRoas, 1)}x to break even`, tone: c?.roas != null ? "crit" : "muted" }
+      : undefined;
     // Leads and purchases are the numbers that matter. Purchases are real sales
     // uploaded as offline conversions; Meta's own purchase counts are not used.
     return [
@@ -95,14 +112,14 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
       { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
       { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
-      { label: "CPA", value: fmtRp(c?.cpa), cur: c?.cpa, prev: p?.cpa, dir: "lower-better" as const },
-      { label: "ROAS", value: c?.roas != null ? `${fmtNum(c.roas, 1)}x` : "–", cur: c?.roas, prev: p?.roas, dir: "higher-better" as const },
+      { label: "CPA", value: fmtRp(c?.cpa), cur: c?.cpa, prev: p?.cpa, dir: "lower-better" as const, note: cpaNote },
+      { label: "ROAS", value: c?.roas != null ? `${fmtNum(c.roas, 1)}x` : "–", cur: c?.roas, prev: p?.roas, dir: "higher-better" as const, note: roasNote },
       { label: "CTR", value: fmtPct(c?.ctr), cur: c?.ctr, prev: p?.ctr, dir: "higher-better" as const },
       { label: "CPM", value: fmtRp(c?.cpm), cur: c?.cpm, prev: p?.cpm, dir: "lower-better" as const },
       { label: "Frequency", value: fmtNum(c?.frequency ?? null, 2), cur: c?.frequency, prev: p?.frequency, dir: "neutral" as const },
       { label: "Reach", value: fmtNum(c?.reach), cur: c?.reach, prev: p?.reach, dir: "higher-better" as const },
     ];
-  }, [summary.data]);
+  }, [summary.data, meta.data]);
 
   if (meta.error) return <ErrorState message={meta.error} onRetry={meta.reload} />;
 
@@ -165,6 +182,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
               current={k.cur}
               previous={k.prev}
               direction={k.dir}
+              note={(k as any).note}
               loading={summary.loading}
             />
           ))}
@@ -185,7 +203,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <SectionTitle>Campaigns</SectionTitle>
           <EntityTable clientId={clientId} from={range.from} to={range.to} />
         </div>

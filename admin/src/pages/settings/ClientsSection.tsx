@@ -19,6 +19,41 @@ async function photoToDataUrl(file: File): Promise<string> {
 
 type ClientsState = ReturnType<typeof useApi<{ clients: any[] }>>;
 
+function TargetCpa({ c, reload, notify }: { c: any; reload: () => void; notify: Notify }) {
+  const saved = c.target_cpa ? String(Math.round(c.target_cpa)) : "";
+  const [v, setV] = useState(saved);
+  const changed = v !== saved;
+  const save = async () => {
+    const n = v ? Number(v) : null;
+    try {
+      await api(`/admin/clients/${c.id}`, { method: "PUT", body: { target_cpa: n } });
+      reload();
+      notify(n ? `Target CPA set to Rp ${n.toLocaleString("id-ID")}.` : "Target CPA cleared.");
+    } catch (e: any) {
+      notify(e.message, "err");
+    }
+  };
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
+        <span className="shrink-0">Target CPA</span>
+        <span className="relative min-w-0 flex-1">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">Rp</span>
+          <input
+            value={v}
+            onChange={(e) => setV(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            placeholder="not set"
+            aria-label={`Target CPA for ${c.name}`}
+            className={`${inputCls} pl-9 text-right`}
+          />
+        </span>
+      </label>
+      {changed && <Btn tone="primary" onClick={save}>Save</Btn>}
+    </div>
+  );
+}
+
 function ClientCard({ c, reload, notify }: { c: any; reload: () => void; notify: Notify }) {
   const setPhoto = async (file: File | undefined) => {
     if (!file) return;
@@ -32,7 +67,8 @@ function ClientCard({ c, reload, notify }: { c: any; reload: () => void; notify:
   };
 
   return (
-    <Panel className="flex items-center gap-3 p-3.5">
+    <Panel className="p-3.5">
+      <div className="flex items-center gap-3">
       {/* the avatar itself is the upload target */}
       <label className="group relative inline-flex h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl" title="Change photo">
         <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={14} />
@@ -74,6 +110,8 @@ function ClientCard({ c, reload, notify }: { c: any; reload: () => void; notify:
           }}
         />
       </div>
+      </div>
+      <TargetCpa c={c} reload={reload} notify={notify} />
     </Panel>
   );
 }

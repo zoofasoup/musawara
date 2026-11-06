@@ -141,6 +141,14 @@ export async function pullInsights(
   return rows;
 }
 
+/**
+ * Meta returns budgets in the currency's minor unit. For currencies without
+ * minor units (IDR among them) the number already is the amount shown in Ads
+ * Manager, so dividing by 100 made every Rupiah budget 100x too small.
+ */
+const NO_MINOR_UNIT = new Set(["CLP", "COP", "CRC", "HUF", "IDR", "ISK", "JPY", "KRW", "PYG", "TWD", "VND"]);
+const minorUnit = (currency: string | null | undefined) => (NO_MINOR_UNIT.has(String(currency).toUpperCase()) ? 1 : 100);
+
 export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jobId: number; rows: number }> {
   const job = await env.DB.prepare("INSERT INTO sync_jobs (ad_account_id) VALUES (?) RETURNING id")
     .bind(account.id)
@@ -162,11 +170,11 @@ export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jo
           e.status ?? null,
           e.effective_status ?? null,
           objective,
-          e.daily_budget != null ? Number(e.daily_budget) / 100 : null, // Meta returns minor units
+          e.daily_budget != null ? Number(e.daily_budget) / minorUnit(account.currency) : null,
           parentId,
           thumb,
           e.optimization_goal ?? null,
-          e.lifetime_budget != null ? Number(e.lifetime_budget) / 100 : null
+          e.lifetime_budget != null ? Number(e.lifetime_budget) / minorUnit(account.currency) : null
         )
       );
     for (const c of tree.campaigns) push("campaign", c, null, c.objective ?? null, null);

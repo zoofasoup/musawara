@@ -10,6 +10,9 @@ const ymdAdd = (ymd: string, days: number) => new Date(Date.parse(ymd + "T00:00:
 type Health = { key: "ok" | "stale" | "failed" | "never" | "running"; label: string; tone: Tone; dot: string };
 export function accountHealth(a: any): Health {
   if (a.last_status === "failed") return { key: "failed", label: "Last sync failed", tone: "crit", dot: "bg-crit" };
+  if (a.last_status === "running" && (hoursSince(a.last_attempt) ?? 0) > 10 / 60) {
+    return { key: "failed", label: "Sync interrupted", tone: "crit", dot: "bg-crit" };
+  }
   if (a.last_status === "running") return { key: "running", label: "Syncing", tone: "warn", dot: "bg-warn" };
   if (!a.last_success) return { key: "never", label: "Never synced", tone: "neutral", dot: "bg-border2" };
   const h = hoursSince(a.last_success);

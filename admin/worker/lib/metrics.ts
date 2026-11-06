@@ -134,6 +134,7 @@ export type EntityRow = Totals & {
   effective_status: string | null;
   objective: string | null;
   daily_budget: number | null;
+  lifetime_budget: number | null;
   thumbnail_url: string | null;
   previous: Totals;
 };
@@ -166,7 +167,7 @@ export async function clientEntities(
     query(from, to).all<RawSums & { entity_id: string; entity_name: string | null }>(),
     query(prevFrom, prevTo).all<RawSums & { entity_id: string; entity_name: string | null }>(),
     env.DB.prepare(
-      `SELECT e.entity_id, e.name, e.status, e.effective_status, e.objective, e.daily_budget, e.parent_id, e.thumbnail_url
+      `SELECT e.entity_id, e.name, e.status, e.effective_status, e.objective, e.daily_budget, e.lifetime_budget, e.parent_id, e.thumbnail_url
        FROM entities e JOIN ad_accounts a ON a.id = e.ad_account_id
        WHERE a.client_id=? AND e.level=?`
     )
@@ -189,6 +190,7 @@ export async function clientEntities(
         effective_status: m?.effective_status ?? null,
         objective: m?.objective ?? null,
         daily_budget: m?.daily_budget ?? null,
+        lifetime_budget: m?.lifetime_budget ?? null,
         thumbnail_url: m?.thumbnail_url ?? null,
         ...finalize(r),
         previous: finalize(prevMap.get(r.entity_id)),

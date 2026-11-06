@@ -8,6 +8,7 @@ export function KpiCard({
   direction,
   loading,
   flat,
+  note,
 }: {
   label: string;
   value: string;
@@ -17,6 +18,8 @@ export function KpiCard({
   loading?: boolean;
   /** Cell inside a metrics strip: no own border/radius, the strip draws the dividers. */
   flat?: boolean;
+  /** One short line under the delta, e.g. "Target Rp 1 jt", coloured by `tone`. */
+  note?: { text: string; tone?: "good" | "crit" | "muted" };
 }) {
   const box = flat
     ? "border-b border-r border-border bg-surface px-3.5 py-3"
@@ -40,6 +43,9 @@ export function KpiCard({
         <Delta current={current} previous={previous} direction={direction} />
         <span className="ml-1 text-[10px] text-muted">vs prev.</span>
       </div>
+      {note && (
+        <p className={`mt-1 text-[11px] font-medium ${note.tone === "good" ? "text-good" : note.tone === "crit" ? "text-crit" : "text-muted"}`}>{note.text}</p>
+      )}
     </div>
   );
 }

@@ -120,15 +120,23 @@ const LOGO_RE = /^(data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https:\/\/
 const validLogo = (v: unknown) => typeof v === "string" && (v === "" || (v.length <= 150_000 && LOGO_RE.test(v)));
 
 admin.put("/clients/:id", async (c) => {
-  const { name, slug, logo_url, brand_color } = await c.req.json().catch(() => ({}));
+  const body = await c.req.json().catch(() => ({}));
+  const { name, slug, logo_url, brand_color } = body;
   if (logo_url !== undefined && logo_url !== null && !validLogo(logo_url)) {
     return c.json({ error: "Photo must be a PNG/JPEG/WebP image under 100 KB" }, 400);
   }
+  // target_cpa: a positive number sets it, null clears it, absent leaves it alone.
+  const hasTarget = Object.prototype.hasOwnProperty.call(body, "target_cpa");
+  const target = body.target_cpa;
+  if (hasTarget && target !== null && !(typeof target === "number" && isFinite(target) && target > 0 && target < 1e11)) {
+    return c.json({ error: "Target CPA must be a positive amount in Rp, or empty to clear it" }, 400);
+  }
   const row = await c.env.DB.prepare(
     `UPDATE clients SET name=COALESCE(?,name), slug=COALESCE(?,slug),
-     logo_url=COALESCE(?,logo_url), brand_color=COALESCE(?,brand_color) WHERE id=? RETURNING *`
+     logo_url=COALESCE(?,logo_url), brand_color=COALESCE(?,brand_color),
+     target_cpa=CASE WHEN ?=1 THEN ? ELSE target_cpa END WHERE id=? RETURNING *`
   )
-    .bind(name ?? null, slug ?? null, logo_url ?? null, brand_color ?? null, c.req.param("id"))
+    .bind(name ?? null, slug ?? null, logo_url ?? null, brand_color ?? null, hasTarget ? 1 : 0, hasTarget ? target : null, c.req.param("id"))
     .first();
   if (!row) return c.json({ error: "Client not found" }, 404);
   return c.json({ client: row });

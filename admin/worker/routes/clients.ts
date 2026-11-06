@@ -27,7 +27,7 @@ function range(c: any): { from: string; to: string; prevFrom: string; prevTo: st
 clients.get("/:clientId/meta", async (c) => {
   const clientId = c.get("access").clientId;
   const client = await c.env.DB.prepare(
-    "SELECT id, name, slug, logo_url, brand_color FROM clients WHERE id=?"
+    "SELECT id, name, slug, logo_url, brand_color, target_cpa FROM clients WHERE id=?"
   )
     .bind(clientId)
     .first();
