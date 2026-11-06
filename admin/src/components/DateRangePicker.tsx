@@ -7,7 +7,8 @@ import { presets, todayJakarta, type DateRange } from "../lib/dates";
 import { fmtDay, fmtDayFull } from "../lib/format";
 
 function rangeText(from: string, to: string): string {
-  return from === to ? fmtDayFull(from) : `${fmtDay(from)} – ${fmtDayFull(to)}`;
+  if (from === to) return fmtDayFull(from);
+  return from.slice(0, 4) === to.slice(0, 4) ? `${fmtDay(from)} – ${fmtDayFull(to)}` : `${fmtDayFull(from)} – ${fmtDayFull(to)}`;
 }
 
 const monthOf = (ymd: string) => ymd.slice(0, 7); // YYYY-MM

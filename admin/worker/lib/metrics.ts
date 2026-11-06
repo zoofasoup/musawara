@@ -79,16 +79,27 @@ export async function clientTotals(env: Env, clientId: number, from: string, to:
   return finalize(row);
 }
 
+export type TrendBucket = "day" | "week" | "month";
+
+/** Long ranges are summed per week or month so the chart stays readable (ratios come from the sums). */
+export function trendBucket(from: string, to: string): TrendBucket {
+  const days = (Date.parse(to) - Date.parse(from)) / 86_400_000 + 1;
+  return days > 400 ? "month" : days > 120 ? "week" : "day";
+}
+
 export async function clientTrend(env: Env, clientId: number, from: string, to: string) {
+  const bucket = trendBucket(from, to);
+  // Monday on or before the date: date(d, '-6 days', 'weekday 1')
+  const key = bucket === "day" ? "i.date" : bucket === "week" ? "date(i.date, '-6 days', 'weekday 1')" : "substr(i.date, 1, 7) || '-01'";
   const rows = await env.DB.prepare(
-    `SELECT i.date, ${SUM_COLS}
+    `SELECT ${key} AS date, ${SUM_COLS}
      FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
      WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?
-     GROUP BY i.date ORDER BY i.date`
+     GROUP BY 1 ORDER BY 1`
   )
     .bind(clientId, from, to)
     .all<RawSums & { date: string }>();
-  return rows.results.map((r) => ({ date: r.date, ...finalize(r) }));
+  return { bucket, days: rows.results.map((r) => ({ date: r.date, ...finalize(r) })) };
 }
 
 export type EntityRow = Totals & {

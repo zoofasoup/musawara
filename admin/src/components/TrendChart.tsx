@@ -38,7 +38,7 @@ const LINE_METRICS = [
 const BAR_COLOR = "var(--color-chart-1)";
 const LINE_COLOR = "var(--color-chart-2)";
 
-export function TrendChart({ days, resultLabel }: { days: TrendDay[]; resultLabel: string }) {
+export function TrendChart({ days, resultLabel, bucket = "day" }: { days: TrendDay[]; resultLabel: string; bucket?: "day" | "week" | "month" }) {
   const [barKey, setBarKey] = useState<"spend" | "results">("spend");
   const [lineKey, setLineKey] = useState<"cpr" | "ctr" | "cpm" | "none">("cpr");
 
@@ -130,7 +130,7 @@ export function TrendChart({ days, resultLabel }: { days: TrendDay[]; resultLabe
                 const d = payload[0].payload as (typeof data)[number];
                 return (
                   <div className="rounded-lg border border-border2 bg-surface px-3 py-2 text-xs shadow-panel">
-                    <p className="mb-1 font-semibold text-ink">{fmtDayFull(String(label))}</p>
+                    <p className="mb-1 font-semibold text-ink">{bucket === "week" ? "Week of " : bucket === "month" ? "Month of " : ""}{fmtDayFull(String(label))}</p>
                     <p className="tnum text-ink2">
                       {barLabel}: <span className="text-ink">{bar.fmt(d.barValue as any)}</span>
                     </p>

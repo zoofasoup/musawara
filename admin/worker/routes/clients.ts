@@ -64,7 +64,7 @@ clients.get("/:clientId/summary", async (c) => {
 clients.get("/:clientId/trend", async (c) => {
   const clientId = c.get("access").clientId;
   const { from, to } = range(c);
-  return c.json({ days: await clientTrend(c.env, clientId, from, to) });
+  return c.json(await clientTrend(c.env, clientId, from, to));
 });
 
 clients.get("/:clientId/entities", async (c) => {

@@ -75,7 +75,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
   const summary = useApi<Summary>(`/clients/${clientId}/summary?${query}`);
-  const trend = useApi<{ days: TrendDay[] }>(`/clients/${clientId}/trend?${query}`);
+  const trend = useApi<{ days: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
 
@@ -92,9 +92,9 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       { label: "Spend", value: fmtRp(c?.spend), cur: c?.spend, prev: p?.spend, dir: "neutral" as const },
       { label: "Leads", value: fmtNum(c?.leads), cur: c?.leads, prev: p?.leads, dir: "higher-better" as const },
       { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
+      { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
       ...(hasPurchases
         ? [
-            { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
             { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
             { label: "ROAS", value: fmtNum(c?.roas ?? null, 2), cur: c?.roas, prev: p?.roas, dir: "higher-better" as const },
           ]
@@ -178,13 +178,13 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
       {/* trend */}
       <div className="mb-6">
-        <SectionTitle>Daily trend</SectionTitle>
+        <SectionTitle>{trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"}</SectionTitle>
         {trend.loading ? (
           <CardSkeleton lines={5} />
         ) : trend.error ? (
           <ErrorState message={trend.error} onRetry={trend.reload} />
         ) : (
-          <TrendChart days={trend.data?.days ?? []} resultLabel={resultLabel} />
+          <TrendChart days={trend.data?.days ?? []} resultLabel={resultLabel} bucket={trend.data?.bucket} />
         )}
       </div>
 
