@@ -8,7 +8,7 @@ export type TokenStatus = { configured: boolean; source?: string; ok?: boolean; 
 const STEPS = [
   "Open Meta Business Settings, then Users, System users.",
   "Pick the system user (or add one), and assign it the ad accounts with at least View performance.",
-  "Choose Generate token, select the musawara-ads app, tick ads_read, and set expiry to Never.",
+  "Choose Generate token, select the musawara-ads app, set expiry to Never, and tick: ads_read, ads_management, instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement, read_insights.",
   "Copy the token right away (it is shown once) and paste it below.",
 ];
 
@@ -41,7 +41,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
   };
 
   return (
-    <Section id="meta" step={1} done={valid} icon="key" title="Meta connection" hint="One read-only token lets the system pull data for every ad account.">
+    <Section id="meta" step={1} done={valid} icon="key" title="Meta connection" hint="One token for everything Meta: ad data, organic Instagram and Page content, and sending sales as offline conversions.">
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

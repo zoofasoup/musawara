@@ -243,7 +243,6 @@ export function Conversions() {
   const [currency, setCurrency] = useState("IDR");
   const [test, setTest] = useState(true);
   const [testCode, setTestCode] = useState("");
-  const [capiToken, setCapiToken] = useState("");
 
   const [fileName, setFileName] = useState("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
@@ -283,15 +282,6 @@ export function Conversions() {
       notify("Saved as this client's default.");
     } catch (e: any) { notify(e.message, "err"); }
   };
-  const saveToken = async () => {
-    try {
-      await api("/admin/conversions/token", { method: "POST", body: { token: capiToken } });
-      setCapiToken("");
-      conf.reload();
-      notify("Conversions token saved.");
-    } catch (e: any) { notify(e.message, "err"); }
-  };
-
   const unionHeaders = (list: Sheet[]) => [...new Set(list.flatMap((s) => s.headers).filter(Boolean))];
 
   /** Build the rows, ask the server what it already has, and plan what can go to Meta. */
@@ -464,14 +454,13 @@ export function Conversions() {
 
           {mode === "meta" && (
             <div className="space-y-3 border-t border-border pt-3">
-              {!tokenOk && !conf.loading && (
-                <div className="rounded-lg border border-warn/40 bg-warn/5 p-3">
-                  <p className="flex items-center gap-2 text-xs font-medium text-warn"><Icon name="key" className="h-4 w-4" /> Add a Conversions API token (ads_management) to send</p>
-                  <div className="mt-2 flex gap-2">
-                    <input type="password" value={capiToken} onChange={(e) => setCapiToken(e.target.value)} placeholder="Paste token (starts with EAA…)" aria-label="Conversions API token" autoComplete="off" className={`${inputCls} font-mono`} />
-                    <Btn tone="primary" disabled={!capiToken.trim()} onClick={saveToken}>Save</Btn>
-                  </div>
-                </div>
+              {!tokenOk && !conf.loading ? (
+                <p className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn/5 px-3 py-2.5 text-xs text-warn">
+                  <Icon name="key" className="mt-0.5 h-4 w-4" />
+                  <span>No Meta token yet. Add it once in Settings, Meta connection. The same token is used here (it needs the ads_management permission).</span>
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-[11px] text-muted"><Icon name="key" className="h-3.5 w-3.5" /> Sends with the token from Settings, Meta connection (needs ads_management).</p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-xs text-muted">Dataset
@@ -644,7 +633,7 @@ export function Conversions() {
               {mode === "meta" && units.length ? `Save ${counts.new} and send ${units.length} to Meta` : `Save ${counts.new} to dashboard`}
             </Btn>
           )}
-          {mode === "meta" && units.length > 0 && !tokenOk && <p className="mt-2 text-xs text-warn">Add the Conversions API token in step 1 to send.</p>}
+          {mode === "meta" && units.length > 0 && !tokenOk && <p className="mt-2 text-xs text-warn">Add the Meta token in Settings to send.</p>}
           {lastRun && (
             <Panel className="mt-3 space-y-1 p-3.5 text-xs">
               {lastRun.map((l, i) => <p key={i} className={l.startsWith("Stopped") ? "text-crit" : "text-ink"}>{l}</p>)}

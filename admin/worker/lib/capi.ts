@@ -2,7 +2,7 @@
 // is kept apart from the read-only insights token.
 
 import type { Env } from "../types";
-import { META_API_VERSION } from "./meta";
+import { getMetaToken, META_API_VERSION } from "./meta";
 import { decryptString } from "./secretbox";
 
 export const CAPI_TOKEN_KEY = "meta_capi_token_enc";
@@ -10,14 +10,21 @@ export const CAPI_TOKEN_KEY = "meta_capi_token_enc";
 export const MAX_EVENT_AGE_DAYS = 62;
 export const SEND_CHUNK = 200;
 
+/**
+ * One token serves every Meta need: the connection token from Settings is used
+ * for sending events too (it needs the ads_management permission). A separate
+ * Conversions token, if one was saved earlier, still wins.
+ */
 export async function getCapiToken(env: Env): Promise<string | null> {
   const row = await env.DB.prepare("SELECT value FROM app_settings WHERE key=?").bind(CAPI_TOKEN_KEY).first<{ value: string }>();
-  if (!row?.value) return null;
-  try {
-    return await decryptString(env.JWT_SECRET, row.value);
-  } catch {
-    return null;
+  if (row?.value) {
+    try {
+      return await decryptString(env.JWT_SECRET, row.value);
+    } catch {
+      /* unreadable separate token: fall through to the shared one */
+    }
   }
+  return getMetaToken(env);
 }
 
 export type CapiEvent = {
