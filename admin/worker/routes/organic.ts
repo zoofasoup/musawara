@@ -1,7 +1,7 @@
 // Organic content: Instagram accounts per client and the daily story count.
 
 import { Hono } from "hono";
-import { discoverInstagram, pollStories } from "../lib/organic";
+import { discoverInstagram, pollPosts, pollStories } from "../lib/organic";
 import { addDays, ymdInTz } from "../lib/dates";
 import type { Env, Vars } from "../types";
 
@@ -29,6 +29,15 @@ organic.get("/", async (c) => {
       days: days.map((d) => ({ day: d, count: counts.results.find((r) => r.ig_user_id === a.ig_user_id && r.day === d)?.n ?? 0 })),
     })),
   });
+});
+
+organic.get("/posts", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT p.*, a.ig_username, a.followers, cl.name AS client_name
+       FROM organic_posts p JOIN organic_accounts a ON a.ig_user_id=p.ig_user_id JOIN clients cl ON cl.id=a.client_id
+      WHERE p.posted_at >= datetime('now','-30 days') ORDER BY p.posted_at DESC`
+  ).all();
+  return c.json({ posts: results });
 });
 
 organic.get("/discover", async (c) => {
@@ -64,7 +73,12 @@ organic.post("/poll", async (c) => {
     try {
       added += await pollStories(c.env, a);
     } catch (e: any) {
-      errors.push(e.message);
+      errors.push(`Stories: ${e.message}`);
+    }
+    try {
+      await pollPosts(c.env, a, true);
+    } catch (e: any) {
+      errors.push(`Posts: ${e.message}`);
     }
   }
   return c.json({ added, errors });

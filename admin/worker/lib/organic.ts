@@ -52,13 +52,85 @@ export async function pollStories(env: Env, account: { id: number; ig_user_id: s
   }
 }
 
-export async function pollAllStories(env: Env): Promise<void> {
+const DAY_MS = 86_400_000;
+
+function postFormat(m: any): string {
+  if (m.media_product_type === "REELS") return "reel";
+  if (m.media_type === "CAROUSEL_ALBUM") return "carousel";
+  return m.media_type === "VIDEO" ? "video" : "image";
+}
+
+async function mediaInsights(env: Env, mediaId: string, reel: boolean) {
+  const out: Record<string, number> = {};
+  const read = async (metrics: string) => {
+    const r = await metaGet(env, `${mediaId}/insights`, { metric: metrics }, 1);
+    for (const d of r.data ?? []) out[d.name] = d.values?.[0]?.value ?? 0;
+  };
+  await read("reach,saved,shares,total_interactions,views");
+  if (reel) {
+    try {
+      await read("ig_reels_avg_watch_time");
+    } catch {
+      /* not offered for this media: leave empty */
+    }
+  }
+  return out;
+}
+
+/**
+ * Record the latest posts and refresh their insights. Posts under 3 days old are
+ * refreshed every run, older ones (up to 30 days) only on the daily deep run.
+ */
+export async function pollPosts(env: Env, account: { id: number; ig_user_id: string }, deep: boolean): Promise<number> {
+  const prof = await metaGet(env, account.ig_user_id, { fields: "followers_count" }, 1);
+  if (prof.followers_count != null) await env.DB.prepare("UPDATE organic_accounts SET followers=? WHERE id=?").bind(prof.followers_count, account.id).run();
+
+  const media = await metaGetAll(
+    env,
+    `${account.ig_user_id}/media`,
+    { fields: "id,media_type,media_product_type,timestamp,permalink,caption,like_count,comments_count", limit: "50" },
+    1
+  );
+  let touched = 0;
+  for (const m of media) {
+    const age = Date.now() - new Date(m.timestamp).getTime();
+    if (age > 30 * DAY_MS) continue;
+    const fmt = postFormat(m);
+    await env.DB.prepare(
+      `INSERT INTO organic_posts (media_id, ig_user_id, posted_at, day, format, permalink, caption, likes, comments)
+       VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(media_id) DO UPDATE SET likes=excluded.likes, comments=excluded.comments, caption=excluded.caption`
+    )
+      .bind(m.id, account.ig_user_id, m.timestamp, ymdInTz(TZ, new Date(m.timestamp)), fmt, m.permalink ?? null, m.caption ?? null, m.like_count ?? null, m.comments_count ?? null)
+      .run();
+    if (age > 3 * DAY_MS && !deep) continue;
+    try {
+      const i = await mediaInsights(env, m.id, fmt === "reel");
+      await env.DB.prepare(
+        "UPDATE organic_posts SET reach=?, views=?, saves=?, shares=?, interactions=?, avg_watch_ms=?, insights_at=datetime('now') WHERE media_id=?"
+      )
+        .bind(i.reach ?? null, i.views ?? null, i.saved ?? null, i.shares ?? null, i.total_interactions ?? null, i.ig_reels_avg_watch_time ?? null, m.id)
+        .run();
+      touched++;
+    } catch (e) {
+      console.error("insights failed", m.id, e);
+    }
+  }
+  return touched;
+}
+
+export async function pollAllOrganic(env: Env, deep: boolean): Promise<void> {
   const { results } = await env.DB.prepare("SELECT id, ig_user_id FROM organic_accounts").all<{ id: number; ig_user_id: string }>();
   for (const a of results) {
-    try {
-      await pollStories(env, a);
-    } catch (e) {
-      console.error("story poll failed", a.ig_user_id, e);
+    for (const [name, fn] of [
+      ["story", () => pollStories(env, a)],
+      ["post", () => pollPosts(env, a, deep)],
+    ] as const) {
+      try {
+        await fn();
+      } catch (e) {
+        console.error(`${name} poll failed`, a.ig_user_id, e);
+      }
     }
   }
 }

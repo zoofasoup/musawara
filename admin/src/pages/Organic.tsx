@@ -1,8 +1,8 @@
 // Organic content: Instagram stories per day against the daily target.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
-import { fmtDay } from "../lib/format";
+import { fmtDay, fmtCompact, fmtPct } from "../lib/format";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
 type Day = { day: string; count: number };
@@ -18,10 +18,49 @@ type Account = {
 };
 type Candidate = { ig_user_id: string; ig_username: string | null; page_id: string; page_name: string };
 
+type Post = {
+  media_id: string;
+  ig_username: string | null;
+  followers: number | null;
+  posted_at: string;
+  day: string;
+  format: string;
+  permalink: string | null;
+  caption: string | null;
+  likes: number | null;
+  comments: number | null;
+  reach: number | null;
+  views: number | null;
+  saves: number | null;
+  shares: number | null;
+  interactions: number | null;
+  avg_watch_ms: number | null;
+};
+const FORMATS = [["", "All formats"], ["reel", "Reels"], ["carousel", "Carousel"], ["image", "Photo"], ["video", "Video"]];
+const rate = (n: number | null, d: number | null) => (n != null && d ? n / d : null);
+const SORTS: Record<string, [string, (p: Post) => number | null]> = {
+  newest: ["Newest", (p) => new Date(p.posted_at).getTime()],
+  reach: ["Reach", (p) => p.reach],
+  reach_pct: ["Reach / followers", (p) => rate(p.reach, p.followers)],
+  shares: ["Shares", (p) => p.shares],
+  save_rate: ["Save rate", (p) => rate(p.saves, p.reach)],
+  share_rate: ["Share rate", (p) => rate(p.shares, p.reach)],
+  watch: ["Avg watch time", (p) => p.avg_watch_ms],
+};
+
 const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink disabled:opacity-50";
 
 export function Organic() {
   const list = useApi<{ today: string; accounts: Account[] }>("/admin/organic");
+  const posts = useApi<{ posts: Post[] }>("/admin/organic/posts");
+  const [fmt, setFmt] = useState("");
+  const [sort, setSort] = useState("newest");
+  const shown = useMemo(() => {
+    const get = SORTS[sort][1];
+    return (posts.data?.posts ?? [])
+      .filter((p) => !fmt || p.format === fmt)
+      .sort((a, b) => (get(b) ?? -1) - (get(a) ?? -1));
+  }, [posts.data, fmt, sort]);
   const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
@@ -50,12 +89,14 @@ export function Organic() {
       await api("/admin/organic/accounts", { method: "POST", body: { client_id: Number(pick[c.ig_user_id]), ig_user_id: c.ig_user_id, ig_username: c.ig_username, page_id: c.page_id } });
       await api("/admin/organic/poll", { method: "POST", body: {} });
       list.reload();
+      posts.reload();
     });
   const poll = () =>
     run("poll", async () => {
       const r = await api<{ added: number; errors: string[] }>("/admin/organic/poll", { method: "POST", body: {} });
       setMsg(r.errors.length ? r.errors[0] : `${r.added} new stories recorded`);
       list.reload();
+      posts.reload();
     });
   const remove = (a: Account) =>
     run("rm" + a.id, async () => {
@@ -128,6 +169,52 @@ export function Organic() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8">
+        <SectionTitle
+          right={
+            <span className="flex gap-2">
+              <select className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink" value={fmt} onChange={(e) => setFmt(e.target.value)} aria-label="Format">
+                {FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <select className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
+                {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </span>
+          }
+        >
+          Posts, last 30 days
+        </SectionTitle>
+        {posts.loading ? (
+          <CardSkeleton lines={4} />
+        ) : !shown.length ? (
+          <EmptyState title="No posts yet" hint="Posts appear after the first check. Insights are filled in within a day of posting." />
+        ) : (
+          <div className="divide-y divide-border rounded-xl border border-border bg-surface">
+            {shown.map((p) => (
+              <a key={p.media_id} href={p.permalink ?? undefined} target="_blank" rel="noreferrer" className="block px-4 py-3 hover:bg-surface2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate text-sm text-ink">{p.caption?.split("\n")[0] || "(no caption)"}</p>
+                  <span className="shrink-0 text-xs text-muted">{fmtDay(p.day)}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted">@{p.ig_username} · {p.format}</p>
+                {p.reach == null ? (
+                  <p className="mt-1.5 text-xs text-muted">Insights not ready yet</p>
+                ) : (
+                  <dl className="tnum mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1 text-xs text-ink2 sm:grid-cols-6">
+                    <div><dt className="text-muted">Reach</dt><dd>{fmtCompact(p.reach)}{rate(p.reach, p.followers) != null && <span className="text-muted"> · {fmtPct(rate(p.reach, p.followers)! * 100)}</span>}</dd></div>
+                    <div><dt className="text-muted">Views</dt><dd>{p.views != null ? fmtCompact(p.views) : "–"}</dd></div>
+                    <div><dt className="text-muted">Saves</dt><dd>{p.saves ?? "–"}{rate(p.saves, p.reach) != null && <span className="text-muted"> · {fmtPct(rate(p.saves, p.reach)! * 100)}</span>}</dd></div>
+                    <div><dt className="text-muted">Shares</dt><dd>{p.shares ?? "–"}{rate(p.shares, p.reach) != null && <span className="text-muted"> · {fmtPct(rate(p.shares, p.reach)! * 100)}</span>}</dd></div>
+                    <div><dt className="text-muted">Likes / comments</dt><dd>{p.likes ?? "–"} / {p.comments ?? "–"}</dd></div>
+                    <div><dt className="text-muted">Avg watch</dt><dd>{p.avg_watch_ms != null ? `${(p.avg_watch_ms / 1000).toFixed(1)}s` : "–"}</dd></div>
+                  </dl>
+                )}
+              </a>
+            ))}
           </div>
         )}
       </div>
