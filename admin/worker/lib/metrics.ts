@@ -16,6 +16,7 @@ export type Totals = {
   leads: number; // messaging conversations started
   purchases: number;
   purchase_value: number;
+  purchases_sent: number; // of the purchases, how many reached Meta
   ctr: number | null;
   cpm: number | null;
   cpr: number | null;
@@ -35,6 +36,7 @@ type RawSums = {
   leads: number | null;
   purchases: number | null;
   purchase_value: number | null;
+  purchases_sent?: number | null;
 };
 
 export function finalize(r: RawSums | null | undefined): Totals {
@@ -55,6 +57,7 @@ export function finalize(r: RawSums | null | undefined): Totals {
     leads,
     purchases: r?.purchases ?? 0,
     purchase_value,
+    purchases_sent: r?.purchases_sent ?? 0,
     ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
     cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
     cpr: results > 0 ? spend / results : null,
@@ -70,19 +73,23 @@ const SUM_COLS = `SUM(spend) spend, SUM(impressions) impressions, SUM(reach) rea
   SUM(leads) leads, SUM(purchases) purchases, SUM(purchase_value) purchase_value`;
 
 /**
- * Real sales for a client in a date range, from the offline-conversion ledger
- * (live sends only, by the date of the sale in Jakarta time). Meta's own
- * "purchase" actions are deliberately not used: they are unreliable here.
+ * Real sales for a client in a date range, from the sales table (one row per
+ * traveller, whether or not it reached Meta). Meta's own "purchase" actions are
+ * deliberately not used: they are unreliable here.
  */
-export async function offlineSales(env: Env, clientId: number, from: string, to: string): Promise<{ purchases: number; purchase_value: number }> {
+export async function offlineSales(
+  env: Env,
+  clientId: number,
+  from: string,
+  to: string
+): Promise<{ purchases: number; purchase_value: number; purchases_sent: number }> {
   const r = await env.DB.prepare(
-    `SELECT COUNT(*) n, COALESCE(SUM(value), 0) v FROM offline_events
-     WHERE client_id=? AND is_test=0 AND event_name='Purchase'
-       AND date(event_time, 'unixepoch', '+7 hours') BETWEEN ? AND ?`
+    `SELECT COUNT(*) n, COALESCE(SUM(value), 0) v, COALESCE(SUM(meta_state='sent'), 0) s
+     FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ?`
   )
     .bind(clientId, from, to)
-    .first<{ n: number; v: number }>();
-  return { purchases: r?.n ?? 0, purchase_value: r?.v ?? 0 };
+    .first<{ n: number; v: number; s: number }>();
+  return { purchases: r?.n ?? 0, purchase_value: r?.v ?? 0, purchases_sent: r?.s ?? 0 };
 }
 
 /** Whole-client totals for a date range (campaign level avoids double counting). */

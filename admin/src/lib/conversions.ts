@@ -1,61 +1,117 @@
-// Offline-conversion file handling, all in the browser: parse CSV/XLSX, guess the
-// column mapping, normalise, validate, and hash identifiers (SHA-256) so raw
-// phone numbers / emails never reach our server. Each sale also gets a stable
-// row_key, which is what lets the server refuse to send the same sale twice.
+// Sales-file handling, all in the browser: read CSV/XLSX (every sheet), find the
+// header row, guess the column mapping, normalise, validate, and hash
+// identifiers (SHA-256) so raw phone numbers / emails never reach our server.
+//
+// One file row = one traveller = one sale for the dashboard. For Meta, rows that
+// share a booking (a "group" column) become ONE event worth the sum of their
+// values, carried by whichever row has a phone number or email.
 
-export type Field = "phone" | "email" | "first_name" | "last_name" | "time" | "value" | "order_id";
-export type Mapping = Record<Field, number>; // column index, -1 = not mapped
+export type Field =
+  | "name" | "time" | "value" | "discount" | "order_id" | "source" | "consultant" | "group"
+  | "phone" | "email" | "first_name" | "last_name";
+/** Field -> column TITLE (so one mapping works across sheets with the same titles). null = not mapped. */
+export type Mapping = Record<Field, string | null>;
 
 export const FIELD_LABEL: Record<Field, string> = {
+  name: "Customer name",
+  time: "Date of sale",
+  value: "Package price",
+  discount: "Discount",
+  order_id: "Order / invoice ID",
+  source: "Source",
+  consultant: "Consultant",
+  group: "Booking / decision maker",
   phone: "Phone / WhatsApp",
   email: "Email",
   first_name: "First name",
   last_name: "Last name",
-  time: "Date of purchase",
-  value: "Amount",
-  order_id: "Order / invoice ID",
 };
 
+export const FIELD_HINT: Partial<Record<Field, string>> = {
+  name: "Used to tell sales apart. Only a short label (Budi S.) is stored.",
+  group: "Same value on every member of one booking: they become one Meta event with the summed value.",
+  discount: "Subtracted from the package price.",
+  order_id: "If present it identifies the sale on its own.",
+};
+
+export const REQUIRED: Field[] = ["time", "value"];
+
 const SYNONYMS: Record<Field, string[]> = {
-  phone: ["phone", "telepon", "telp", "no hp", "nomor hp", "hp", "whatsapp", "no wa", "nomor wa", "wa", "mobile", "ph", "no telepon", "nomor telepon"],
+  name: ["nama", "name", "nama jamaah", "nama lengkap", "nama customer", "customer", "nama pelanggan"],
+  time: ["tanggal closing", "tgl closing", "closing date", "date", "tanggal", "tgl", "tanggal transaksi", "tanggal bayar", "tgl bayar", "order date", "waktu", "datetime", "event time", "paid at", "purchase date", "tanggal pembelian"],
+  value: ["paket harga", "harga paket", "value", "amount", "nominal", "total", "harga", "revenue", "nilai", "jumlah bayar", "pembayaran", "jumlah", "price"],
+  discount: ["diskon", "discount", "potongan"],
+  order_id: ["order id", "orderid", "invoice", "no invoice", "id transaksi", "transaction id", "no transaksi", "nomor transaksi", "kode transaksi", "id order"],
+  source: ["sumber", "source", "channel"],
+  consultant: ["umroh consultant uc", "umroh consultant", "consultant", "uc", "cs", "sales"],
+  group: ["kode booking", "booking id", "kode grup", "kode kelompok", "grup", "group", "kelompok", "pemesan", "decision maker", "dm", "penanggung jawab", "booking"],
+  phone: ["phone", "telepon", "telp", "no hp", "nomor hp", "hp", "whatsapp", "no whatsapp", "no wa", "nomor wa", "wa", "mobile", "ph", "no telepon", "nomor telepon"],
   email: ["email", "e-mail", "surel"],
   first_name: ["first name", "firstname", "nama depan", "fn"],
   last_name: ["last name", "lastname", "nama belakang", "ln"],
-  time: ["date", "tanggal", "tgl", "tanggal transaksi", "tanggal bayar", "tgl bayar", "order date", "waktu", "datetime", "event time", "paid at", "purchase date", "tanggal pembelian"],
-  value: ["value", "amount", "nominal", "total", "harga", "revenue", "nilai", "jumlah bayar", "pembayaran", "dp", "jumlah", "price"],
-  order_id: ["order id", "orderid", "invoice", "no invoice", "id transaksi", "kode booking", "booking id", "transaction id", "no transaksi", "nomor transaksi", "kode transaksi", "id order"],
 };
 
-const norm = (s: string) => s.toLowerCase().replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
+// partial (substring) matching must never pick these as a date of sale
+const NOT_A_SALE_DATE = /berangkat|lahir|keberangkatan|departure/;
 
+export const norm = (s: string) =>
+  s.toLowerCase().replace(/[()_\-.:]+/g, " ").replace(/\s+/g, " ").trim();
+
+/** Best column title per field, from the titles of the selected sheets. */
 export function guessMapping(headers: string[]): Mapping {
   const used = new Set<number>();
   const m = {} as Mapping;
-  (Object.keys(SYNONYMS) as Field[]).forEach((f) => {
+  const order: Field[] = ["order_id", "group", "time", "value", "discount", "name", "first_name", "last_name", "phone", "email", "source", "consultant"];
+  const pick = (f: Field): number => {
     let idx = headers.findIndex((h, i) => !used.has(i) && SYNONYMS[f].includes(norm(h)));
-    if (idx < 0) idx = headers.findIndex((h, i) => !used.has(i) && SYNONYMS[f].some((s) => s.length > 3 && norm(h).includes(s)));
+    if (idx < 0) {
+      idx = headers.findIndex(
+        (h, i) =>
+          !used.has(i) &&
+          SYNONYMS[f].some((s) => s.length > 3 && norm(h).includes(s)) &&
+          !(f === "time" && NOT_A_SALE_DATE.test(norm(h))) &&
+          !(f === "value" && /^(dp|down payment)$/.test(norm(h)))
+      );
+    }
+    return idx;
+  };
+  for (const f of order) {
+    const idx = pick(f);
     if (idx >= 0) used.add(idx);
-    m[f] = idx;
-  });
+    m[f] = idx >= 0 ? headers[idx] : null;
+  }
   return m;
+}
+
+/** How many distinct fields a row's cells look like (for header-row detection). */
+function headerScore(cells: string[]): number {
+  const fields = new Set<Field>();
+  for (const c of cells) {
+    const n = norm(c);
+    if (!n) continue;
+    for (const f of Object.keys(SYNONYMS) as Field[]) if (SYNONYMS[f].includes(n)) fields.add(f);
+  }
+  return fields.size;
 }
 
 // ---------------------------------------------------------------- template
 /** Header row of the downloadable template; guessMapping recognises every title. */
-export const TEMPLATE_HEADERS = ["No Invoice", "Tanggal Bayar", "Nominal", "No WhatsApp", "Email", "Nama Depan", "Nama Belakang"];
+export const TEMPLATE_HEADERS = ["Nama", "No Invoice", "Tanggal Closing", "Paket Harga", "Diskon", "No WhatsApp", "Email", "Kode Booking", "Sumber", "UC"];
 
-/** Header-only CSV (UTF-8 BOM so Excel opens it cleanly). No example rows on purpose: a sample row uploaded by mistake would become a real event. */
+/** Header-only CSV (UTF-8 BOM so Excel opens it cleanly). No example rows on purpose: a sample row uploaded by mistake would become a real sale. */
 export function templateCsv(): string {
-  return "\uFEFF" + TEMPLATE_HEADERS.join(",") + "\r\n";
+  return "﻿" + TEMPLATE_HEADERS.join(",") + "\r\n";
 }
 
 export const COLUMN_GUIDE: Array<{ title: string; need: "required" | "recommended" | "optional"; note: string; example: string }> = [
-  { title: "No Invoice", need: "recommended", note: "Kode booking atau invoice yang unik per penjualan. Ini perlindungan terkuat dari dobel.", example: "INV-2026-0142" },
-  { title: "Tanggal Bayar", need: "required", note: "Tanggal penjualan. Format 27/10/2026 atau 2026-10-27. Maksimal 62 hari ke belakang.", example: "27/10/2026" },
-  { title: "Nominal", need: "required", note: "Harga paket yang dibayar, angka saja. Boleh 'Rp 30.000.000' atau 30000000.", example: "30000000" },
-  { title: "No WhatsApp", need: "required", note: "Wajib salah satu dengan Email. Boleh 0812..., +62812..., atau 62812...", example: "081234567890" },
-  { title: "Email", need: "optional", note: "Menambah peluang cocok kalau nomor HP berbeda dengan yang di Meta.", example: "nama@gmail.com" },
-  { title: "Nama Depan / Belakang", need: "optional", note: "Membantu pencocokan. Boleh dikosongkan.", example: "Budi" },
+  { title: "Tanggal Closing", need: "required", note: "Tanggal penjualan. Format 27/10/2026, 2026-10-27, atau 27 Oktober 2026.", example: "27/10/2026" },
+  { title: "Paket Harga", need: "required", note: "Harga paket penuh per orang, angka saja. Boleh 'Rp 30.000.000'.", example: "30000000" },
+  { title: "Nama", need: "recommended", note: "Membedakan satu penjualan dari yang lain. Yang disimpan hanya inisial singkat.", example: "Budi Santoso" },
+  { title: "Diskon", need: "optional", note: "Dikurangkan dari harga paket.", example: "1000000" },
+  { title: "Kode Booking", need: "optional", note: "Isi sama untuk semua anggota satu pemesanan. Untuk Meta, mereka jadi satu event dengan nilai gabungan.", example: "Wira Adi Putra" },
+  { title: "No WhatsApp", need: "optional", note: "Cukup nomor decision maker, di salah satu baris. Tanpa nomor, penjualan hanya tersimpan di dashboard.", example: "081234567890" },
+  { title: "Email", need: "optional", note: "Menambah peluang cocok di Meta.", example: "nama@gmail.com" },
+  { title: "Sumber / UC", need: "optional", note: "Asal pelanggan dan umroh consultant, untuk analisis nanti.", example: "Ads IG / Roro" },
 ];
 
 // ---------------------------------------------------------------- parsing
@@ -94,15 +150,44 @@ const wall = (src: Date) => {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 };
 
-/** First sheet of a .csv / .xlsx file as rows of strings (Excel dates keep the wall-clock time typed in the sheet). */
-export async function parseFile(file: File): Promise<string[][]> {
-  if (/\.(csv|txt|tsv)$/i.test(file.name)) return parseCsv(await file.text());
+export type Sheet = {
+  name: string;
+  headers: string[];
+  body: Array<{ line: number; cells: string[] }>; // line = 1-based row number in the sheet
+  recognised: number;                              // how many known fields the header row has
+};
+
+/** Find the header row (a few title rows may sit above it) and keep the rows below. */
+export function toSheet(name: string, rows: string[][]): Sheet {
+  let best = -1, bestScore = 0;
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const sc = headerScore(rows[i]);
+    if (sc > bestScore) { best = i; bestScore = sc; }
+  }
+  if (best < 0 || bestScore < 2) return { name, headers: [], body: [], recognised: 0 };
+  const headers = rows[best].map((h) => h.trim());
+  const body = rows
+    .slice(best + 1)
+    .map((cells, k) => ({ line: best + 2 + k, cells }))
+    // numbered-but-empty rows and footers ("Prepared by") have one filled cell at most
+    .filter((r) => r.cells.filter((c) => c.trim() !== "").length >= 2);
+  return { name, headers, body, recognised: bestScore };
+}
+
+/** Every sheet of a .xlsx (or the single table of a .csv) as raw string rows. */
+export async function parseWorkbook(file: File): Promise<Sheet[]> {
+  if (/\.(csv|txt|tsv)$/i.test(file.name)) return [toSheet("CSV", parseCsv(await file.text()))];
   if (/\.xlsx$/i.test(file.name)) {
-    const { readSheet } = await import("read-excel-file/universal");
-    const data = await readSheet(file);
-    return data
-      .map((r) => r.map((c) => (c == null ? "" : c instanceof Date ? wall(c) : typeof c === "number" ? String(c) : String(c).trim())))
-      .filter((r) => r.some((c) => c !== ""));
+    const { default: readXlsxFile } = await import("read-excel-file/universal");
+    const sheets = await readXlsxFile(file);
+    return sheets.map((s) =>
+      toSheet(
+        s.sheet,
+        s.data
+          .map((r) => r.map((c) => (c == null ? "" : c instanceof Date ? wall(c) : typeof c === "number" ? String(c) : String(c).trim())))
+          .filter((r) => r.some((c) => c !== ""))
+      )
+    );
   }
   throw new Error("Use a .csv or .xlsx file (for .xls, save it as .xlsx or CSV first).");
 }
@@ -139,6 +224,12 @@ export function parseAmount(raw: string): number | null {
   return isFinite(n) ? n : null;
 }
 
+const MONTHS: Record<string, number> = {
+  january: 1, januari: 1, jan: 1, february: 2, februari: 2, feb: 2, march: 3, maret: 3, mar: 3, april: 4, apr: 4,
+  may: 5, mei: 5, june: 6, juni: 6, jun: 6, july: 7, juli: 7, jul: 7, august: 8, agustus: 8, agu: 8, aug: 8,
+  september: 9, sep: 9, sept: 9, october: 10, oktober: 10, okt: 10, oct: 10, november: 11, nov: 11, december: 12, desember: 12, des: 12, dec: 12,
+};
+
 const WIB_OFFSET_S = 7 * 3600;
 /** Unix seconds for a wall-clock time typed in Asia/Jakarta. Date-only values become 12:00 WIB. */
 export function parseTime(raw: string): number | null {
@@ -152,6 +243,11 @@ export function parseTime(raw: string): number | null {
   } else if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[ T](\d{1,2})[:.](\d{2})(?::(\d{2}))?)?/))) {
     [d, mo, y] = [+m[1], +m[2], +m[3]];
     if (m[4]) [h, mi, se] = [+m[4], +m[5], +(m[6] ?? 0)];
+  } else if ((m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\.?,?\s+(\d{4})/))) {
+    // "5 October 2026" / "5 Oktober 2026"
+    const mm = MONTHS[m[2].toLowerCase()];
+    if (!mm) return null;
+    [d, mo, y] = [+m[1], mm, +m[3]];
   } else if (/^\d{5}(\.\d+)?$/.test(s)) {
     // Excel serial date
     const ms = Math.round((Number(s) - 25569) * 86400 * 1000);
@@ -164,101 +260,181 @@ export function parseTime(raw: string): number | null {
   return Math.floor(t / 1000) - WIB_OFFSET_S;
 }
 
+export const ymdWib = (unix: number) => new Date((unix + WIB_OFFSET_S) * 1000).toISOString().slice(0, 10);
+
 export async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ---------------------------------------------------------------- building rows
-export type RowStatus = "new" | "sent" | "retry" | "uncertain" | "dup_in_file" | "invalid" | "too_old";
+/** Lowercase, no invisible characters, single spaces: so "Hamzar  Ali" and "⁠hamzar ali" are the same person. */
+export const normName = (s: string) => s.replace(/[​-‏⁠﻿ ]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
 
-export type PreparedRow = {
-  rowNo: number; // 1-based line in the file, header excluded
-  status: RowStatus;
-  reason?: string;
-  preview: { who: string; time: string; value: string; order: string };
-  payload?: {
-    row_key: string;
-    event_name: string;
-    event_time: number;
-    action_source: string;
-    value: number | null;
-    currency: string | null;
-    order_id: string | null;
-    user_data: Record<string, string[]>;
-  };
-};
+/** "Pandhit Seno Aji" -> "Pandhit S." (enough to recognise a row, not enough to identify a person). */
+export function shortLabel(name: string): string {
+  const parts = name.replace(/[​-‏⁠﻿ ]/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (parts.length === 0) return "";
+  const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+  return parts.length === 1 ? cap(parts[0]).slice(0, 24) : `${cap(parts[0]).slice(0, 18)} ${parts[1].charAt(0).toUpperCase()}.`;
+}
 
+// ---------------------------------------------------------------- building sales
 export const MAX_AGE_DAYS = 62;
 
-export type BuildOptions = { datasetId: string; eventName: string; actionSource: string; currency: string; nowSec?: number };
+export type SaleStatus = "new" | "saved" | "dup_in_file" | "invalid";
+export type MetaPlan = "send" | "sent" | "no_contact" | "too_old" | "already_event";
 
-const maskPhone = (p: string) => (p.length > 5 ? `${p.slice(0, 4)}…${p.slice(-3)}` : p);
-const maskEmail = (e: string) => e.replace(/^(.).*(@.*)$/, "$1…$2");
+export type SaleRow = {
+  sheet: string;
+  line: number;
+  status: SaleStatus;
+  reason?: string;
+  sale_key?: string;
+  label: string;
+  date: string;          // YYYY-MM-DD (Jakarta)
+  time?: number;         // unix
+  value?: number;
+  source: string;
+  consultant: string;
+  group_key: string | null;
+  has_contact: boolean;
+  hashes: { ph?: string; em?: string; fn?: string; ln?: string };
+  meta?: MetaPlan;       // filled by planMeta()
+  metaReason?: string;
+};
 
-export async function buildRows(rows: string[][], map: Mapping, opt: BuildOptions): Promise<PreparedRow[]> {
+export type BuildOptions = { clientId: number; nowSec?: number };
+
+/** Apply the mapping to one sheet's rows (columns found by TITLE, so sheets with the same titles share one mapping). */
+export async function buildSales(sheets: Sheet[], map: Mapping, opt: BuildOptions): Promise<SaleRow[]> {
   const now = opt.nowSec ?? Math.floor(Date.now() / 1000);
-  const cell = (r: string[], f: Field) => (map[f] >= 0 ? (r[map[f]] ?? "").trim() : "");
+  const out: SaleRow[] = [];
   const seen = new Set<string>();
-  const out: PreparedRow[] = [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const phoneRaw = cell(r, "phone"), emailRaw = cell(r, "email");
-    const phone = phoneRaw ? normPhone(phoneRaw) : null;
-    const email = emailRaw ? normEmail(emailRaw) : null;
-    const time = parseTime(cell(r, "time"));
-    const needsValue = opt.eventName === "Purchase";
-    const valueRaw = cell(r, "value");
-    const value = valueRaw ? parseAmount(valueRaw) : null;
-    const order = cell(r, "order_id") || null;
-    const preview = {
-      who: [phone ? maskPhone(phone) : phoneRaw ? `⚠ ${phoneRaw}` : "", email ? maskEmail(email) : ""].filter(Boolean).join(" · ") || "(none)",
-      time: cell(r, "time"),
-      value: valueRaw,
-      order: order ?? "",
-    };
-    const base = { rowNo: i + 1, preview };
-
-    let reason: string | null = null;
-    if (!phone && !email) reason = phoneRaw || emailRaw ? "Phone/email not valid" : "No phone or email, Meta cannot match this person";
-    else if (time == null) reason = "Date missing or not understood";
-    else if (needsValue && (value == null || value <= 0)) reason = "Amount missing or not a positive number";
-    if (reason) { out.push({ ...base, status: "invalid", reason }); continue; }
-    if (time! > now + 300) { out.push({ ...base, status: "invalid", reason: "Date is in the future" }); continue; }
-    if (time! < now - MAX_AGE_DAYS * 86400) { out.push({ ...base, status: "too_old", reason: `Older than ${MAX_AGE_DAYS} days, Meta will not accept it` }); continue; }
-
-    const ph = phone ? await sha256Hex(phone) : null;
-    const em = email ? await sha256Hex(email) : null;
-    const user_data: Record<string, string[]> = {};
-    if (ph) user_data.ph = [ph];
-    if (em) user_data.em = [em];
-    const fn = cell(r, "first_name").toLowerCase();
-    const ln = cell(r, "last_name").toLowerCase();
-    if (fn) user_data.fn = [await sha256Hex(fn)];
-    if (ln) user_data.ln = [await sha256Hex(ln)];
-
-    // An order/invoice ID identifies the sale on its own (so a corrected phone number
-    // can't create a "new" sale); without one, identity + time + amount does.
-    const ident = order ? `o:${order.toLowerCase()}` : `i:${ph ?? ""}|${em ?? ""}|t:${time}|v:${value ?? ""}`;
-    const row_key = await sha256Hex(`v1|${opt.datasetId}|${opt.eventName}|${ident}`);
-    if (seen.has(row_key)) { out.push({ ...base, status: "dup_in_file", reason: order ? "Same order ID appears earlier in this file" : "Identical row appears earlier in this file" }); continue; }
-    seen.add(row_key);
-
-    out.push({
-      ...base,
-      status: "new",
-      payload: {
-        row_key,
-        event_name: opt.eventName,
-        event_time: time!,
-        action_source: opt.actionSource,
-        value: value != null ? Math.round(value * 100) / 100 : null,
-        currency: value != null ? opt.currency : null,
-        order_id: order,
-        user_data,
-      },
+  for (const sh of sheets) {
+    const idx = {} as Record<Field, number>;
+    (Object.keys(map) as Field[]).forEach((f) => {
+      const t = map[f];
+      idx[f] = t ? sh.headers.findIndex((h) => norm(h) === norm(t)) : -1;
     });
+    const cell = (cells: string[], f: Field) => (idx[f] >= 0 ? (cells[idx[f]] ?? "").trim() : "");
+    // identical name+date rows inside one sheet are different travellers (placeholders such as "Pak Isam" twice): count them by position
+    const occurrence = new Map<string, number>();
+
+    for (const r of sh.body) {
+      const name = cell(r.cells, "name");
+      const timeRaw = cell(r.cells, "time");
+      const priceRaw = cell(r.cells, "value");
+      // a row with nothing sale-like in it is just filler (numbered empty rows, "Prepared by", ...)
+      if (!timeRaw && !priceRaw && !cell(r.cells, "order_id") && !cell(r.cells, "phone")) continue;
+
+      const base = { sheet: sh.name, line: r.line, label: shortLabel(name), source: cell(r.cells, "source"), consultant: cell(r.cells, "consultant"), group_key: null as string | null, has_contact: false, hashes: {} as SaleRow["hashes"] };
+      const time = parseTime(timeRaw);
+      const price = priceRaw ? parseAmount(priceRaw) : null;
+      const discRaw = cell(r.cells, "discount");
+      const disc = discRaw ? parseAmount(discRaw) ?? 0 : 0;
+      const value = price != null ? Math.round((price - disc) * 100) / 100 : null;
+      const date = time != null ? ymdWib(time) : "";
+
+      if (time == null) { out.push({ ...base, date, status: "invalid", reason: timeRaw ? "Date not understood" : "Date missing" }); continue; }
+      if (time > now + 86400) { out.push({ ...base, date, status: "invalid", reason: "Date is in the future" }); continue; }
+      if (value == null || value <= 0) { out.push({ ...base, date, status: "invalid", reason: price == null ? "Price missing" : "Price minus discount is not positive" }); continue; }
+
+      // identity of the sale
+      const order = cell(r.cells, "order_id");
+      let ident: string;
+      if (order) ident = `o:${order.toLowerCase()}`;
+      else {
+        const nn = normName(name);
+        if (!nn) { out.push({ ...base, date, status: "invalid", reason: "Name missing (needed to tell sales apart)" }); continue; }
+        const k = `${nn}|${date}`;
+        const n = (occurrence.get(k) ?? 0) + 1;
+        occurrence.set(k, n);
+        ident = `n:${nn}|${date}|${n}`;
+      }
+      const sale_key = await sha256Hex(`v2|${opt.clientId}|${ident}`);
+      if (seen.has(sale_key)) { out.push({ ...base, date, time, value, sale_key, status: "dup_in_file", reason: "Same sale appears earlier in this file (another sheet?)" }); continue; }
+      seen.add(sale_key);
+
+      // contact + booking
+      const phone = normPhone(cell(r.cells, "phone"));
+      const email = normEmail(cell(r.cells, "email"));
+      const hashes: SaleRow["hashes"] = {};
+      if (phone) hashes.ph = await sha256Hex(phone);
+      if (email) hashes.em = await sha256Hex(email);
+      const fn = cell(r.cells, "first_name").toLowerCase(), ln = cell(r.cells, "last_name").toLowerCase();
+      if (fn) hashes.fn = await sha256Hex(fn);
+      if (ln) hashes.ln = await sha256Hex(ln);
+      const grp = normName(cell(r.cells, "group"));
+      const group_key = grp ? await sha256Hex(`v2|g|${opt.clientId}|${grp}`) : null;
+
+      out.push({ ...base, date, time, value, sale_key, group_key, has_contact: Boolean(phone || email), hashes, status: "new" });
+    }
   }
   return out;
+}
+
+// ---------------------------------------------------------------- Meta planning
+export type MetaUnit = {
+  unit_key: string;                       // group_key, or the sale's own key
+  sale_keys: string[];
+  value: number;
+  count: number;
+  event_time: number;                     // latest sale in the unit
+  user_data: Record<string, string[]>;
+  rows: SaleRow[];
+};
+
+/**
+ * Decide, per booking (or per person when there is no group column), what can go
+ * to Meta: it needs a phone/email on some row, a sale within the last 62 days, and
+ * must not have been sent already. Everything else stays dashboard-only, with a reason.
+ * `savedState` = what the server already knows per sale key ('dashboard' | 'sent').
+ */
+export function planMeta(rows: SaleRow[], savedState: Record<string, string>, now = Math.floor(Date.now() / 1000)): MetaUnit[] {
+  const live = rows.filter((r) => r.sale_key && (r.status === "new" || r.status === "saved"));
+  const units = new Map<string, SaleRow[]>();
+  for (const r of live) {
+    const k = r.group_key ?? r.sale_key!;
+    (units.get(k) ?? units.set(k, []).get(k)!).push(r);
+  }
+  const out: MetaUnit[] = [];
+  for (const [unit_key, members] of units) {
+    const user_data: Record<string, string[]> = {};
+    for (const m of members) {
+      for (const [k, v] of Object.entries(m.hashes)) {
+        if (!v) continue;
+        const arr = (user_data[k] ??= []);
+        if (!arr.includes(v) && arr.length < 5) arr.push(v);
+      }
+    }
+    const event_time = Math.max(...members.map((m) => m.time ?? 0));
+    const allSent = members.every((m) => savedState[m.sale_key!] === "sent");
+    const hasContact = Boolean(user_data.ph || user_data.em);
+    let plan: MetaPlan = "send", why = "";
+    if (allSent) { plan = "sent"; why = "Already sent to Meta"; }
+    else if (!hasContact) { plan = "no_contact"; why = "No phone or email in this booking"; }
+    else if (event_time < now - MAX_AGE_DAYS * 86400) { plan = "too_old"; why = `Older than ${MAX_AGE_DAYS} days`; }
+    for (const m of members) { m.meta = plan; m.metaReason = why; }
+    if (plan === "send") {
+      out.push({ unit_key, sale_keys: members.map((m) => m.sale_key!), value: members.reduce((s, m) => s + (m.value ?? 0), 0), count: members.length, event_time, user_data, rows: members });
+    }
+  }
+  return out;
+}
+
+/** The Meta event for one unit. Its key is stable per booking, so the ledger never lets it go out twice. */
+export async function unitEvent(u: MetaUnit, o: { datasetId: string; eventName: string; actionSource: string; currency: string }) {
+  return {
+    row_key: await sha256Hex(`v2|${o.datasetId}|${o.eventName}|u:${u.unit_key}`),
+    event_name: o.eventName,
+    event_time: u.event_time,
+    action_source: o.actionSource,
+    value: Math.round(u.value * 100) / 100,
+    currency: o.currency,
+    order_id: null as string | null,
+    num_items: u.count,
+    sale_keys: u.sale_keys,
+    user_data: u.user_data,
+  };
 }

@@ -39,6 +39,7 @@ type Totals = {
   results: number;
   leads: number;
   purchases: number;
+  purchases_sent: number;
   purchase_value: number;
   reach: number;
   ctr: number | null;
@@ -110,7 +111,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       { label: "Spend", value: fmtRp(c?.spend), cur: c?.spend, prev: p?.spend, dir: "neutral" as const },
       { label: "Leads", value: fmtNum(c?.leads), cur: c?.leads, prev: p?.leads, dir: "higher-better" as const },
       { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
-      { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
+      { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const, note: c && c.purchases > 0 ? { text: `${fmtNum(c.purchases_sent)} of ${fmtNum(c.purchases)} sent to Meta`, tone: "muted" as const } : undefined },
       { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
       { label: "CPA", value: fmtRp(c?.cpa), cur: c?.cpa, prev: p?.cpa, dir: "lower-better" as const, note: cpaNote },
       { label: "ROAS", value: c?.roas != null ? `${fmtNum(c.roas, 1)}x` : "–", cur: c?.roas, prev: p?.roas, dir: "higher-better" as const, note: roasNote },

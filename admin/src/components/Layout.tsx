@@ -40,7 +40,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { to: "/", label: "Overview", short: "Home" },
           { to: "/board", label: "Board" },
           { to: "/spend", label: "Spend" },
-          { to: "/conversions", label: "Conversions", short: "Sales" },
+          { to: "/conversions", label: "Sales", short: "Sales" },
           { to: "/settings", label: "Settings" },
         ]
       : user?.client_id

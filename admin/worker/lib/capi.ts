@@ -26,7 +26,7 @@ export type CapiEvent = {
   action_source: string;
   event_id: string;
   user_data: Record<string, string[]>;
-  custom_data: { currency?: string; value?: number; order_id?: string };
+  custom_data: { currency?: string; value?: number; order_id?: string; num_items?: number };
 };
 
 export type CapiResult =

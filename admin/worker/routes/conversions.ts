@@ -119,6 +119,8 @@ type InRow = {
   value: number | null;
   currency: string | null;
   order_id: string | null;
+  num_items?: number | null;
+  sale_keys?: string[] | null;
   user_data: Record<string, string[]>;
 };
 
@@ -130,6 +132,8 @@ function validateRow(r: any): string | null {
   if (!Number.isInteger(r.event_time) || r.event_time > now + 300 || r.event_time < now - MAX_EVENT_AGE_DAYS * 86400) return "event_time outside the allowed window";
   if (r.value != null && (typeof r.value !== "number" || !isFinite(r.value) || r.value < 0)) return "bad value";
   if (r.currency != null && !/^[A-Z]{3}$/.test(r.currency)) return "bad currency";
+  if (r.num_items != null && !(Number.isInteger(r.num_items) && r.num_items >= 1 && r.num_items <= 1000)) return "bad num_items";
+  if (r.sale_keys != null && !(Array.isArray(r.sale_keys) && r.sale_keys.length <= 300 && r.sale_keys.every((k: unknown) => typeof k === "string" && HEX64.test(k)))) return "bad sale_keys";
   const ud = r.user_data;
   if (!ud || typeof ud !== "object") return "missing user_data";
   let ids = 0;
@@ -167,12 +171,12 @@ conv.post("/batches/:id/send", async (c) => {
   // 1. claim: insert new rows; re-queue only FAILED ones (changes = 1 means ours).
   const claimStmts = input.map((r) =>
     c.env.DB.prepare(
-      `INSERT INTO offline_events (batch_id, client_id, dataset_id, is_test, row_key, event_name, event_time, action_source, value, currency, order_id, user_data_json, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'pending')
+      `INSERT INTO offline_events (batch_id, client_id, dataset_id, is_test, row_key, event_name, event_time, action_source, value, currency, order_id, user_data_json, sale_keys_json, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending')
        ON CONFLICT(dataset_id, is_test, row_key) DO UPDATE SET
          status='pending', batch_id=excluded.batch_id, error=NULL, updated_at=datetime('now')
        WHERE offline_events.status='failed'`
-    ).bind(batchId, batch.client_id, batch.dataset_id, batch.is_test, r.row_key, r.event_name, r.event_time, r.action_source, r.value ?? null, r.currency ?? null, r.order_id ?? null, JSON.stringify(r.user_data))
+    ).bind(batchId, batch.client_id, batch.dataset_id, batch.is_test, r.row_key, r.event_name, r.event_time, r.action_source, r.value ?? null, r.currency ?? null, r.order_id ?? null, JSON.stringify(r.user_data), r.sale_keys ? JSON.stringify(r.sale_keys) : null)
   );
   const claimed = await c.env.DB.batch(claimStmts);
   const mine = input.filter((_, i) => (claimed[i].meta.changes ?? 0) > 0);
@@ -193,7 +197,7 @@ conv.post("/batches/:id/send", async (c) => {
     action_source: r.action_source,
     event_id: r.row_key, // lets Meta de-duplicate too
     user_data: r.user_data,
-    custom_data: { ...(r.currency ? { currency: r.currency } : {}), ...(r.value != null ? { value: r.value } : {}), ...(r.order_id ? { order_id: r.order_id } : {}) },
+    custom_data: { ...(r.currency ? { currency: r.currency } : {}), ...(r.value != null ? { value: r.value } : {}), ...(r.order_id ? { order_id: r.order_id } : {}), ...(r.num_items ? { num_items: r.num_items } : {}) },
   }));
   const result = await sendCapiEvents(c.env, token, batch.dataset_id, events, batch.test_event_code);
 
@@ -202,6 +206,7 @@ conv.post("/batches/:id/send", async (c) => {
     c.env.DB.batch(mine.map((r) => c.env.DB.prepare(sql).bind(...extra, batch.dataset_id, batch.is_test, r.row_key)));
   if (result.kind === "ok" && result.received === mine.length) {
     await mark("UPDATE offline_events SET status='sent', sent_at=datetime('now'), updated_at=datetime('now'), fbtrace_id=? WHERE dataset_id=? AND is_test=? AND row_key=?", result.fbtrace_id ?? null);
+    if (!batch.is_test) await markSalesSent(c.env, batch.client_id, mine.map((r) => ({ key: r.row_key, sale_keys: r.sale_keys ?? [] })));
     return c.json({ sent: mine.length, failed: 0, uncertain: 0, skipped });
   }
   if (result.kind === "rejected") {
@@ -219,6 +224,19 @@ conv.post("/uncertain/resolve", async (c) => {
   const { dataset_id, is_test, keys, action } = await c.req.json().catch(() => ({}));
   if (!dataset_id || !Array.isArray(keys) || !keys.every((k) => HEX64.test(k)) || !["mark_sent", "retry"].includes(action)) return c.json({ error: "Bad request" }, 400);
   const status = action === "mark_sent" ? "sent" : "failed";
+  if (action === "mark_sent" && !is_test) {
+    for (let i = 0; i < keys.length; i += 90) {
+      const part = keys.slice(i, i + 90);
+      const rows = await c.env.DB.prepare(
+        `SELECT client_id, row_key, sale_keys_json FROM offline_events WHERE dataset_id=? AND is_test=0 AND status='sending' AND row_key IN (${part.map(() => "?").join(",")})`
+      )
+        .bind(String(dataset_id), ...part)
+        .all<{ client_id: number; row_key: string; sale_keys_json: string | null }>();
+      for (const r of rows.results) {
+        await markSalesSent(c.env, r.client_id, [{ key: r.row_key, sale_keys: r.sale_keys_json ? JSON.parse(r.sale_keys_json) : [] }]);
+      }
+    }
+  }
   const note = action === "mark_sent" ? "Confirmed in Events Manager" : "Released for retry by an admin";
   for (let i = 0; i < keys.length; i += 90) {
     const part = keys.slice(i, i + 90);
@@ -229,6 +247,106 @@ conv.post("/uncertain/resolve", async (c) => {
       .run();
   }
   return c.json({ ok: true });
+});
+
+
+async function markSalesSent(env: Env, clientId: number, events: Array<{ key: string; sale_keys: string[] }>) {
+  const stmts: D1PreparedStatement[] = [];
+  for (const ev of events) {
+    for (let i = 0; i < ev.sale_keys.length; i += 90) {
+      const part = ev.sale_keys.slice(i, i + 90);
+      stmts.push(
+        env.DB.prepare(
+          `UPDATE sales SET meta_state='sent', meta_event_key=?, updated_at=datetime('now') WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`
+        ).bind(ev.key, clientId, ...part)
+      );
+    }
+  }
+  for (let i = 0; i < stmts.length; i += 80) await env.DB.batch(stmts.slice(i, i + 80));
+}
+
+// ------------------------------------------------------------------ sales (the dashboard's source of truth)
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Which sale keys are already saved, and whether each reached Meta. Unknown keys are new. */
+conv.post("/sales/check", async (c) => {
+  const { client_id, keys } = await c.req.json().catch(() => ({}));
+  if (!client_id || !Array.isArray(keys) || keys.length > 20000 || !keys.every((k: unknown) => typeof k === "string" && HEX64.test(k))) {
+    return c.json({ error: "Bad request" }, 400);
+  }
+  const existing: Record<string, string> = {};
+  for (let i = 0; i < keys.length; i += 90) {
+    const part = keys.slice(i, i + 90);
+    const res = await c.env.DB.prepare(
+      `SELECT sale_key, meta_state FROM sales WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`
+    )
+      .bind(client_id, ...part)
+      .all<{ sale_key: string; meta_state: string }>();
+    for (const r of res.results) existing[r.sale_key] = r.meta_state;
+  }
+  return c.json({ existing });
+});
+
+/** Save sales for the dashboard. Re-saving a known sale updates it (price corrections, new group or contact info) and never resets "sent". */
+conv.post("/sales/import", async (c) => {
+  const { client_id, rows } = await c.req.json().catch(() => ({}));
+  if (!client_id || !Array.isArray(rows) || rows.length === 0 || rows.length > 300) return c.json({ error: "Send between 1 and 300 rows per call" }, 400);
+  const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  for (const r of rows) {
+    const bad =
+      !HEX64.test(r?.sale_key ?? "") ? "bad sale_key"
+      : !YMD.test(r?.sale_date ?? "") || r.sale_date < "2020-01-01" || r.sale_date > today ? "bad sale_date"
+      : !(typeof r.value === "number" && isFinite(r.value) && r.value > 0 && r.value < 1e11) ? "bad value"
+      : r.group_key != null && !HEX64.test(r.group_key) ? "bad group_key"
+      : null;
+    if (bad) return c.json({ error: `Row rejected: ${bad}` }, 400);
+  }
+  const keys = rows.map((r: any) => r.sale_key);
+  const known = new Set<string>();
+  for (let i = 0; i < keys.length; i += 90) {
+    const part = keys.slice(i, i + 90);
+    const res = await c.env.DB.prepare(`SELECT sale_key FROM sales WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`)
+      .bind(client_id, ...part)
+      .all<{ sale_key: string }>();
+    res.results.forEach((r) => known.add(r.sale_key));
+  }
+  const str = (v: unknown, n: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null);
+  await c.env.DB.batch(
+    rows.map((r: any) =>
+      c.env.DB.prepare(
+        `INSERT INTO sales (client_id, sale_key, sale_date, value, label, source, consultant, group_key, has_contact)
+         VALUES (?,?,?,?,?,?,?,?,?)
+         ON CONFLICT(client_id, sale_key) DO UPDATE SET
+           sale_date=excluded.sale_date, value=excluded.value, label=COALESCE(excluded.label, sales.label),
+           source=COALESCE(excluded.source, sales.source), consultant=COALESCE(excluded.consultant, sales.consultant),
+           group_key=COALESCE(excluded.group_key, sales.group_key),
+           has_contact=MAX(sales.has_contact, excluded.has_contact), updated_at=datetime('now')`
+      ).bind(client_id, r.sale_key, r.sale_date, r.value, str(r.label, 40), str(r.source, 80), str(r.consultant, 60), r.group_key ?? null, r.has_contact ? 1 : 0)
+    )
+  );
+  const updated = rows.filter((r: any) => known.has(r.sale_key)).length;
+  return c.json({ inserted: rows.length - updated, updated });
+});
+
+/** Saved sales: a per-month summary plus the rows, filterable by whether they reached Meta. */
+conv.get("/sales", async (c) => {
+  const clientId = Number(c.req.query("client_id"));
+  const state = c.req.query("state");
+  if (!clientId) return c.json({ error: "client_id is required" }, 400);
+  const [months, rows] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT substr(sale_date, 1, 7) AS month, COUNT(*) AS n, ROUND(SUM(value)) AS value, SUM(meta_state='sent') AS sent
+       FROM sales WHERE client_id=? GROUP BY 1 ORDER BY 1 DESC`
+    ).bind(clientId).all(),
+    c.env.DB.prepare(
+      `SELECT sale_date, label, value, source, consultant, meta_state, has_contact FROM sales
+       WHERE client_id=? ${state === "dashboard" || state === "sent" ? "AND meta_state=?" : ""}
+       ORDER BY sale_date DESC, id DESC LIMIT 400`
+    )
+      .bind(...(state === "dashboard" || state === "sent" ? [clientId, state] : [clientId]))
+      .all(),
+  ]);
+  return c.json({ months: months.results, rows: rows.results });
 });
 
 // ------------------------------------------------------------------ history
