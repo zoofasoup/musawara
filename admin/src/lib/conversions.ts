@@ -8,6 +8,7 @@
 
 export type Field =
   | "name" | "time" | "value" | "discount" | "order_id" | "source" | "consultant" | "group"
+  | "departure" | "package" | "room" | "dp" | "status"
   | "phone" | "email" | "first_name" | "last_name";
 /** Field -> column TITLE (so one mapping works across sheets with the same titles). null = not mapped. */
 export type Mapping = Record<Field, string | null>;
@@ -19,8 +20,13 @@ export const FIELD_LABEL: Record<Field, string> = {
   discount: "Discount",
   order_id: "Order / invoice ID",
   source: "Source",
-  consultant: "Consultant",
+  consultant: "Closer (UC)",
   group: "Booking / decision maker",
+  departure: "Departure date",
+  package: "Package",
+  room: "Room type",
+  dp: "Down payment (DP)",
+  status: "Payment status",
   phone: "Phone / WhatsApp",
   email: "Email",
   first_name: "First name",
@@ -31,6 +37,9 @@ export const FIELD_HINT: Partial<Record<Field, string>> = {
   name: "Used to tell sales apart. Only a short label (Budi S.) is stored.",
   group: "Same value on every member of one booking: they become one Meta event with the summed value.",
   discount: "Subtracted from the package price.",
+  consultant: "The sales person who closed it (Umroh Consultant). Used for per-closer results.",
+  status: "dp, lunas or batal. Cancelled sales stop counting in the dashboard.",
+  room: "Triple, Quad, Sharing, Double...",
   order_id: "If present it identifies the sale on its own.",
 };
 
@@ -43,7 +52,12 @@ const SYNONYMS: Record<Field, string[]> = {
   discount: ["diskon", "discount", "potongan"],
   order_id: ["order id", "orderid", "invoice", "no invoice", "id transaksi", "transaction id", "no transaksi", "nomor transaksi", "kode transaksi", "id order"],
   source: ["sumber", "source", "channel"],
-  consultant: ["umroh consultant uc", "umroh consultant", "consultant", "uc", "cs", "sales"],
+  consultant: ["closer uc", "closer", "umroh consultant uc", "umroh consultant", "consultant", "uc", "cs", "sales"],
+  departure: ["tanggal berangkat", "tgl berangkat", "tanggal keberangkatan", "keberangkatan", "departure date", "departure", "berangkat"],
+  package: ["nama paket", "paket", "package", "kode paket", "tipe paket"],
+  room: ["tipe kamar", "jenis kamar", "kamar", "room", "room type", "pax"],
+  dp: ["dp", "down payment", "uang muka", "deposit"],
+  status: ["status", "status pembayaran", "status booking", "status bayar", "payment status"],
   group: ["kode booking", "booking id", "kode grup", "kode kelompok", "grup", "group", "kelompok", "pemesan", "decision maker", "dm", "penanggung jawab", "booking"],
   phone: ["phone", "telepon", "telp", "no hp", "nomor hp", "hp", "whatsapp", "no whatsapp", "no wa", "nomor wa", "wa", "mobile", "ph", "no telepon", "nomor telepon"],
   email: ["email", "e-mail", "surel"],
@@ -61,7 +75,7 @@ export const norm = (s: string) =>
 export function guessMapping(headers: string[]): Mapping {
   const used = new Set<number>();
   const m = {} as Mapping;
-  const order: Field[] = ["order_id", "group", "time", "value", "discount", "name", "first_name", "last_name", "phone", "email", "source", "consultant"];
+  const order: Field[] = ["order_id", "group", "time", "departure", "value", "discount", "dp", "package", "room", "status", "name", "first_name", "last_name", "phone", "email", "source", "consultant"];
   const pick = (f: Field): number => {
     let idx = headers.findIndex((h, i) => !used.has(i) && SYNONYMS[f].includes(norm(h)));
     if (idx < 0) {
@@ -96,7 +110,7 @@ function headerScore(cells: string[]): number {
 
 // ---------------------------------------------------------------- template
 /** Header row of the downloadable template; guessMapping recognises every title. */
-export const TEMPLATE_HEADERS = ["Nama", "No Invoice", "Tanggal Closing", "Paket Harga", "Diskon", "No WhatsApp", "Email", "Kode Booking", "Sumber", "UC"];
+export const TEMPLATE_HEADERS = ["Nama", "No Invoice", "Tanggal Closing", "Paket Harga", "Diskon", "DP", "Tanggal Berangkat", "Paket", "Tipe Kamar", "Status", "No WhatsApp", "Email", "Kode Booking", "Sumber", "Closer (UC)"];
 
 /** Header-only CSV (UTF-8 BOM so Excel opens it cleanly). No example rows on purpose: a sample row uploaded by mistake would become a real sale. */
 export function templateCsv(): string {
@@ -106,12 +120,16 @@ export function templateCsv(): string {
 export const COLUMN_GUIDE: Array<{ title: string; need: "required" | "recommended" | "optional"; note: string; example: string }> = [
   { title: "Tanggal Closing", need: "required", note: "Tanggal penjualan. Format 27/10/2026, 2026-10-27, atau 27 Oktober 2026.", example: "27/10/2026" },
   { title: "Paket Harga", need: "required", note: "Harga paket penuh per orang, angka saja. Boleh 'Rp 30.000.000'.", example: "30000000" },
+  { title: "Closer (UC)", need: "recommended", note: "Sales yang closing (Umroh Consultant). Dipakai untuk hasil per closer.", example: "Roro" },
   { title: "Nama", need: "recommended", note: "Membedakan satu penjualan dari yang lain. Yang disimpan hanya inisial singkat.", example: "Budi Santoso" },
+  { title: "Tanggal Berangkat", need: "optional", note: "Tanggal keberangkatan paket yang dibeli.", example: "14 Januari 2027" },
+  { title: "Paket / Tipe Kamar", need: "optional", note: "Nama paket dan tipe kamar (Triple, Quad, Sharing, Double).", example: "Umroh Garuda / Quad" },
+  { title: "DP", need: "optional", note: "Uang muka yang sudah masuk, angka saja.", example: "5000000" },
+  { title: "Status", need: "optional", note: "dp, lunas, atau batal. Penjualan batal tidak dihitung di dashboard.", example: "lunas" },
   { title: "Diskon", need: "optional", note: "Dikurangkan dari harga paket.", example: "1000000" },
   { title: "Kode Booking", need: "optional", note: "Isi sama untuk semua anggota satu pemesanan. Untuk Meta, mereka jadi satu event dengan nilai gabungan.", example: "Wira Adi Putra" },
-  { title: "No WhatsApp", need: "optional", note: "Cukup nomor decision maker, di salah satu baris. Tanpa nomor, penjualan hanya tersimpan di dashboard.", example: "081234567890" },
-  { title: "Email", need: "optional", note: "Menambah peluang cocok di Meta.", example: "nama@gmail.com" },
-  { title: "Sumber / UC", need: "optional", note: "Asal pelanggan dan umroh consultant, untuk analisis nanti.", example: "Ads IG / Roro" },
+  { title: "No WhatsApp / Email", need: "optional", note: "Cukup kontak decision maker, di salah satu baris. Tanpa kontak, penjualan hanya tersimpan di dashboard.", example: "081234567890" },
+  { title: "Sumber", need: "optional", note: "Asal pelanggan, untuk analisis nanti.", example: "Ads IG" },
 ];
 
 // ---------------------------------------------------------------- parsing
@@ -278,6 +296,16 @@ export function shortLabel(name: string): string {
   return parts.length === 1 ? cap(parts[0]).slice(0, 24) : `${cap(parts[0]).slice(0, 18)} ${parts[1].charAt(0).toUpperCase()}.`;
 }
 
+/** "lunas" / "paid" -> paid, "dp"/"cicilan" -> dp, "batal"/"cancel"/"refund" -> cancelled; anything else = unknown. */
+export function parsePayStatus(raw: string): SaleRow["pay_status"] {
+  const n = norm(raw);
+  if (!n) return null;
+  if (/batal|cancel|refund|gagal/.test(n)) return "cancelled";
+  if (/lunas|paid|full/.test(n)) return "paid";
+  if (/^dp|cicil|angsur|booking|belum lunas/.test(n)) return "dp";
+  return null;
+}
+
 // ---------------------------------------------------------------- building sales
 export const MAX_AGE_DAYS = 62;
 
@@ -299,6 +327,11 @@ export type SaleRow = {
   group_key: string | null;
   has_contact: boolean;
   hashes: { ph?: string; em?: string; fn?: string; ln?: string };
+  departure: string | null;   // YYYY-MM-DD
+  package: string;
+  room: string;
+  dp: number | null;
+  pay_status: "dp" | "paid" | "cancelled" | null;
   meta?: MetaPlan;       // filled by planMeta()
   metaReason?: string;
 };
@@ -328,7 +361,16 @@ export async function buildSales(sheets: Sheet[], map: Mapping, opt: BuildOption
       // a row with nothing sale-like in it is just filler (numbered empty rows, "Prepared by", ...)
       if (!timeRaw && !priceRaw && !cell(r.cells, "order_id") && !cell(r.cells, "phone")) continue;
 
-      const base = { sheet: sh.name, line: r.line, label: shortLabel(name), source: cell(r.cells, "source"), consultant: cell(r.cells, "consultant"), group_key: null as string | null, has_contact: false, hashes: {} as SaleRow["hashes"] };
+      const depTime = parseTime(cell(r.cells, "departure"));
+      const dpRaw = cell(r.cells, "dp");
+      const base = {
+        sheet: sh.name, line: r.line, label: shortLabel(name), source: cell(r.cells, "source"), consultant: cell(r.cells, "consultant"),
+        group_key: null as string | null, has_contact: false, hashes: {} as SaleRow["hashes"],
+        departure: depTime != null ? ymdWib(depTime) : null,
+        package: cell(r.cells, "package"), room: cell(r.cells, "room"),
+        dp: dpRaw ? parseAmount(dpRaw) : null,
+        pay_status: parsePayStatus(cell(r.cells, "status")),
+      };
       const time = parseTime(timeRaw);
       const price = priceRaw ? parseAmount(priceRaw) : null;
       const discRaw = cell(r.cells, "discount");

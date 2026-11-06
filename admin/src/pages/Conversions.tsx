@@ -32,7 +32,7 @@ const SOURCES = [
 type Settings = { settings: any[]; tokenConfigured: boolean };
 type Mode = "dashboard" | "meta";
 
-const FIELD_ORDER: Field[] = ["time", "value", "discount", "name", "order_id", "group", "phone", "email", "source", "consultant", "first_name", "last_name"];
+const FIELD_ORDER: Field[] = ["time", "value", "discount", "name", "consultant", "departure", "package", "room", "dp", "status", "order_id", "group", "phone", "email", "source", "first_name", "last_name"];
 
 function Step({ n, title, hint, children, done }: { n: number; title: string; hint?: string; children: React.ReactNode; done?: boolean }) {
   return (
@@ -88,21 +88,33 @@ function FileGuide() {
   );
 }
 
+const PAY: Record<string, { label: string; tone: Tone }> = {
+  dp: { label: "DP", tone: "warn" },
+  paid: { label: "Lunas", tone: "good" },
+  cancelled: { label: "Batal", tone: "crit" },
+};
+
 function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: number }) {
   const [state, setState] = useState<"all" | "dashboard" | "sent">("all");
-  const { data, loading } = useApi<{ months: any[]; rows: any[] }>(clientId ? `/admin/conversions/sales?client_id=${clientId}&state=${state}&k=${refreshKey}` : null);
+  const [month, setMonth] = useState("");
+  const { data, loading } = useApi<{ months: any[]; closers: any[]; rows: any[] }>(
+    clientId ? `/admin/conversions/sales?client_id=${clientId}&state=${state}&month=${month}&k=${refreshKey}` : null
+  );
   if (!clientId) return <p className="text-xs text-muted">Choose a client above to see its saved sales.</p>;
   if (loading && !data) return <div className="h-24 skeleton rounded-xl" />;
   if (!data || data.months.length === 0) return <Empty icon="database" title="No sales saved yet" hint="Upload a file above. Every sale you save here feeds Purchases, CPA and ROAS on the dashboard." />;
   const total = data.months.reduce((s, m) => s + m.n, 0);
   const sent = data.months.reduce((s, m) => s + (m.sent ?? 0), 0);
   const value = data.months.reduce((s, m) => s + (m.value ?? 0), 0);
+  const cancelled = data.months.reduce((s, m) => s + (m.cancelled ?? 0), 0);
+  const closerTotal = data.closers.reduce((s, c) => s + c.value, 0);
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-xs">
         <Pill tone="neutral">{fmtNum(total)} sales · {fmtRp(value)}</Pill>
         <Pill tone="good" icon="check">{fmtNum(sent)} sent to Meta</Pill>
         <Pill tone="neutral" icon="database">{fmtNum(total - sent)} dashboard only</Pill>
+        {cancelled > 0 && <Pill tone="crit">{fmtNum(cancelled)} cancelled (not counted)</Pill>}
       </div>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-left text-xs">
@@ -121,24 +133,60 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
           </tbody>
         </table>
       </Panel>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs text-muted">Month
+          <select value={month} onChange={(e) => setMonth(e.target.value)} className={`${inputCls} mt-1 min-w-[9rem]`}>
+            <option value="">All months</option>
+            {data.months.map((m) => <option key={m.month} value={m.month}>{m.month}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-ink">By closer{month ? ` · ${month}` : ""}</p>
+        <Panel className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-left text-xs">
+            <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
+              <tr><th className="px-3 py-2">Closer</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Average</th><th className="px-3 py-2 text-right">Share</th></tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {data.closers.map((c) => (
+                <tr key={c.closer}>
+                  <td className="px-3 py-2 font-medium text-ink">{c.closer}</td>
+                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtNum(c.n)}</td>
+                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(c.value)}</td>
+                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(c.n ? c.value / c.n : 0)}</td>
+                  <td className="tnum px-3 py-2 text-right text-ink2">{closerTotal ? Math.round((c.value / closerTotal) * 100) : 0}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      </div>
+
       <div role="group" aria-label="Filter sales" className="inline-flex rounded-lg bg-surface3 p-0.5">
         {([["all", "All"], ["dashboard", "Dashboard only"], ["sent", "Sent to Meta"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setState(k)} aria-pressed={state === k} className={`inline-flex min-h-11 items-center rounded-md px-3 text-xs font-medium lg:min-h-8 ${state === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
         ))}
       </div>
       <Panel className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-xs">
+        <table className="w-full min-w-[860px] text-left text-xs">
           <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Who</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">UC</th><th className="px-3 py-2">Meta</th></tr>
+            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Who</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Closer</th><th className="px-3 py-2">Departure</th><th className="px-3 py-2">Room</th><th className="px-3 py-2 text-right">DP</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Meta</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {data.rows.map((r, i) => (
-              <tr key={i}>
+              <tr key={i} className={r.pay_status === "cancelled" ? "opacity-60" : ""}>
                 <td className="tnum px-3 py-2 text-ink2">{fmtDayFull(r.sale_date)}</td>
                 <td className="px-3 py-2 text-ink">{r.label || "–"}</td>
                 <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(r.value)}</td>
-                <td className="px-3 py-2 text-ink2">{r.source || "–"}</td>
-                <td className="px-3 py-2 text-ink2">{r.consultant || "–"}</td>
+                <td className="px-3 py-2 text-ink">{r.consultant || "–"}</td>
+                <td className="tnum px-3 py-2 text-ink2">{r.departure_date ? fmtDayFull(r.departure_date) : "–"}</td>
+                <td className="px-3 py-2 text-ink2">{[r.package_name, r.room_type].filter(Boolean).join(" · ") || "–"}</td>
+                <td className="tnum px-3 py-2 text-right text-ink2">{r.down_payment != null ? fmtRp(r.down_payment) : "–"}</td>
+                <td className="px-3 py-2">{r.pay_status ? <Pill tone={PAY[r.pay_status].tone}>{PAY[r.pay_status].label}</Pill> : <span className="text-muted">–</span>}</td>
+                <td className="max-w-[9rem] truncate px-3 py-2 text-ink2" title={r.source}>{r.source || "–"}</td>
                 <td className="px-3 py-2">{r.meta_state === "sent" ? <Pill tone="good" icon="check">Sent</Pill> : <Pill tone="neutral">Dashboard only</Pill>}</td>
               </tr>
             ))}
@@ -338,7 +386,7 @@ export function Conversions() {
     try {
       // 1. dashboard
       let inserted = 0, updated = 0;
-      const payload = toSave.map((r) => ({ sale_key: r.sale_key, sale_date: r.date, value: r.value, label: r.label, source: r.source, consultant: r.consultant, group_key: r.group_key, has_contact: r.has_contact }));
+      const payload = toSave.map((r) => ({ sale_key: r.sale_key, sale_date: r.date, value: r.value, label: r.label, source: r.source, consultant: r.consultant, group_key: r.group_key, has_contact: r.has_contact, departure_date: r.departure, package_name: r.package, room_type: r.room, down_payment: r.dp, pay_status: r.pay_status }));
       for (let i = 0; i < payload.length; i += 300) {
         setProgress({ done: i, total: payload.length, label: "Saving to dashboard" });
         const res = await api<{ inserted: number; updated: number }>("/admin/conversions/sales/import", { method: "POST", body: { client_id: Number(clientId), rows: payload.slice(i, i + 300) } });
@@ -545,9 +593,9 @@ export function Conversions() {
             </Panel>
 
             <Panel className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-xs">
+              <table className="w-full min-w-[860px] text-left text-xs">
                 <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
-                  <tr><th className="px-3 py-2">Row</th><th className="px-3 py-2">Who</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Dashboard</th>{mode === "meta" && <th className="px-3 py-2">Meta</th>}</tr>
+                  <tr><th className="px-3 py-2">Row</th><th className="px-3 py-2">Who</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Closer</th><th className="px-3 py-2">Departure</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Dashboard</th>{mode === "meta" && <th className="px-3 py-2">Meta</th>}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {shown.slice(0, 200).map((r, i) => (
@@ -556,6 +604,8 @@ export function Conversions() {
                       <td className="px-3 py-2 text-ink">{r.label || "–"}</td>
                       <td className="tnum px-3 py-2 text-ink2">{r.date ? fmtDayFull(r.date) : "–"}</td>
                       <td className="tnum px-3 py-2 text-right text-ink2">{r.value != null ? fmtRp(r.value) : "–"}</td>
+                      <td className="px-3 py-2 text-ink">{r.consultant || "–"}</td>
+                      <td className="tnum px-3 py-2 text-ink2">{r.departure ? fmtDayFull(r.departure) : "–"}</td>
                       <td className="max-w-[10rem] truncate px-3 py-2 text-ink2" title={r.source}>{r.source || "–"}</td>
                       <td className="px-3 py-2"><Pill tone={DASH[r.status].tone}>{DASH[r.status].label}</Pill>{r.reason && r.status !== "saved" && <span className="ml-2 text-muted">{r.reason}</span>}</td>
                       {mode === "meta" && (

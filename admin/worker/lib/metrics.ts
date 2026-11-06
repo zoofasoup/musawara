@@ -85,7 +85,7 @@ export async function offlineSales(
 ): Promise<{ purchases: number; purchase_value: number; purchases_sent: number }> {
   const r = await env.DB.prepare(
     `SELECT COUNT(*) n, COALESCE(SUM(value), 0) v, COALESCE(SUM(meta_state='sent'), 0) s
-     FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ?`
+     FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND COALESCE(pay_status, '') <> 'cancelled'`
   )
     .bind(clientId, from, to)
     .first<{ n: number; v: number; s: number }>();

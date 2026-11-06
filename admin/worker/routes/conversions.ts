@@ -267,6 +267,7 @@ async function markSalesSent(env: Env, clientId: number, events: Array<{ key: st
 
 // ------------------------------------------------------------------ sales (the dashboard's source of truth)
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const PAY_STATUS = ["dp", "paid", "cancelled"];
 
 /** Which sale keys are already saved, and whether each reached Meta. Unknown keys are new. */
 conv.post("/sales/check", async (c) => {
@@ -298,6 +299,9 @@ conv.post("/sales/import", async (c) => {
       : !YMD.test(r?.sale_date ?? "") || r.sale_date < "2020-01-01" || r.sale_date > today ? "bad sale_date"
       : !(typeof r.value === "number" && isFinite(r.value) && r.value > 0 && r.value < 1e11) ? "bad value"
       : r.group_key != null && !HEX64.test(r.group_key) ? "bad group_key"
+      : r.departure_date != null && (!YMD.test(r.departure_date) || r.departure_date < "2020-01-01" || r.departure_date > "2040-12-31") ? "bad departure_date"
+      : r.down_payment != null && !(typeof r.down_payment === "number" && isFinite(r.down_payment) && r.down_payment >= 0 && r.down_payment < 1e11) ? "bad down_payment"
+      : r.pay_status != null && !PAY_STATUS.includes(r.pay_status) ? "bad pay_status"
       : null;
     if (bad) return c.json({ error: `Row rejected: ${bad}` }, 400);
   }
@@ -314,39 +318,59 @@ conv.post("/sales/import", async (c) => {
   await c.env.DB.batch(
     rows.map((r: any) =>
       c.env.DB.prepare(
-        `INSERT INTO sales (client_id, sale_key, sale_date, value, label, source, consultant, group_key, has_contact)
-         VALUES (?,?,?,?,?,?,?,?,?)
+        `INSERT INTO sales (client_id, sale_key, sale_date, value, label, source, consultant, group_key, has_contact,
+                            departure_date, package_name, room_type, down_payment, pay_status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT(client_id, sale_key) DO UPDATE SET
            sale_date=excluded.sale_date, value=excluded.value, label=COALESCE(excluded.label, sales.label),
            source=COALESCE(excluded.source, sales.source), consultant=COALESCE(excluded.consultant, sales.consultant),
            group_key=COALESCE(excluded.group_key, sales.group_key),
-           has_contact=MAX(sales.has_contact, excluded.has_contact), updated_at=datetime('now')`
-      ).bind(client_id, r.sale_key, r.sale_date, r.value, str(r.label, 40), str(r.source, 80), str(r.consultant, 60), r.group_key ?? null, r.has_contact ? 1 : 0)
+           has_contact=MAX(sales.has_contact, excluded.has_contact),
+           departure_date=COALESCE(excluded.departure_date, sales.departure_date),
+           package_name=COALESCE(excluded.package_name, sales.package_name),
+           room_type=COALESCE(excluded.room_type, sales.room_type),
+           down_payment=COALESCE(excluded.down_payment, sales.down_payment),
+           pay_status=COALESCE(excluded.pay_status, sales.pay_status), updated_at=datetime('now')`
+      ).bind(client_id, r.sale_key, r.sale_date, r.value, str(r.label, 40), str(r.source, 80), str(r.consultant, 60), r.group_key ?? null, r.has_contact ? 1 : 0,
+             r.departure_date ?? null, str(r.package_name, 80), str(r.room_type, 30), r.down_payment ?? null, r.pay_status ?? null)
     )
   );
   const updated = rows.filter((r: any) => known.has(r.sale_key)).length;
   return c.json({ inserted: rows.length - updated, updated });
 });
 
-/** Saved sales: a per-month summary plus the rows, filterable by whether they reached Meta. */
+/** Saved sales: per-month and per-closer summaries plus the rows, filterable by month and by whether they reached Meta. Cancelled sales are listed but not counted. */
 conv.get("/sales", async (c) => {
   const clientId = Number(c.req.query("client_id"));
   const state = c.req.query("state");
+  const month = c.req.query("month");
   if (!clientId) return c.json({ error: "client_id is required" }, 400);
-  const [months, rows] = await Promise.all([
+  const byState = state === "dashboard" || state === "sent";
+  const byMonth = month && /^\d{4}-\d{2}$/.test(month);
+  const monthSql = byMonth ? "AND substr(sale_date, 1, 7) = ?" : "";
+  const [months, closers, rows] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT substr(sale_date, 1, 7) AS month, COUNT(*) AS n, ROUND(SUM(value)) AS value, SUM(meta_state='sent') AS sent
+      `SELECT substr(sale_date, 1, 7) AS month,
+              SUM(COALESCE(pay_status,'') <> 'cancelled') AS n,
+              ROUND(SUM(CASE WHEN COALESCE(pay_status,'') <> 'cancelled' THEN value ELSE 0 END)) AS value,
+              SUM(meta_state='sent' AND COALESCE(pay_status,'') <> 'cancelled') AS sent,
+              SUM(pay_status='cancelled') AS cancelled
        FROM sales WHERE client_id=? GROUP BY 1 ORDER BY 1 DESC`
     ).bind(clientId).all(),
     c.env.DB.prepare(
-      `SELECT sale_date, label, value, source, consultant, meta_state, has_contact FROM sales
-       WHERE client_id=? ${state === "dashboard" || state === "sent" ? "AND meta_state=?" : ""}
+      `SELECT COALESCE(NULLIF(consultant, ''), '(no closer)') AS closer, COUNT(*) AS n, ROUND(SUM(value)) AS value, SUM(meta_state='sent') AS sent
+       FROM sales WHERE client_id=? AND COALESCE(pay_status,'') <> 'cancelled' ${monthSql}
+       GROUP BY 1 ORDER BY value DESC`
+    ).bind(...(byMonth ? [clientId, month] : [clientId])).all(),
+    c.env.DB.prepare(
+      `SELECT sale_date, label, value, source, consultant, meta_state, has_contact, departure_date, package_name, room_type, down_payment, pay_status FROM sales
+       WHERE client_id=? ${byState ? "AND meta_state=?" : ""} ${monthSql}
        ORDER BY sale_date DESC, id DESC LIMIT 400`
     )
-      .bind(...(state === "dashboard" || state === "sent" ? [clientId, state] : [clientId]))
+      .bind(...[clientId, ...(byState ? [state] : []), ...(byMonth ? [month] : [])])
       .all(),
   ]);
-  return c.json({ months: months.results, rows: rows.results });
+  return c.json({ months: months.results, closers: closers.results, rows: rows.results });
 });
 
 // ------------------------------------------------------------------ history
