@@ -15,20 +15,20 @@ export type Entity = {
   objective: string | null;
   thumbnail_url: string | null;
   spend: number;
-  results: number;
-  cpr: number | null;
+  leads: number;
+  cpl: number | null;
   ctr: number | null;
   frequency: number | null;
-  previous: { spend: number; results: number; cpr: number | null; ctr: number | null };
+  previous: { spend: number; leads: number; cpl: number | null; ctr: number | null };
 };
 
-type SortKey = "name" | "spend" | "results" | "cpr" | "ctr" | "frequency";
+type SortKey = "name" | "spend" | "leads" | "cpl" | "ctr" | "frequency";
 
 function sortEntities(rows: Entity[], key: SortKey, dir: 1 | -1): Entity[] {
   return [...rows].sort((a, b) => {
     if (key === "name") return dir * String(a.name ?? "").localeCompare(String(b.name ?? ""));
-    const av = a[key] ?? (key === "cpr" ? Infinity : -Infinity);
-    const bv = b[key] ?? (key === "cpr" ? Infinity : -Infinity);
+    const av = a[key] ?? (key === "cpl" ? Infinity : -Infinity);
+    const bv = b[key] ?? (key === "cpl" ? Infinity : -Infinity);
     return dir * (Number(av) - Number(bv));
   });
 }
@@ -39,10 +39,10 @@ function MetricCells({ e }: { e: Entity }) {
   return (
     <>
       <td className="tnum px-3 py-2.5 text-right text-ink">{fmtRp(e.spend)}</td>
-      <td className="tnum px-3 py-2.5 text-right text-ink">{fmtNum(e.results)}</td>
+      <td className="tnum px-3 py-2.5 text-right text-ink">{fmtNum(e.leads)}</td>
       <td className="tnum px-3 py-2.5 text-right">
-        <span className="text-ink">{fmtRp(e.cpr)}</span>
-        <Delta current={e.cpr} previous={e.previous.cpr} direction="lower-better" className="ml-1.5" />
+        <span className="text-ink">{fmtRp(e.cpl)}</span>
+        <Delta current={e.cpl} previous={e.previous.cpl} direction="lower-better" className="ml-1.5" />
       </td>
       <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtPct(e.ctr)}</td>
       <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtNum(e.frequency, 1)}</td>
@@ -214,8 +214,8 @@ export function EntityTable({ clientId, from, to }: { clientId: number; from: st
                 Status
               </th>
               {header("spend", "Spend")}
-              {header("results", "Results")}
-              {header("cpr", "CPR · Δ")}
+              {header("leads", "Leads")}
+              {header("cpl", "Cost / Lead · Δ")}
               {header("ctr", "CTR", "hidden lg:table-cell")}
               {header("frequency", "Freq", "hidden lg:table-cell")}
             </tr>
@@ -290,13 +290,13 @@ export function EntityTable({ clientId, from, to }: { clientId: number; from: st
                 <p className="text-ink">{fmtRp(c.spend)}</p>
               </div>
               <div>
-                <p className="text-muted">Results</p>
-                <p className="text-ink">{fmtNum(c.results)}</p>
+                <p className="text-muted">Leads</p>
+                <p className="text-ink">{fmtNum(c.leads)}</p>
               </div>
               <div>
-                <p className="text-muted">CPR</p>
+                <p className="text-muted">Cost / Lead</p>
                 <p className="text-ink">
-                  {fmtRp(c.cpr)} <Delta current={c.cpr} previous={c.previous.cpr} direction="lower-better" />
+                  {fmtRp(c.cpl)} <Delta current={c.cpl} previous={c.previous.cpl} direction="lower-better" />
                 </p>
               </div>
             </div>

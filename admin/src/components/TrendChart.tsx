@@ -1,4 +1,4 @@
-// Daily trend: bars (spend or results) + line (CPR/CTR/CPM) on a labeled
+// Trend: bars (spend or leads) + line (cost per lead/CTR/CPM) on a labeled
 // secondary axis, per the product spec. Metrics are toggleable.
 
 import { useMemo, useState } from "react";
@@ -18,19 +18,19 @@ import { EmptyState } from "./ui";
 export type TrendDay = {
   date: string;
   spend: number;
-  results: number;
-  cpr: number | null;
+  leads: number;
+  cpl: number | null;
   ctr: number | null;
   cpm: number | null;
 };
 
 const BAR_METRICS = [
   { key: "spend", label: "Spend", fmt: fmtRp },
-  { key: "results", label: "Results", fmt: (v: number | null) => fmtNum(v ?? null) },
+  { key: "leads", label: "Leads", fmt: (v: number | null) => fmtNum(v ?? null) },
 ] as const;
 
 const LINE_METRICS = [
-  { key: "cpr", label: "CPR", fmt: fmtRp },
+  { key: "cpl", label: "Cost / Lead", fmt: fmtRp },
   { key: "ctr", label: "CTR", fmt: (v: number | null) => fmtPct(v) },
   { key: "cpm", label: "CPM", fmt: fmtRp },
 ] as const;
@@ -38,14 +38,14 @@ const LINE_METRICS = [
 const BAR_COLOR = "var(--color-chart-1)";
 const LINE_COLOR = "var(--color-chart-2)";
 
-export function TrendChart({ days, resultLabel, bucket = "day" }: { days: TrendDay[]; resultLabel: string; bucket?: "day" | "week" | "month" }) {
-  const [barKey, setBarKey] = useState<"spend" | "results">("spend");
-  const [lineKey, setLineKey] = useState<"cpr" | "ctr" | "cpm" | "none">("cpr");
+export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?: "day" | "week" | "month" }) {
+  const [barKey, setBarKey] = useState<"spend" | "leads">("spend");
+  const [lineKey, setLineKey] = useState<"cpl" | "ctr" | "cpm" | "none">("cpl");
 
   const bar = BAR_METRICS.find((m) => m.key === barKey)!;
   const line = LINE_METRICS.find((m) => m.key === lineKey);
-  const barLabel = barKey === "results" ? resultLabel : bar.label;
-  const lineLabel = lineKey === "cpr" ? `Cost / ${resultLabel.replace(/s$/, "")}` : line?.label;
+  const barLabel = bar.label;
+  const lineLabel = line?.label;
 
   const data = useMemo(() => days.map((d) => ({ ...d, barValue: d[barKey] ?? 0, lineValue: line ? d[line.key] : null })), [days, barKey, line]);
 
@@ -63,7 +63,7 @@ export function TrendChart({ days, resultLabel, bucket = "day" }: { days: TrendD
               onClick={() => setBarKey(m.key)}
               className={`rounded-md px-2 py-1 text-xs font-medium ${barKey === m.key ? "bg-surface3 text-ink" : "text-muted hover:text-ink2"}`}
             >
-              {m.key === "results" ? resultLabel : m.label}
+              {m.label}
             </button>
           ))}
         </div>

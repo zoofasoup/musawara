@@ -20,6 +20,7 @@ export type Totals = {
   cpm: number | null;
   cpr: number | null;
   cpl: number | null; // cost per lead
+  cpa: number | null; // spend / purchases (purchases = uploaded offline sales)
   roas: number | null; // purchase value / spend
   frequency: number | null;
 };
@@ -58,6 +59,7 @@ export function finalize(r: RawSums | null | undefined): Totals {
     cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
     cpr: results > 0 ? spend / results : null,
     cpl: leads > 0 ? spend / leads : null,
+    cpa: (r?.purchases ?? 0) > 0 ? spend / (r!.purchases as number) : null,
     roas: spend > 0 && purchase_value > 0 ? purchase_value / spend : null,
     frequency: reach > 0 ? impressions / reach : null,
   };
@@ -67,8 +69,29 @@ const SUM_COLS = `SUM(spend) spend, SUM(impressions) impressions, SUM(reach) rea
   SUM(clicks) clicks, SUM(link_clicks) link_clicks, SUM(COALESCE(results,0)) results,
   SUM(leads) leads, SUM(purchases) purchases, SUM(purchase_value) purchase_value`;
 
+/**
+ * Real sales for a client in a date range, from the offline-conversion ledger
+ * (live sends only, by the date of the sale in Jakarta time). Meta's own
+ * "purchase" actions are deliberately not used: they are unreliable here.
+ */
+export async function offlineSales(env: Env, clientId: number, from: string, to: string): Promise<{ purchases: number; purchase_value: number }> {
+  const r = await env.DB.prepare(
+    `SELECT COUNT(*) n, COALESCE(SUM(value), 0) v FROM offline_events
+     WHERE client_id=? AND is_test=0 AND event_name='Purchase'
+       AND date(event_time, 'unixepoch', '+7 hours') BETWEEN ? AND ?`
+  )
+    .bind(clientId, from, to)
+    .first<{ n: number; v: number }>();
+  return { purchases: r?.n ?? 0, purchase_value: r?.v ?? 0 };
+}
+
 /** Whole-client totals for a date range (campaign level avoids double counting). */
 export async function clientTotals(env: Env, clientId: number, from: string, to: string): Promise<Totals> {
+  const [totals, sales] = await Promise.all([clientInsightTotals(env, clientId, from, to), offlineSales(env, clientId, from, to)]);
+  return finalize({ ...totals, ...sales });
+}
+
+async function clientInsightTotals(env: Env, clientId: number, from: string, to: string): Promise<RawSums> {
   const row = await env.DB.prepare(
     `SELECT ${SUM_COLS}
      FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
@@ -76,7 +99,7 @@ export async function clientTotals(env: Env, clientId: number, from: string, to:
   )
     .bind(clientId, from, to)
     .first<RawSums>();
-  return finalize(row);
+  return row ?? { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, leads: 0, purchases: 0, purchase_value: 0 };
 }
 
 export type TrendBucket = "day" | "week" | "month";

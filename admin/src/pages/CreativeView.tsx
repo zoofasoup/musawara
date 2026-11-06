@@ -1,4 +1,4 @@
-// Creative view: ad grid sorted by CPR ascending (winners first),
+// Creative view: ad grid sorted by cost per lead ascending (winners first),
 // frequency > 3.5 badged as "Fatigued".
 
 import { useMemo, useState } from "react";
@@ -11,18 +11,18 @@ import { CardSkeleton, EmptyState, ErrorState, SectionTitle, StatusBadge } from 
 
 const FATIGUE_FREQUENCY = 3.5;
 
-type SortMode = "cpr" | "spend" | "ctr";
+type SortMode = "cpl" | "spend" | "ctr";
 
 export function CreativeView({ clientId }: { clientId: number }) {
   const [range, setRange] = useState<DateRange>(presetByKey("7d"));
-  const [sort, setSort] = useState<SortMode>("cpr");
+  const [sort, setSort] = useState<SortMode>("cpl");
   const { data, error, loading, reload } = useApi<{ ads: Entity[] }>(
     `/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`
   );
 
   const ads = useMemo(() => {
     const list = [...(data?.ads ?? [])];
-    if (sort === "cpr") list.sort((a, b) => (a.cpr ?? Infinity) - (b.cpr ?? Infinity));
+    if (sort === "cpl") list.sort((a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity));
     if (sort === "spend") list.sort((a, b) => b.spend - a.spend);
     if (sort === "ctr") list.sort((a, b) => (b.ctr ?? -1) - (a.ctr ?? -1));
     return list;
@@ -40,7 +40,7 @@ export function CreativeView({ clientId }: { clientId: number }) {
           <div className="flex items-center gap-1 rounded-lg bg-surface2 p-0.5">
             {(
               [
-                ["cpr", "Best CPR"],
+                ["cpl", "Best cost / lead"],
                 ["spend", "Spend"],
                 ["ctr", "CTR"],
               ] as const
@@ -96,16 +96,16 @@ export function CreativeView({ clientId }: { clientId: number }) {
                   </div>
                   <dl className="tnum grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
                     <div>
-                      <dt className="text-muted">CPR</dt>
-                      <dd className="font-semibold text-ink">{fmtRp(ad.cpr)}</dd>
+                      <dt className="text-muted">Cost / Lead</dt>
+                      <dd className="font-semibold text-ink">{fmtRp(ad.cpl)}</dd>
                     </div>
                     <div>
                       <dt className="text-muted">Spend</dt>
                       <dd className="text-ink2">{fmtRp(ad.spend)}</dd>
                     </div>
                     <div>
-                      <dt className="text-muted">Results</dt>
-                      <dd className="text-ink2">{fmtNum(ad.results)}</dd>
+                      <dt className="text-muted">Leads</dt>
+                      <dd className="text-ink2">{fmtNum(ad.leads)}</dd>
                     </div>
                     <div>
                       <dt className="text-muted">CTR</dt>

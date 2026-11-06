@@ -90,7 +90,7 @@ clients.get("/:clientId/creatives", async (c) => {
   const clientId = c.get("access").clientId;
   const { from, to, prevFrom, prevTo } = range(c);
   const ads = await clientEntities(c.env, clientId, "ad", from, to, prevFrom, prevTo);
-  ads.sort((a, b) => (a.cpr ?? Infinity) - (b.cpr ?? Infinity));
+  ads.sort((a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity));
   return c.json({ ads });
 });
 
@@ -102,7 +102,7 @@ clients.get("/:clientId/alerts", async (c) => {
      FROM alerts al
      JOIN ad_accounts a ON a.id = al.ad_account_id
      LEFT JOIN entities e ON e.ad_account_id = al.ad_account_id AND e.entity_id = al.entity_id
-     WHERE a.client_id=?
+     WHERE a.client_id=? AND al.type NOT IN ('zero_results','cpr_spike')
      ORDER BY al.acknowledged ASC, al.created_at DESC LIMIT 50`
   )
     .bind(clientId)

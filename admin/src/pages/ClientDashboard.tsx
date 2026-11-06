@@ -45,6 +45,7 @@ type Totals = {
   cpm: number | null;
   cpr: number | null;
   cpl: number | null;
+  cpa: number | null;
   roas: number | null;
   frequency: number | null;
 };
@@ -86,27 +87,22 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const kpis = useMemo(() => {
     const c = summary.data?.current;
     const p = summary.data?.previous;
-    const singular = resultLabel.replace(/s$/, "");
-    const hasPurchases = (c?.purchases ?? 0) > 0 || (p?.purchases ?? 0) > 0;
+    // Leads and purchases are the numbers that matter. Purchases are real sales
+    // uploaded as offline conversions; Meta's own purchase counts are not used.
     return [
       { label: "Spend", value: fmtRp(c?.spend), cur: c?.spend, prev: p?.spend, dir: "neutral" as const },
       { label: "Leads", value: fmtNum(c?.leads), cur: c?.leads, prev: p?.leads, dir: "higher-better" as const },
       { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
       { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const },
-      ...(hasPurchases
-        ? [
-            { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
-            { label: "ROAS", value: fmtNum(c?.roas ?? null, 2), cur: c?.roas, prev: p?.roas, dir: "higher-better" as const },
-          ]
-        : []),
-      { label: resultLabel, value: fmtNum(c?.results), cur: c?.results, prev: p?.results, dir: "higher-better" as const },
-      { label: `Cost / ${singular}`, value: fmtRp(c?.cpr), cur: c?.cpr, prev: p?.cpr, dir: "lower-better" as const },
+      { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
+      { label: "CPA", value: fmtRp(c?.cpa), cur: c?.cpa, prev: p?.cpa, dir: "lower-better" as const },
+      { label: "ROAS", value: c?.roas != null ? `${fmtNum(c.roas, 1)}x` : "–", cur: c?.roas, prev: p?.roas, dir: "higher-better" as const },
       { label: "CTR", value: fmtPct(c?.ctr), cur: c?.ctr, prev: p?.ctr, dir: "higher-better" as const },
       { label: "CPM", value: fmtRp(c?.cpm), cur: c?.cpm, prev: p?.cpm, dir: "lower-better" as const },
       { label: "Frequency", value: fmtNum(c?.frequency ?? null, 2), cur: c?.frequency, prev: p?.frequency, dir: "neutral" as const },
       { label: "Reach", value: fmtNum(c?.reach), cur: c?.reach, prev: p?.reach, dir: "higher-better" as const },
     ];
-  }, [summary.data, resultLabel]);
+  }, [summary.data]);
 
   if (meta.error) return <ErrorState message={meta.error} onRetry={meta.reload} />;
 
@@ -184,7 +180,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         ) : trend.error ? (
           <ErrorState message={trend.error} onRetry={trend.reload} />
         ) : (
-          <TrendChart days={trend.data?.days ?? []} resultLabel={resultLabel} bucket={trend.data?.bucket} />
+          <TrendChart days={trend.data?.days ?? []} bucket={trend.data?.bucket} />
         )}
       </div>
 

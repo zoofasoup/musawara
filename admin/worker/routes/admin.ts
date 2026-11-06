@@ -56,7 +56,7 @@ admin.get("/overview", async (c) => {
       .first<{ t: number | null }>();
     const unack = await c.env.DB.prepare(
       `SELECT COUNT(*) n FROM alerts al JOIN ad_accounts a ON a.id=al.ad_account_id
-       WHERE a.client_id=? AND al.acknowledged=0`
+       WHERE a.client_id=? AND al.acknowledged=0 AND al.type NOT IN ('zero_results','cpr_spike')`
     )
       .bind(client.id)
       .first<{ n: number }>();
@@ -76,6 +76,7 @@ admin.get("/overview", async (c) => {
      JOIN ad_accounts a ON a.id=al.ad_account_id
      JOIN clients cl ON cl.id=a.client_id
      LEFT JOIN entities e ON e.ad_account_id=al.ad_account_id AND e.entity_id=al.entity_id
+     WHERE al.type NOT IN ('zero_results','cpr_spike')
      ORDER BY al.created_at DESC LIMIT 20`
   ).all();
 
