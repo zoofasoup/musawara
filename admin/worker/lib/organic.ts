@@ -88,7 +88,7 @@ export async function pollPosts(env: Env, account: { id: number; ig_user_id: str
   const media = await metaGetAll(
     env,
     `${account.ig_user_id}/media`,
-    { fields: "id,media_type,media_product_type,timestamp,permalink,caption,like_count,comments_count", limit: "50" },
+    { fields: "id,media_type,media_product_type,timestamp,permalink,caption,like_count,comments_count,thumbnail_url,media_url", limit: "50" },
     1
   );
   let touched = 0;
@@ -96,12 +96,14 @@ export async function pollPosts(env: Env, account: { id: number; ig_user_id: str
     const age = Date.now() - new Date(m.timestamp).getTime();
     if (age > 30 * DAY_MS) continue;
     const fmt = postFormat(m);
+    // Videos expose a still in thumbnail_url; photos and carousels use media_url. Both CDN links expire, hence the refresh.
+    const thumb = (fmt === "reel" || fmt === "video" ? m.thumbnail_url : m.media_url) ?? m.thumbnail_url ?? null;
     await env.DB.prepare(
-      `INSERT INTO organic_posts (media_id, ig_user_id, posted_at, day, format, permalink, caption, likes, comments)
-       VALUES (?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(media_id) DO UPDATE SET likes=excluded.likes, comments=excluded.comments, caption=excluded.caption`
+      `INSERT INTO organic_posts (media_id, ig_user_id, posted_at, day, format, permalink, caption, likes, comments, thumbnail_url)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(media_id) DO UPDATE SET likes=excluded.likes, comments=excluded.comments, caption=excluded.caption, thumbnail_url=excluded.thumbnail_url`
     )
-      .bind(m.id, account.ig_user_id, m.timestamp, ymdInTz(TZ, new Date(m.timestamp)), fmt, m.permalink ?? null, m.caption ?? null, m.like_count ?? null, m.comments_count ?? null)
+      .bind(m.id, account.ig_user_id, m.timestamp, ymdInTz(TZ, new Date(m.timestamp)), fmt, m.permalink ?? null, m.caption ?? null, m.like_count ?? null, m.comments_count ?? null, thumb)
       .run();
     if (age > 3 * DAY_MS && !deep) continue;
     try {

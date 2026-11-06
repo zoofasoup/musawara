@@ -85,7 +85,8 @@ export async function pullInsights(
   account: AdAccountRow,
   since: string,
   until: string,
-  withReach = true
+  withReach = true,
+  recordCoverage = true
 ): Promise<number> {
   const cfg = await getResultConfig(env, account.id);
   let rows = 0;
@@ -133,7 +134,7 @@ export async function pullInsights(
     await runBatched(env, stmts);
   }
   // Record the range only after all three levels landed.
-  await env.DB.prepare(
+  if (recordCoverage) await env.DB.prepare(
     "INSERT OR REPLACE INTO insights_coverage (ad_account_id, date_from, date_to, with_reach, pulled_at) VALUES (?,?,?,?,datetime('now'))"
   )
     .bind(account.id, since, until, withReach ? 1 : 0)
@@ -149,7 +150,14 @@ export async function pullInsights(
 const NO_MINOR_UNIT = new Set(["CLP", "COP", "CRC", "HUF", "IDR", "ISK", "JPY", "KRW", "PYG", "TWD", "VND"]);
 const minorUnit = (currency: string | null | undefined) => (NO_MINOR_UNIT.has(String(currency).toUpperCase()) ? 1 : 100);
 
-export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jobId: number; rows: number }> {
+/** Hourly refresh of the days still moving: skips the entity tree, coverage record and alerts. */
+export const LIGHT_LOOKBACK_DAYS = 2;
+
+export async function syncAccount(
+  env: Env,
+  account: AdAccountRow,
+  light = false
+): Promise<{ jobId: number; rows: number }> {
   const job = await env.DB.prepare("INSERT INTO sync_jobs (ad_account_id) VALUES (?) RETURNING id")
     .bind(account.id)
     .first<{ id: number }>();
@@ -158,7 +166,7 @@ export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jo
 
   try {
     // 1. Entity tree (keep historical rows for deleted/archived entities; just update status)
-    const tree = await fetchEntityTree(env, account.meta_account_id);
+    const tree = light ? { campaigns: [], adsets: [], ads: [] } : await fetchEntityTree(env, account.meta_account_id);
     const entityStmts: D1PreparedStatement[] = [];
     const push = (level: string, e: any, parentId: string | null, objective: string | null, thumb: string | null) =>
       entityStmts.push(
@@ -184,30 +192,31 @@ export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jo
 
     // 2. Insights, 28-day repull (Meta restates recent days)
     const until = ymdInTz(account.timezone);
-    const since = addDays(until, -(SYNC_LOOKBACK_DAYS - 1));
-    rows += await pullInsights(env, account, since, until);
+    const since = addDays(until, -((light ? LIGHT_LOOKBACK_DAYS : SYNC_LOOKBACK_DAYS) - 1));
+    rows += await pullInsights(env, account, since, until, true, !light);
 
     await env.DB.prepare("UPDATE sync_jobs SET finished_at=datetime('now'), status='success', rows_upserted=? WHERE id=?")
       .bind(rows, jobId)
       .run();
 
-    await runAlertRules(env, account);
+    if (!light) await runAlertRules(env, account);
     return { jobId, rows };
   } catch (e: any) {
     await env.DB.prepare("UPDATE sync_jobs SET finished_at=datetime('now'), status='failed', error=? WHERE id=?")
       .bind(String(e?.message ?? e), jobId)
       .run();
-    await checkSyncFailureAlert(env, account);
+    // An hourly blip is not an outage: only full runs count toward the failure alert.
+    if (!light) await checkSyncFailureAlert(env, account);
     throw e;
   }
 }
 
-/** Sequential sync of all active accounts — used by the cron trigger. */
-export async function syncAllAccounts(env: Env): Promise<void> {
+/** Sequential sync of all active accounts — used by the cron trigger (full nightly, light hourly). */
+export async function syncAllAccounts(env: Env, light = false): Promise<void> {
   const accounts = await env.DB.prepare("SELECT * FROM ad_accounts WHERE status='active'").all<AdAccountRow>();
   for (const account of accounts.results) {
     try {
-      await syncAccount(env, account);
+      await syncAccount(env, account, light);
     } catch (e) {
       console.error(`sync failed for account ${account.meta_account_id}:`, e);
       // keep going — one bad account must not block the rest

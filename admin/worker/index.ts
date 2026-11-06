@@ -27,13 +27,14 @@ app.onError((err, c) => {
   return c.json({ error: "Internal error" }, 500);
 });
 
-// Hourly: record new Instagram stories (they vanish after 24h) and refresh post insights. At 03:00
-// Asia/Jakarta (20:00 UTC) also re-pull 28 days of ads for every active account,
+// Hourly: record new Instagram stories (they vanish after 24h), refresh post insights and
+// re-pull the last 2 days of ads. At 03:00
+// Asia/Jakarta (20:00 UTC) the ads pull is the full 28 days plus the entity tree,
 // because Meta restates history (attribution windows).
 export function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
   const deep = new Date(controller.scheduledTime).getUTCHours() === 20;
   ctx.waitUntil(pollAllOrganic(env, deep));
-  if (deep) ctx.waitUntil(syncAllAccounts(env));
+  ctx.waitUntil(syncAllAccounts(env, !deep));
 }
 
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>;

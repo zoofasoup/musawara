@@ -1,13 +1,16 @@
-// Organic content: Instagram stories per day against the daily target.
+// Organic content: per client, stories against the daily target and a grid of
+// posts, each carrying a performance label relative to its own account.
 
 import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
-import { fmtDay, fmtCompact, fmtPct } from "../lib/format";
+import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
+import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
 type Day = { day: string; count: number };
 type Account = {
   id: number;
+  client_id: number;
   client_name: string;
   ig_username: string | null;
   ig_user_id: string;
@@ -17,55 +20,159 @@ type Account = {
   days: Day[];
 };
 type Candidate = { ig_user_id: string; ig_username: string | null; page_id: string; page_name: string };
-
 type Post = {
   media_id: string;
-  ig_username: string | null;
+  ig_user_id: string;
+  client_id: number;
   followers: number | null;
+  ig_username: string | null;
   posted_at: string;
   day: string;
   format: string;
   permalink: string | null;
   caption: string | null;
+  thumbnail_url: string | null;
   likes: number | null;
   comments: number | null;
   reach: number | null;
   views: number | null;
   saves: number | null;
   shares: number | null;
-  interactions: number | null;
   avg_watch_ms: number | null;
 };
+
 const FORMATS = [["", "All formats"], ["reel", "Reels"], ["carousel", "Carousel"], ["image", "Photo"], ["video", "Video"]];
+const FORMAT_NAME: Record<string, string> = { reel: "Reel", carousel: "Carousel", image: "Photo", video: "Video" };
 const rate = (n: number | null, d: number | null) => (n != null && d ? n / d : null);
-const SORTS: Record<string, [string, (p: Post) => number | null]> = {
+const SORTS: Record<string, [string, (p: Post, l: PostLabel | null | undefined) => number | null]> = {
   newest: ["Newest", (p) => new Date(p.posted_at).getTime()],
   reach: ["Reach", (p) => p.reach],
-  reach_pct: ["Reach / followers", (p) => rate(p.reach, p.followers)],
   shares: ["Shares", (p) => p.shares],
   save_rate: ["Save rate", (p) => rate(p.saves, p.reach)],
   share_rate: ["Share rate", (p) => rate(p.shares, p.reach)],
   watch: ["Avg watch time", (p) => p.avg_watch_ms],
 };
+const LABELS: Record<PostLabel, { text: string; cls: string }> = {
+  top: { text: "Top", cls: "bg-good text-white" },
+  good: { text: "Good", cls: "bg-good/15 text-good" },
+  average: { text: "Average", cls: "bg-surface3 text-ink2" },
+  weak: { text: "Weak", cls: "bg-crit/15 text-crit" },
+  new: { text: "New", cls: "bg-surface3 text-muted" },
+};
 
 const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink disabled:opacity-50";
+const sel = "min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink";
+
+function Thumb({ post, className = "" }: { post: Post; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!post.thumbnail_url || failed) {
+    return (
+      <div className={`flex items-center justify-center bg-surface3 text-xs font-medium text-muted ${className}`}>
+        {FORMAT_NAME[post.format] ?? post.format}
+      </div>
+    );
+  }
+  return <img src={post.thumbnail_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`object-cover ${className}`} />;
+}
+
+function LabelChip({ label }: { label: PostLabel | null | undefined }) {
+  if (!label) return null;
+  const l = LABELS[label];
+  return <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${l.cls}`}>{l.text}</span>;
+}
+
+function StoryRow({ a }: { a: Account }) {
+  const today = a.days[a.days.length - 1]?.count ?? 0;
+  const met = today >= a.story_target;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-xs text-muted">Stories today · @{a.ig_username ?? a.ig_user_id}</p>
+        <p className={`tnum text-lg font-semibold ${met ? "text-good" : "text-ink"}`}>
+          {today}<span className="text-sm font-normal text-muted"> / {a.story_target}</span>
+        </p>
+      </div>
+      <div className="flex h-8 min-w-[8rem] flex-1 items-end gap-0.5" role="img" aria-label="Stories per day, last 14 days">
+        {a.days.map((d) => (
+          <div
+            key={d.day}
+            title={`${fmtDay(d.day)}: ${d.count}`}
+            className={`flex-1 rounded-sm ${d.count >= a.story_target ? "bg-good" : "bg-warn"}`}
+            style={{ height: `${Math.max(8, Math.min(100, (d.count / Math.max(a.story_target, 1)) * 100))}%`, opacity: d.count ? 1 : 0.25 }}
+          />
+        ))}
+      </div>
+      {a.last_error && <p className="w-full text-xs text-crit">{a.last_error}</p>}
+    </div>
+  );
+}
+
+function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null | undefined; onClose: () => void }) {
+  const followers = post.followers;
+  const stat = (name: string, value: string) => (
+    <div>
+      <dt className="text-xs text-muted">{name}</dt>
+      <dd className="tnum text-sm text-ink">{value}</dd>
+    </div>
+  );
+  const n = (v: number | null) => (v == null ? "–" : fmtCompact(v));
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-bg p-4 sm:rounded-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Post detail">
+        <div className="flex gap-3">
+          <Thumb post={post} className="h-28 w-28 shrink-0 rounded-lg" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2"><LabelChip label={label} /><span className="text-xs text-muted">{FORMAT_NAME[post.format]} · {fmtDay(post.day)}</span></div>
+            <p className="mt-1 text-xs text-muted">@{post.ig_username}</p>
+            {post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-accent hover:underline">Open on Instagram</a>}
+          </div>
+        </div>
+        <dl className="mt-4 grid grid-cols-3 gap-x-3 gap-y-3">
+          {stat("Reach", n(post.reach))}
+          {stat("Reach / followers", rate(post.reach, followers) != null ? fmtPct(rate(post.reach, followers)! * 100) : "–")}
+          {stat("Views", n(post.views))}
+          {stat("Saves", post.saves == null ? "–" : `${post.saves}${rate(post.saves, post.reach) != null ? ` · ${fmtPct(rate(post.saves, post.reach)! * 100)}` : ""}`)}
+          {stat("Shares", post.shares == null ? "–" : `${post.shares}${rate(post.shares, post.reach) != null ? ` · ${fmtPct(rate(post.shares, post.reach)! * 100)}` : ""}`)}
+          {stat("Likes / comments", `${post.likes ?? "–"} / ${post.comments ?? "–"}`)}
+          {post.format === "reel" && stat("Avg watch", post.avg_watch_ms != null ? `${(post.avg_watch_ms / 1000).toFixed(1)}s` : "–")}
+        </dl>
+        {post.caption && <p className="mt-4 whitespace-pre-line text-sm text-ink2">{post.caption}</p>}
+        <button className={`${btn} mt-4 w-full justify-center`} onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
 
 export function Organic() {
   const list = useApi<{ today: string; accounts: Account[] }>("/admin/organic");
   const posts = useApi<{ posts: Post[] }>("/admin/organic/posts");
+  const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
+  const [clientId, setClientId] = useState<number | null>(null);
   const [fmt, setFmt] = useState("");
   const [sort, setSort] = useState("newest");
-  const shown = useMemo(() => {
-    const get = SORTS[sort][1];
-    return (posts.data?.posts ?? [])
-      .filter((p) => !fmt || p.format === fmt)
-      .sort((a, b) => (get(b) ?? -1) - (get(a) ?? -1));
-  }, [posts.data, fmt, sort]);
-  const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
+  const [open, setOpen] = useState<Post | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
   const [found, setFound] = useState<Candidate[] | null>(null);
   const [pick, setPick] = useState<Record<string, string>>({});
+
+  const accounts = list.data?.accounts ?? [];
+  const tabs = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const a of accounts) if (!seen.has(a.client_id)) seen.set(a.client_id, a.client_name);
+    return [...seen].map(([id, name]) => ({ id, name }));
+  }, [accounts]);
+  const activeId = clientId != null && tabs.some((t) => t.id === clientId) ? clientId : tabs[0]?.id ?? null;
+  const clientAccounts = accounts.filter((a) => a.client_id === activeId);
+
+  const allPosts = posts.data?.posts ?? [];
+  const labels = useMemo(() => labelPosts(allPosts), [allPosts]);
+  const shown = useMemo(() => {
+    const get = SORTS[sort][1];
+    return allPosts
+      .filter((p) => p.client_id === activeId && (!fmt || p.format === fmt))
+      .sort((a, b) => (get(b, labels.get(b.media_id)) ?? -1) - (get(a, labels.get(a.media_id)) ?? -1));
+  }, [allPosts, labels, activeId, fmt, sort]);
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -77,7 +184,10 @@ export function Organic() {
     }
     setBusy("");
   };
-
+  const reloadAll = () => {
+    list.reload();
+    posts.reload();
+  };
   const discover = () =>
     run("discover", async () => {
       const r = await api<{ candidates: Candidate[] }>("/admin/organic/discover");
@@ -88,139 +198,110 @@ export function Organic() {
     run("add" + c.ig_user_id, async () => {
       await api("/admin/organic/accounts", { method: "POST", body: { client_id: Number(pick[c.ig_user_id]), ig_user_id: c.ig_user_id, ig_username: c.ig_username, page_id: c.page_id } });
       await api("/admin/organic/poll", { method: "POST", body: {} });
-      list.reload();
-      posts.reload();
+      reloadAll();
     });
   const poll = () =>
     run("poll", async () => {
       const r = await api<{ added: number; errors: string[] }>("/admin/organic/poll", { method: "POST", body: {} });
       setMsg(r.errors.length ? r.errors[0] : `${r.added} new stories recorded`);
-      list.reload();
-      posts.reload();
+      reloadAll();
     });
   const remove = (a: Account) =>
     run("rm" + a.id, async () => {
       if (!confirm(`Stop tracking @${a.ig_username ?? a.ig_user_id}? Recorded stories stay.`)) return;
       await api(`/admin/organic/accounts/${a.id}`, { method: "DELETE" });
-      list.reload();
+      reloadAll();
     });
 
-  const tracked = new Set((list.data?.accounts ?? []).map((a) => a.ig_user_id));
+  const tracked = new Set(accounts.map((a) => a.ig_user_id));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="text-2xl font-semibold text-ink">Organic</h1>
-      <p className="mt-1 text-sm text-ink2">Instagram stories per day against target. Checked every hour, since stories disappear after 24 hours.</p>
-
-      <div className="mt-5">
-        <SectionTitle
-          right={
-            <span className="flex gap-2">
-              <button className={btn} disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</button>
-              <button className={btn} disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</button>
-            </span>
-          }
-        >
-          Stories
-        </SectionTitle>
-        {msg && <p className="mb-3 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink2">{msg}</p>}
-
-        {list.loading ? (
-          <CardSkeleton lines={4} />
-        ) : list.error ? (
-          <ErrorState message={list.error} onRetry={list.reload} />
-        ) : !list.data?.accounts.length ? (
-          <EmptyState title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." />
-        ) : (
-          <div className="grid gap-3">
-            {list.data.accounts.map((a) => {
-              const today = a.days[a.days.length - 1]?.count ?? 0;
-              const met = today >= a.story_target;
-              return (
-                <div key={a.id} className="rounded-xl border border-border bg-surface p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-ink">@{a.ig_username ?? a.ig_user_id}</p>
-                      <p className="text-xs text-muted">{a.client_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`tnum text-2xl font-semibold ${met ? "text-good" : "text-ink"}`}>
-                        {today}<span className="text-sm font-normal text-muted"> / {a.story_target} today</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-end gap-1" role="img" aria-label="Stories per day, last 14 days">
-                    {a.days.map((d) => (
-                      <div key={d.day} className="flex flex-1 flex-col items-center gap-1" title={`${fmtDay(d.day)}: ${d.count}`}>
-                        <div className="flex h-16 w-full items-end">
-                          <div
-                            className={`w-full rounded-sm ${d.count >= a.story_target ? "bg-good" : "bg-warn"}`}
-                            style={{ height: `${Math.max(4, Math.min(100, (d.count / Math.max(a.story_target, 1)) * 100))}%`, opacity: d.count ? 1 : 0.25 }}
-                          />
-                        </div>
-                        <span className="tnum text-[10px] text-muted">{d.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-                    <span>{a.last_error ? <span className="text-crit">{a.last_error}</span> : a.last_poll_at ? `Last check ${a.last_poll_at} UTC` : "Not checked yet"}</span>
-                    <button className={btn} disabled={!!busy} onClick={() => remove(a)}>Stop tracking</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-ink">Organic</h1>
+          <p className="mt-1 text-sm text-ink2">Which content works, compared with each account's own average.</p>
+        </div>
+        <span className="flex gap-2">
+          <button className={btn} disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</button>
+          <button className={btn} disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</button>
+        </span>
       </div>
+      {msg && <p className="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink2">{msg}</p>}
 
-      <div className="mt-8">
-        <SectionTitle
-          right={
-            <span className="flex gap-2">
-              <select className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink" value={fmt} onChange={(e) => setFmt(e.target.value)} aria-label="Format">
-                {FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-              <select className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
-                {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-            </span>
-          }
-        >
-          Posts, last 30 days
-        </SectionTitle>
-        {posts.loading ? (
-          <CardSkeleton lines={4} />
-        ) : !shown.length ? (
-          <EmptyState title="No posts yet" hint="Posts appear after the first check. Insights are filled in within a day of posting." />
-        ) : (
-          <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-            {shown.map((p) => (
-              <a key={p.media_id} href={p.permalink ?? undefined} target="_blank" rel="noreferrer" className="block px-4 py-3 hover:bg-surface2">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="min-w-0 truncate text-sm text-ink">{p.caption?.split("\n")[0] || "(no caption)"}</p>
-                  <span className="shrink-0 text-xs text-muted">{fmtDay(p.day)}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-muted">@{p.ig_username} · {p.format}</p>
-                {p.reach == null ? (
-                  <p className="mt-1.5 text-xs text-muted">Insights not ready yet</p>
-                ) : (
-                  <dl className="tnum mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1 text-xs text-ink2 sm:grid-cols-6">
-                    <div><dt className="text-muted">Reach</dt><dd>{fmtCompact(p.reach)}{rate(p.reach, p.followers) != null && <span className="text-muted"> · {fmtPct(rate(p.reach, p.followers)! * 100)}</span>}</dd></div>
-                    <div><dt className="text-muted">Views</dt><dd>{p.views != null ? fmtCompact(p.views) : "–"}</dd></div>
-                    <div><dt className="text-muted">Saves</dt><dd>{p.saves ?? "–"}{rate(p.saves, p.reach) != null && <span className="text-muted"> · {fmtPct(rate(p.saves, p.reach)! * 100)}</span>}</dd></div>
-                    <div><dt className="text-muted">Shares</dt><dd>{p.shares ?? "–"}{rate(p.shares, p.reach) != null && <span className="text-muted"> · {fmtPct(rate(p.shares, p.reach)! * 100)}</span>}</dd></div>
-                    <div><dt className="text-muted">Likes / comments</dt><dd>{p.likes ?? "–"} / {p.comments ?? "–"}</dd></div>
-                    <div><dt className="text-muted">Avg watch</dt><dd>{p.avg_watch_ms != null ? `${(p.avg_watch_ms / 1000).toFixed(1)}s` : "–"}</dd></div>
-                  </dl>
-                )}
-              </a>
+      {list.loading ? (
+        <div className="mt-5"><CardSkeleton lines={4} /></div>
+      ) : list.error ? (
+        <div className="mt-5"><ErrorState message={list.error} onRetry={list.reload} /></div>
+      ) : !tabs.length ? (
+        <div className="mt-5"><EmptyState title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." /></div>
+      ) : (
+        <>
+          <div className="mt-5 flex gap-1 overflow-x-auto border-b border-border" role="tablist">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={t.id === activeId}
+                onClick={() => setClientId(t.id)}
+                className={`min-h-11 shrink-0 border-b-2 px-4 text-sm font-medium ${t.id === activeId ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
+              >
+                {t.name}
+              </button>
             ))}
           </div>
-        )}
-      </div>
+
+          <div className="mt-4 grid gap-2">
+            {clientAccounts.map((a) => <StoryRow key={a.id} a={a} />)}
+          </div>
+
+          <div className="mt-6">
+            <SectionTitle
+              right={
+                <span className="flex gap-2">
+                  <select className={sel} value={fmt} onChange={(e) => setFmt(e.target.value)} aria-label="Format">
+                    {FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <select className={sel} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
+                    {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                </span>
+              }
+            >
+              Posts, last 30 days
+            </SectionTitle>
+            {posts.loading ? (
+              <CardSkeleton lines={4} />
+            ) : !shown.length ? (
+              <EmptyState title="No posts yet" hint="Posts appear after the first check. Insights are filled in within a day of posting." />
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                {shown.map((p) => (
+                  <button key={p.media_id} onClick={() => setOpen(p)} className="group text-left">
+                    <div className="relative overflow-hidden rounded-lg border border-border">
+                      <Thumb post={p} className="aspect-square w-full" />
+                      <span className="absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white">{FORMAT_NAME[p.format] ?? p.format}</span>
+                      <span className="absolute right-1.5 top-1.5"><LabelChip label={labels.get(p.media_id)} /></span>
+                    </div>
+                    <p className="tnum mt-1.5 text-xs text-ink2">
+                      {fmtDay(p.day)} · {p.reach != null ? `${fmtCompact(p.reach)} reach` : "no insights yet"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            {clientAccounts.map((a) => (
+              <button key={a.id} className={btn} disabled={!!busy} onClick={() => remove(a)}>Stop tracking @{a.ig_username ?? a.ig_user_id}</button>
+            ))}
+          </div>
+        </>
+      )}
 
       {found && found.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-8">
           <SectionTitle>Accounts the token can see</SectionTitle>
           <div className="grid gap-2">
             {found.map((c) => (
@@ -233,7 +314,7 @@ export function Organic() {
                   <span className="text-xs text-muted">Tracked</span>
                 ) : (
                   <span className="flex gap-2">
-                    <select className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-sm text-ink" value={pick[c.ig_user_id] ?? ""} onChange={(e) => setPick({ ...pick, [c.ig_user_id]: e.target.value })} aria-label="Client">
+                    <select className={sel} value={pick[c.ig_user_id] ?? ""} onChange={(e) => setPick({ ...pick, [c.ig_user_id]: e.target.value })} aria-label="Client">
                       <option value="">Client…</option>
                       {clients.data?.clients.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                     </select>
@@ -245,6 +326,8 @@ export function Organic() {
           </div>
         </div>
       )}
+
+      {open && <Detail post={open} label={labels.get(open.media_id)} onClose={() => setOpen(null)} />}
     </div>
   );
 }

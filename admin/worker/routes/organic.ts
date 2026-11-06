@@ -33,7 +33,7 @@ organic.get("/", async (c) => {
 
 organic.get("/posts", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT p.*, a.ig_username, a.followers, cl.name AS client_name
+    `SELECT p.*, a.ig_username, a.followers, a.client_id, cl.name AS client_name
        FROM organic_posts p JOIN organic_accounts a ON a.ig_user_id=p.ig_user_id JOIN clients cl ON cl.id=a.client_id
       WHERE p.posted_at >= datetime('now','-30 days') ORDER BY p.posted_at DESC`
   ).all();
