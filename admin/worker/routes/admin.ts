@@ -288,13 +288,30 @@ admin.get("/accounts", async (c) => {
             s.primary_result_type, s.primary_result_label, s.monthly_budget_idr, s.cpr_target, s.alert_config_json,
             (SELECT MAX(finished_at) FROM sync_jobs j WHERE j.ad_account_id=a.id AND j.status='success') last_success,
             (SELECT started_at FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_attempt,
-            (SELECT status FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_status
+            (SELECT status FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_status,
+            (SELECT rows_upserted FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_rows,
+            (SELECT error FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_error,
+            (SELECT MIN(date) FROM insights_daily i WHERE i.ad_account_id=a.id AND i.level='campaign') data_from,
+            (SELECT MAX(date) FROM insights_daily i WHERE i.ad_account_id=a.id AND i.level='campaign') data_to,
+            (SELECT COUNT(DISTINCT date) FROM insights_daily i WHERE i.ad_account_id=a.id AND i.level='campaign') data_days,
+            (SELECT COUNT(*) FROM entities e WHERE e.ad_account_id=a.id AND e.level='campaign') campaigns
      FROM ad_accounts a
      JOIN clients cl ON cl.id=a.client_id
      LEFT JOIN account_settings s ON s.ad_account_id=a.id
      ORDER BY cl.name, a.account_name`
   ).all();
   return c.json({ accounts: rows.results, defaults: DEFAULT_ALERT_CONFIG });
+});
+
+/** Recent sync runs for one account (admin "sync history"). */
+admin.get("/accounts/:id/sync-jobs", async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT id, started_at, finished_at, status, rows_upserted, error
+     FROM sync_jobs WHERE ad_account_id=? ORDER BY started_at DESC, id DESC LIMIT 10`
+  )
+    .bind(c.req.param("id"))
+    .all();
+  return c.json({ jobs: rows.results });
 });
 
 /** Connect an account: validate the ID against the Meta API when a token is configured. */

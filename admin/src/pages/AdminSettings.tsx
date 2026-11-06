@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 import { ClientAvatar } from "../components/Layout";
+import { fmtDateTime, fmtDay, fmtDayFull, fmtNum } from "../lib/format";
 
 /** Calendar-month chunks from `months` months ago through the current month. */
 function monthChunks(months: number): Array<{ since: string; until: string }> {
@@ -146,6 +147,87 @@ function ClientsSection({ state }: { state: ClientsState }) {
   );
 }
 
+function SyncNowButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setNote(null);
+          const t0 = Date.now();
+          try {
+            const r = await api<{ rows: number }>(`/admin/accounts/${accountId}/sync`, { method: "POST" });
+            setNote({ ok: true, text: `Synced ${fmtNum(r.rows)} rows in ${Math.round((Date.now() - t0) / 1000)}s` });
+          } catch (err: any) {
+            setNote({ ok: false, text: err.message });
+          } finally {
+            setBusy(false);
+            onDone();
+          }
+        }}
+        className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
+      >
+        {busy ? "Syncing…" : "Sync Now"}
+      </button>
+      {note && <p className={`max-w-56 text-right text-[11px] ${note.ok ? "text-good" : "text-crit"}`}>{note.text}</p>}
+    </div>
+  );
+}
+
+function SyncStatus({ a }: { a: any }) {
+  const [open, setOpen] = useState(false);
+  const jobs = useApi<{ jobs: any[] }>(open ? `/admin/accounts/${a.id}/sync-jobs` : null);
+  const tone = a.last_status === "success" ? "text-good" : a.last_status === "failed" ? "text-crit" : "text-warn";
+  const label = a.last_status === "success" ? "Success" : a.last_status === "failed" ? "Failed" : a.last_status === "running" ? "Running" : "Never synced";
+  return (
+    <div className="mt-3 rounded-lg bg-surface2 p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span>
+          <span className="text-muted">Last sync: </span>
+          <span className={`font-medium ${tone}`}>{label}</span>
+          {a.last_attempt && <span className="text-ink2"> · {fmtDateTime(a.last_attempt)}</span>}
+          {a.last_status === "success" && <span className="text-ink2"> · {fmtNum(a.last_rows)} rows</span>}
+        </span>
+        <span>
+          <span className="text-muted">Data: </span>
+          {a.data_from ? (
+            <span className="text-ink2">
+              {fmtDay(a.data_from)} – {fmtDayFull(a.data_to)} · {fmtNum(a.data_days)} days · {fmtNum(a.campaigns)} campaigns
+            </span>
+          ) : (
+            <span className="text-ink2">none yet</span>
+          )}
+        </span>
+      </div>
+      {a.last_status === "failed" && a.last_error && <p className="mt-1.5 break-words text-crit">{a.last_error}</p>}
+      <p className="mt-1.5 text-muted">
+        Each sync refreshes campaigns, ad sets, ads and the last 28 days. Runs automatically every day at 03:00 WIB. Use Backfill to pull older history.
+      </p>
+      <button onClick={() => setOpen((o) => !o)} className="mt-1 inline-flex min-h-11 items-center text-ink2 underline">
+        {open ? "Hide history" : "Sync history"}
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1.5">
+          {jobs.loading && <p className="text-muted">Loading…</p>}
+          {jobs.error && <p className="text-crit">{jobs.error}</p>}
+          {jobs.data?.jobs.length === 0 && <p className="text-muted">No runs yet.</p>}
+          {jobs.data?.jobs.map((j) => (
+            <div key={j.id} className="border-t border-border pt-1.5">
+              <span className="tnum text-ink2">{fmtDateTime(j.started_at)}</span>{" "}
+              <span className={j.status === "success" ? "text-good" : j.status === "failed" ? "text-crit" : "text-warn"}>{j.status}</span>
+              {j.status === "success" && <span className="text-ink2"> · {fmtNum(j.rows_upserted)} rows</span>}
+              {j.error && <p className="break-words text-crit">{j.error}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
   const [progress, setProgress] = useState<string | null>(null);
   const run = async () => {
@@ -249,7 +331,7 @@ function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clie
         <div className="divide-y divide-border rounded-xl border border-border bg-surface">
           {data?.accounts.map((a) => (
             <div key={a.id} className="p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium text-ink">
                     {a.account_name || a.meta_account_id} <span className="text-muted text-xs">({a.client_name})</span>
@@ -260,21 +342,10 @@ function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clie
                 </div>
                 <div className="flex shrink-0 gap-2">
                 <BackfillButton accountId={a.id} onDone={reload} />
-                <button
-                  onClick={async () => {
-                    try {
-                      await api(`/admin/accounts/${a.id}/sync`, { method: "POST" });
-                      alert("Sync started!");
-                    } catch (err: any) {
-                      alert(err.message);
-                    }
-                  }}
-                  className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3"
-                >
-                  Sync Now
-                </button>
+                <SyncNowButton accountId={a.id} onDone={reload} />
                 </div>
               </div>
+              <SyncStatus a={a} />
               <div className="mt-3 flex gap-4 text-sm">
                 <div>
                   <span className="text-muted">Primary Result: </span>
