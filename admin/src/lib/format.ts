@@ -63,3 +63,14 @@ export function hoursSince(sqlUtc: string | null | undefined): number | null {
   if (isNaN(date.getTime())) return null;
   return (Date.now() - date.getTime()) / 3_600_000;
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 d ago" from a SQLite UTC datetime. */
+export function fmtAgo(sqlUtc: string | null | undefined): string {
+  const h = hoursSince(sqlUtc);
+  if (h == null) return "never";
+  const min = Math.round(h * 60);
+  if (min < 2) return "just now";
+  if (min < 60) return `${min} min ago`;
+  if (h < 48) return `${Math.round(h)} h ago`;
+  return `${Math.round(h / 24)} d ago`;
+}

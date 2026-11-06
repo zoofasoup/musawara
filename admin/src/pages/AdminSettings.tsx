@@ -1,649 +1,91 @@
-import { useState } from "react";
-import { api, BASE, useApi } from "../lib/api";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { ClientAvatar } from "../components/Layout";
-import { fmtDateTime, fmtDayFull, fmtNum } from "../lib/format";
+// Admin settings: a setup checklist in dependency order (Meta token, clients,
+// ad accounts, team) with a status strip on top that doubles as navigation.
 
-const ymdAdd = (ymd: string, days: number) =>
-  new Date(Date.parse(ymd + "T00:00:00Z") + days * 86_400_000).toISOString().slice(0, 10);
+import { useApi } from "../lib/api";
+import { Icon, type IconName } from "../components/icons";
+import { AccountsSection, accountHealth } from "./settings/AccountsSection";
+import { ClientsSection } from "./settings/ClientsSection";
+import { MetaSection, type TokenStatus } from "./settings/MetaSection";
+import { TeamSection } from "./settings/TeamSection";
+import { useNotify, type Tone } from "./settings/kit";
 
-/** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
-async function photoToDataUrl(file: File): Promise<string> {
-  const bmp = await createImageBitmap(file);
-  const side = Math.min(bmp.width, bmp.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 192;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, 192, 192);
-  ctx.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 192, 192);
-  return canvas.toDataURL("image/jpeg", 0.88);
-}
+const TILE_TONE: Record<Tone, string> = {
+  good: "bg-good/12 text-good",
+  warn: "bg-warn/12 text-warn",
+  crit: "bg-crit/10 text-crit",
+  neutral: "bg-surface3 text-ink2",
+  accent: "bg-surface3 text-ink2",
+};
 
-type ClientsState = ReturnType<typeof useApi<{ clients: any[] }>>;
-
-function ClientsSection({ state }: { state: ClientsState }) {
-  const { data, loading, error, reload } = state;
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-
-  if (loading) return <CardSkeleton />;
-  if (error) return <ErrorState message={error} onRetry={reload} />;
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    try {
-      await api("/admin/clients", { method: "POST", body: { name } });
-      setName("");
-      setAdding(false);
-      reload();
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
+function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: IconName; label: string; value: string; sub: string; tone: Tone }) {
   return (
-    <div className="space-y-4">
-      <SectionTitle
-        right={
-          <button
-            onClick={() => setAdding(!adding)}
-            className="rounded-lg bg-surface2 px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface3"
-          >
-            {adding ? "Cancel" : "Add Client"}
-          </button>
-        }
-      >
-        Clients
-      </SectionTitle>
-
-      {adding && (
-        <form onSubmit={handleAdd} className="flex gap-2 rounded-xl border border-border bg-surface p-4">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Client Name"
-            className="flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-            autoFocus
-          />
-          <button type="submit" className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90">
-            Save
-          </button>
-        </form>
-      )}
-
-      {data?.clients.length === 0 ? (
-        <EmptyState title="No clients" hint="Add a client to get started." />
-      ) : (
-        <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-          {data?.clients.map((c) => (
-            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={10} />
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{c.name}</p>
-                  <p className="text-xs text-muted">
-                    {c.account_count} account{c.account_count === 1 ? "" : "s"} · {c.user_count} user{c.user_count === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-1">
-                <label className="inline-flex min-h-11 cursor-pointer items-center rounded px-2 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
-                  {c.logo_url ? "Change photo" : "Add photo"}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="sr-only"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      try {
-                        await api(`/admin/clients/${c.id}`, { method: "PUT", body: { logo_url: await photoToDataUrl(file) } });
-                        reload();
-                      } catch (err: any) {
-                        alert(err.message || "Could not use that image");
-                      }
-                    }}
-                  />
-                </label>
-                {c.logo_url && (
-                  <button
-                    onClick={async () => {
-                      await api(`/admin/clients/${c.id}`, { method: "PUT", body: { logo_url: "" } });
-                      reload();
-                    }}
-                    className="inline-flex min-h-11 items-center rounded px-2 text-xs text-ink2 hover:bg-surface2 hover:text-ink"
-                  >
-                    Remove
-                  </button>
-                )}
-                <button
-                  onClick={async () => {
-                    if (confirm(`Delete ${c.name}?`)) {
-                      await api(`/admin/clients/${c.id}`, { method: "DELETE" });
-                      reload();
-                    }
-                  }}
-                  className="inline-flex min-h-11 items-center rounded px-2 text-xs text-crit hover:bg-crit/10"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SyncNowButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setNote(null);
-          const t0 = Date.now();
-          try {
-            const r = await api<{ rows: number }>(`/admin/accounts/${accountId}/sync`, { method: "POST" });
-            setNote({ ok: true, text: `Synced ${fmtNum(r.rows)} rows in ${Math.round((Date.now() - t0) / 1000)}s` });
-          } catch (err: any) {
-            setNote({ ok: false, text: err.message });
-          } finally {
-            setBusy(false);
-            onDone();
-          }
-        }}
-        className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
-      >
-        {busy ? "Syncing…" : "Sync Now"}
-      </button>
-      {note && <p className={`max-w-56 text-right text-[11px] ${note.ok ? "text-good" : "text-crit"}`}>{note.text}</p>}
-    </div>
-  );
-}
-
-function SyncStatus({ a }: { a: any }) {
-  const [open, setOpen] = useState(false);
-  const jobs = useApi<{ jobs: any[] }>(open ? `/admin/accounts/${a.id}/sync-jobs` : null);
-  const tone = a.last_status === "success" ? "text-good" : a.last_status === "failed" ? "text-crit" : "text-warn";
-  const label = a.last_status === "success" ? "Success" : a.last_status === "failed" ? "Failed" : a.last_status === "running" ? "Running" : "Never synced";
-  return (
-    <div className="mt-3 rounded-lg bg-surface2 p-3 text-xs">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span>
-          <span className="text-muted">Last sync: </span>
-          <span className={`font-medium ${tone}`}>{label}</span>
-          {a.last_attempt && <span className="text-ink2"> · {fmtDateTime(a.last_attempt)}</span>}
-          {a.last_status === "success" && <span className="text-ink2"> · {fmtNum(a.last_rows)} rows</span>}
-        </span>
-        <span>
-          <span className="text-muted">Data: </span>
-          {a.data_from ? (
-            <span className="text-ink2">
-              {fmtDayFull(a.data_from)} – {fmtDayFull(a.data_to)} · {fmtNum(a.data_days)} days · {fmtNum(a.campaigns)} campaigns
-            </span>
-          ) : (
-            <span className="text-ink2">none yet</span>
-          )}
-        </span>
-      </div>
-      {a.last_status === "failed" && a.last_error && <p className="mt-1.5 break-words text-crit">{a.last_error}</p>}
-      <p className="mt-1.5 text-muted">
-        Each sync refreshes campaigns, ad sets, ads and the last 28 days. Runs automatically every day at 03:00 WIB. Use Backfill to pull older history.
-      </p>
-      <button onClick={() => setOpen((o) => !o)} className="mt-1 inline-flex min-h-11 items-center text-ink2 underline">
-        {open ? "Hide history" : "Sync history"}
-      </button>
-      {open && (
-        <div className="mt-1 space-y-1.5">
-          {jobs.loading && <p className="text-muted">Loading…</p>}
-          {jobs.error && <p className="text-crit">{jobs.error}</p>}
-          {jobs.data?.jobs.length === 0 && <p className="text-muted">No runs yet.</p>}
-          {jobs.data?.jobs.map((j) => (
-            <div key={j.id} className="border-t border-border pt-1.5">
-              <span className="tnum text-ink2">{fmtDateTime(j.started_at)}</span>{" "}
-              <span className={j.status === "success" ? "text-good" : j.status === "failed" ? "text-crit" : "text-warn"}>{j.status}</span>
-              {j.status === "success" && <span className="text-ink2"> · {fmtNum(j.rows_upserted)} rows</span>}
-              {j.error && <p className="break-words text-crit">{j.error}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-type PlanChunk = { since: string; until: string; covered: boolean };
-type Plan = { from: string; to: string; chunks: PlanChunk[]; covered: number; reach_limited_before: string; capped_by_meta: boolean };
-
-function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
-  const [range, setRange] = useState<"3m" | "13m" | "all">("all");
-  const [progress, setProgress] = useState<string | null>(null);
-
-  // Meta sometimes rejects a big window ("temporarily unavailable"): on failure,
-  // retry once, then split the range in half; only ranges that still fail at
-  // <= 3 days are reported and skipped, so one bad stretch never blocks the rest.
-  const pull = async (since: string, until: string, failed: string[]): Promise<void> => {
-    setProgress(fmtDayFull(since));
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        await api(`/admin/accounts/${accountId}/backfill`, { method: "POST", body: { since, until } });
-        return;
-      } catch (err: any) {
-        if (/token|permission|not found/i.test(err.message)) throw err;
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-    }
-    if (Date.parse(until) - Date.parse(since) > 3 * 86_400_000) {
-      const mid = ymdAdd(since, Math.floor((Date.parse(until) - Date.parse(since)) / 86_400_000 / 2));
-      await pull(since, mid, failed);
-      await pull(ymdAdd(mid, 1), until, failed);
-    } else {
-      failed.push(since === until ? fmtDayFull(since) : `${fmtDayFull(since)} – ${fmtDayFull(until)}`);
-    }
-  };
-
-  const run = async () => {
-    try {
-      setProgress("planning");
-      const plan = await api<Plan>(`/admin/accounts/${accountId}/history-plan?range=${range}`);
-      const todo = plan.chunks.filter((c) => !c.covered);
-      if (todo.length === 0) {
-        alert(`Everything from ${fmtDayFull(plan.from)} is already pulled. Nothing to do.`);
-        return;
-      }
-      const note =
-        (plan.capped_by_meta ? "\nMeta only keeps about 37 months, so that is as far back as it goes." : "") +
-        (plan.from < plan.reach_limited_before ? `\nReach and frequency are not available before ${fmtDayFull(plan.reach_limited_before)}.` : "");
-      if (!confirm(`Pull ${todo.length} of ${plan.chunks.length} ranges from ${fmtDayFull(plan.from)}? ${plan.covered} already complete will be skipped.${note}`)) return;
-      const failed: string[] = [];
-      for (const c of todo) await pull(c.since, c.until, failed);
-      alert(failed.length ? `Done, but Meta refused these ranges (run it again later):\n${failed.join("\n")}` : "History pulled.");
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setProgress(null);
-      onDone();
-    }
-  };
-  return (
-    <div className="flex items-center gap-1">
-      <select
-        value={range}
-        disabled={progress !== null}
-        onChange={(e) => setRange(e.target.value as typeof range)}
-        aria-label="History range"
-        className="min-h-11 rounded border border-border2 bg-surface px-2 text-xs text-ink"
-      >
-        <option value="all">All available</option>
-        <option value="13m">Last 13 months</option>
-        <option value="3m">Last 3 months</option>
-      </select>
-      <button
-        onClick={run}
-        disabled={progress !== null}
-        className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
-      >
-        {progress ? `Pulling ${progress}…` : "Backfill"}
-      </button>
-    </div>
-  );
-}
-
-function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clients: any[] } | undefined; reloadClients: () => void }) {
-  const { data, loading, error, reload } = useApi<{ accounts: any[] }>("/admin/accounts");
-  const [adding, setAdding] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [metaAccountId, setMetaAccountId] = useState("");
-
-  if (loading) return <CardSkeleton />;
-  if (error) return <ErrorState message={error} onRetry={reload} />;
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clientId || !metaAccountId) return;
-    try {
-      await api("/admin/accounts", { method: "POST", body: { client_id: Number(clientId), meta_account_id: metaAccountId } });
-      setClientId("");
-      setMetaAccountId("");
-      setAdding(false);
-      reload();
-      reloadClients();
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <SectionTitle
-        right={
-          <button
-            onClick={() => setAdding(!adding)}
-            className="rounded-lg bg-surface2 px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface3"
-          >
-            {adding ? "Cancel" : "Connect Account"}
-          </button>
-        }
-      >
-        Ad Accounts
-      </SectionTitle>
-
-      {adding && (
-        <form onSubmit={handleAdd} className="space-y-3 rounded-xl border border-border bg-surface p-4">
-          <div className="flex gap-3">
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="w-1/3 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-            >
-              <option value="">Select Client...</option>
-              {clientsData?.clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={metaAccountId}
-              onChange={(e) => setMetaAccountId(e.target.value)}
-              placeholder="Meta Account ID (e.g. act_123456)"
-              className="flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-            />
-          </div>
-          <button type="submit" className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90">
-            Connect
-          </button>
-        </form>
-      )}
-
-      {data?.accounts.length === 0 ? (
-        <EmptyState title="No ad accounts" hint="Connect a Meta ad account to a client." />
-      ) : (
-        <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-          {data?.accounts.map((a) => (
-            <div key={a.id} className="p-4">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium text-ink">
-                    {a.account_name || a.meta_account_id} <span className="text-muted text-xs">({a.client_name})</span>
-                  </p>
-                  <p className="text-xs text-muted">
-                    {a.status} · Currency: {a.currency} · TZ: {a.timezone}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                <BackfillButton accountId={a.id} onDone={reload} />
-                <SyncNowButton accountId={a.id} onDone={reload} />
-                </div>
-              </div>
-              <SyncStatus a={a} />
-              <div className="mt-3 flex gap-4 text-sm">
-                <div>
-                  <span className="text-muted">Primary Result: </span>
-                  {a.primary_result_label || "Not configured"}
-                </div>
-                <div>
-                  <span className="text-muted">Monthly Budget: </span>
-                  {a.monthly_budget_idr ? `Rp ${a.monthly_budget_idr}` : "None"}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function UsersSection({ clientsData }: { clientsData: { clients: any[] } | undefined }) {
-  const { data, loading, error, reload } = useApi<{ users: any[]; invites: any[] }>("/admin/users");
-  const [adding, setAdding] = useState(false);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("client");
-  const [clientId, setClientId] = useState("");
-  const [inviteUrl, setInviteUrl] = useState("");
-
-  if (loading) return <CardSkeleton />;
-  if (error) return <ErrorState message={error} onRetry={reload} />;
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (role === "client" && !clientId) return;
-    try {
-      const res = await api<{ token: string; path: string }>("/admin/invites", {
-        method: "POST",
-        body: { email, role, client_id: role === "client" ? Number(clientId) : null },
-      });
-      setInviteUrl(window.location.origin + BASE + res.path);
-      setEmail("");
-      setAdding(false);
-      reload();
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <SectionTitle
-        right={
-          <button
-            onClick={() => {
-              setAdding(!adding);
-              setInviteUrl("");
-            }}
-            className="rounded-lg bg-surface2 px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface3"
-          >
-            {adding ? "Cancel" : "Invite User"}
-          </button>
-        }
-      >
-        Users & Invites
-      </SectionTitle>
-
-      {inviteUrl && (
-        <div className="rounded-xl border border-good/30 bg-good/5 p-4">
-          <p className="mb-2 text-sm font-medium text-good">Invite created successfully!</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              readOnly
-              value={inviteUrl}
-              className="flex-1 rounded border border-good/20 bg-transparent px-2 py-1 text-sm text-ink outline-none"
-            />
-            <button
-              onClick={() => navigator.clipboard.writeText(inviteUrl)}
-              className="rounded bg-good/10 px-3 py-1 text-sm font-medium text-good hover:bg-good/20"
-            >
-              Copy Link
-            </button>
-          </div>
-        </div>
-      )}
-
-      {adding && (
-        <form onSubmit={handleAdd} className="space-y-3 rounded-xl border border-border bg-surface p-4">
-          <div className="flex gap-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email (optional)"
-              className="flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-            />
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-1/4 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-            >
-              <option value="client">Client</option>
-              <option value="admin">Admin</option>
-            </select>
-            {role === "client" && (
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-1/3 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-              >
-                <option value="">Select Client...</option>
-                {clientsData?.clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <button type="submit" className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90">
-            Generate Invite
-          </button>
-        </form>
-      )}
-
-      <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-        {data?.invites.map((i) => (
-          <div key={i.id} className="flex items-center justify-between p-4">
-            <div>
-              <p className="font-medium text-ink">
-                Pending Invite <span className="text-xs text-muted">({i.role})</span>
-              </p>
-              <p className="text-xs text-muted">
-                {i.email || "No email"} · {i.client_name || "All clients"}
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                await api(`/admin/invites/${i.id}`, { method: "DELETE" });
-                reload();
-              }}
-              className="text-xs text-crit hover:underline"
-            >
-              Revoke
-            </button>
-          </div>
-        ))}
-        {data?.users.map((u) => (
-          <div key={u.id} className="flex items-center justify-between p-4">
-            <div>
-              <p className="font-medium text-ink">
-                {u.name} <span className="text-xs text-muted">({u.role})</span>
-              </p>
-              <p className="text-xs text-muted">
-                {u.email} · {u.client_name || "All clients"}
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                if (confirm(`Delete user ${u.name}?`)) {
-                  try {
-                    await api(`/admin/users/${u.id}`, { method: "DELETE" });
-                    reload();
-                  } catch (e: any) {
-                    alert(e.message);
-                  }
-                }
-              }}
-              className="text-xs text-crit hover:underline"
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        {data?.users.length === 0 && data?.invites.length === 0 && (
-          <div className="p-4 text-center text-sm text-muted">No users or invites.</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MetaTokenSection() {
-  const { data, loading, reload } = useApi<{ configured: boolean; source?: string; ok?: boolean; error?: string }>("/admin/token/status");
-  const [token, setToken] = useState("");
-
-  if (loading) return <CardSkeleton />;
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token.trim()) return;
-    try {
-      await api("/admin/token", { method: "POST", body: { token } });
-      setToken("");
-      reload();
-      alert("Token saved successfully!");
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <SectionTitle>Meta API Token</SectionTitle>
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-ink">System User Access Token</p>
-            <p className="text-xs text-muted">Required to fetch data from the Meta Marketing API.</p>
-          </div>
-          <div>
-            {data?.configured ? (
-              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${data.ok ? "bg-good/15 text-good" : "bg-crit/15 text-crit"}`}>
-                {data.ok ? "Valid" : "Invalid"}
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-warn/15 px-2 py-1 text-xs font-medium text-warn">
-                Not Configured
-              </span>
-            )}
-          </div>
-        </div>
-
-        {data?.error && (
-          <div className="mb-4 rounded border border-crit/30 bg-crit/5 p-3 text-sm text-crit">
-            {data.error}
-          </div>
-        )}
-
-        <form onSubmit={handleSave} className="flex gap-2">
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Paste new token here..."
-            className="flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm outline-none focus:border-ink2"
-          />
-          <button type="submit" className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90">
-            Save
-          </button>
-        </form>
-      </div>
-    </div>
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        document.querySelector(href)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      }}
+      className="group flex min-h-11 items-center gap-3 rounded-xl border border-border bg-surface p-3 hover:border-border2 hover:bg-surface2"
+    >
+      <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TILE_TONE[tone]}`}>
+        <Icon name={icon} className="h-5 w-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[11px] font-medium uppercase tracking-wider text-muted">{label}</span>
+        <span className="block truncate text-sm font-medium text-ink">{value}</span>
+        <span className="block truncate text-[11px] text-muted">{sub}</span>
+      </span>
+    </a>
   );
 }
 
 export function AdminSettings() {
   const clients = useApi<{ clients: any[] }>("/admin/clients");
+  const accounts = useApi<{ accounts: any[] }>("/admin/accounts");
+  const team = useApi<{ users: any[]; invites: any[] }>("/admin/users");
+  const token = useApi<TokenStatus>("/admin/token/status");
+  const { notify, node } = useNotify();
+
+  const clientList = clients.data?.clients ?? [];
+  const accountList = accounts.data?.accounts ?? [];
+  const tokenOk = Boolean(token.data?.configured && token.data.ok);
+  const needAttention = accountList.filter((a) => accountHealth(a).key !== "ok").length;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-10 pb-20">
-      <div>
+    <div className="mx-auto max-w-4xl pb-24">
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-ink">Settings</h1>
-        <p className="text-sm text-muted">Manage agency clients, ad accounts, and team access.</p>
+        <p className="text-sm text-muted">Set up in order: connect Meta, add clients, link their ad accounts, then invite people.</p>
       </div>
 
-      <ClientsSection state={clients} />
-      <AdAccountsSection clientsData={clients.data} reloadClients={clients.reload} />
-      <UsersSection clientsData={clients.data} />
-      <MetaTokenSection />
+      <div className="mb-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <Tile
+          href="#meta"
+          icon="key"
+          label="Meta"
+          value={token.loading ? "Checking…" : tokenOk ? "Connected" : token.data?.configured ? "Token rejected" : "Not connected"}
+          sub={tokenOk ? "Read-only token" : "Needs a token"}
+          tone={token.loading ? "neutral" : tokenOk ? "good" : token.data?.configured ? "crit" : "warn"}
+        />
+        <Tile href="#clients" icon="building" label="Clients" value={String(clientList.length)} sub={clientList.length ? "with own dashboards" : "None yet"} tone={clientList.length ? "good" : "neutral"} />
+        <Tile
+          href="#accounts"
+          icon="chart"
+          label="Ad accounts"
+          value={String(accountList.length)}
+          sub={accountList.length === 0 ? "None connected" : needAttention ? `${needAttention} need attention` : "All up to date"}
+          tone={accountList.length === 0 ? "neutral" : needAttention ? "warn" : "good"}
+        />
+        <Tile href="#team" icon="users" label="Team" value={String(team.data?.users.length ?? 0)} sub={team.data?.invites.length ? `${team.data.invites.length} pending invite${team.data.invites.length === 1 ? "" : "s"}` : "people with access"} tone="neutral" />
+      </div>
+
+      <div className="space-y-10">
+        <MetaSection state={token} notify={notify} />
+        <ClientsSection state={clients} notify={notify} />
+        <AccountsSection accounts={accounts} clients={clientList} tokenOk={tokenOk} reloadClients={clients.reload} notify={notify} />
+        <TeamSection state={team} clients={clientList} notify={notify} />
+      </div>
+      {node}
     </div>
   );
 }
