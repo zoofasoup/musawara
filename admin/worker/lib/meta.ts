@@ -3,6 +3,7 @@
 
 import type { Env } from "../types";
 import { decryptString } from "./secretbox";
+import { fetchResilient } from "./history";
 
 export const META_API_VERSION = "v23.0";
 const BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -141,15 +142,16 @@ export async function metaGetAll(
   env: Env,
   path: string,
   params: Record<string, string>,
-  maxPages = 50
+  maxPages = 50,
+  retries = 4
 ): Promise<any[]> {
   const out: any[] = [];
-  let body = await metaGet(env, path, params);
+  let body = await metaGet(env, path, params, retries);
   for (let page = 0; page < maxPages; page++) {
     if (Array.isArray(body?.data)) out.push(...body.data);
     const next: string | undefined = body?.paging?.next;
     if (!next) break;
-    body = await metaGet(env, next, {});
+    body = await metaGet(env, next, {}, retries);
   }
   return out;
 }
@@ -169,6 +171,14 @@ export async function fetchAccountInfo(env: Env, metaAccountId: string) {
   return metaGet(env, id, { fields: "id,name,currency,timezone_name,account_status,created_time" }, 1);
 }
 
+/** Meta codes/messages that mean "this query is too heavy or Meta is hiccuping right now". */
+function classifyInsightsError(e: unknown): "retry" | "bad_field" | "fatal" {
+  if (!(e instanceof MetaApiError)) return "fatal";
+  if (e.code === 100) return "bad_field";
+  const heavy = /temporarily unavailable|reduce the amount of data|unknown error|try again/i.test(e.message);
+  return e.transient || e.code === 1 || e.code === 2 || heavy ? "retry" : "fatal";
+}
+
 export async function fetchInsights(
   env: Env,
   metaAccountId: string,
@@ -178,21 +188,26 @@ export async function fetchInsights(
   withReach = true
 ): Promise<any[]> {
   const id = metaAccountId.startsWith("act_") ? metaAccountId : `act_${metaAccountId}`;
-  const get = (extras: boolean) =>
-    metaGetAll(env, `${id}/insights`, {
-      level,
-      fields: insightFields(level, { extras, withReach }),
-      time_increment: "1",
-      time_range: JSON.stringify({ since, until }),
-      limit: "500",
-    });
-  try {
-    return await get(true);
-  } catch (e) {
-    // A rejected extra field (code 100) must not break the core sync: retry with the base set.
-    if (e instanceof MetaApiError && e.code === 100) return get(false);
-    throw e;
-  }
+  // retries=1: a heavy query will not get lighter by waiting, splitting the range does.
+  return fetchResilient(
+    (s, u, extras) =>
+      metaGetAll(
+        env,
+        `${id}/insights`,
+        {
+          level,
+          fields: insightFields(level, { extras, withReach }),
+          time_increment: "1",
+          time_range: JSON.stringify({ since: s, until: u }),
+          limit: "500",
+        },
+        50,
+        1
+      ),
+    since,
+    until,
+    classifyInsightsError
+  );
 }
 
 export async function fetchEntityTree(env: Env, metaAccountId: string) {

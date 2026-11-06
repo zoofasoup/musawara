@@ -93,3 +93,34 @@ export function buildExtras(r: any): string | null {
   if (Object.values(rank).some((v) => v)) extras.rank = rank;
   return Object.keys(extras).length ? JSON.stringify(extras) : null;
 }
+
+/**
+ * Fetch rows for [since, until] and survive Meta refusing a heavy query
+ * ("Service temporarily unavailable"): on a retryable failure split the range
+ * in half and fetch each part; at <= 3 days drop the optional extra fields;
+ * only then give up. A rejected field (`badField`) drops the extras at once.
+ */
+export async function fetchResilient<T>(
+  get: (since: string, until: string, extras: boolean) => Promise<T[]>,
+  since: string,
+  until: string,
+  classify: (e: unknown) => "retry" | "bad_field" | "fatal"
+): Promise<T[]> {
+  const attempt = async (s: string, u: string, extras: boolean): Promise<T[]> => {
+    try {
+      return await get(s, u, extras);
+    } catch (e) {
+      const kind = classify(e);
+      if (kind === "fatal") throw e;
+      if (kind === "bad_field" && extras) return attempt(s, u, false);
+      const span = (Date.parse(u) - Date.parse(s)) / 86_400_000;
+      if (span > 3) {
+        const mid = addDays(s, Math.floor(span / 2));
+        return [...(await attempt(s, mid, extras)), ...(await attempt(addDays(mid, 1), u, extras))];
+      }
+      if (extras) return attempt(s, u, false);
+      throw e;
+    }
+  };
+  return attempt(since, until, true);
+}

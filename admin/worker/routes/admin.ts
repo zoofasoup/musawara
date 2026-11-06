@@ -448,11 +448,11 @@ admin.post("/accounts/:id/sync", async (c) => {
     return c.json({ error: "No Meta access token configured. Add one in Settings → Meta Token." }, 400);
   }
   const recent = await c.env.DB.prepare(
-    "SELECT id FROM sync_jobs WHERE ad_account_id=? AND started_at > datetime('now','-10 minutes')"
+    "SELECT id FROM sync_jobs WHERE ad_account_id=? AND status IN ('running','success') AND started_at > datetime('now','-10 minutes')"
   )
     .bind(id)
     .first();
-  if (recent) return c.json({ error: "Sync was triggered less than 10 minutes ago — please wait." }, 429);
+  if (recent) return c.json({ error: "A sync ran less than 10 minutes ago. Please wait a bit." }, 429);
   try {
     const result = await syncAccount(c.env, account);
     return c.json({ ok: true, ...result });
