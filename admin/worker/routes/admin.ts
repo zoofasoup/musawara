@@ -110,8 +110,16 @@ admin.post("/clients", async (c) => {
   return c.json({ client: row });
 });
 
+// Profile photo: "" clears it; otherwise a small data URL (the admin resizes
+// to ~192px before upload, so a few KB) or an https URL.
+const LOGO_RE = /^(data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https:\/\/\S+)$/;
+const validLogo = (v: unknown) => typeof v === "string" && (v === "" || (v.length <= 150_000 && LOGO_RE.test(v)));
+
 admin.put("/clients/:id", async (c) => {
   const { name, slug, logo_url, brand_color } = await c.req.json().catch(() => ({}));
+  if (logo_url !== undefined && logo_url !== null && !validLogo(logo_url)) {
+    return c.json({ error: "Photo must be a PNG/JPEG/WebP image under 100 KB" }, 400);
+  }
   const row = await c.env.DB.prepare(
     `UPDATE clients SET name=COALESCE(?,name), slug=COALESCE(?,slug),
      logo_url=COALESCE(?,logo_url), brand_color=COALESCE(?,brand_color) WHERE id=? RETURNING *`

@@ -1,6 +1,20 @@
 import { useState } from "react";
 import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { ClientAvatar } from "../components/Layout";
+
+/** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
+async function photoToDataUrl(file: File): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 192;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, 192, 192);
+  ctx.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 192, 192);
+  return canvas.toDataURL("image/jpeg", 0.88);
+}
 
 type ClientsState = ReturnType<typeof useApi<{ clients: any[] }>>;
 
@@ -61,15 +75,47 @@ function ClientsSection({ state }: { state: ClientsState }) {
       ) : (
         <div className="divide-y divide-border rounded-xl border border-border bg-surface">
           {data?.clients.map((c) => (
-            <div key={c.id} className="flex items-center justify-between p-4">
-              <div>
-                <p className="font-medium text-ink">{c.name}</p>
-                <p className="text-xs text-muted">
-                  {c.account_count} account{c.account_count === 1 ? "" : "s"} · {c.user_count} user{c.user_count === 1 ? "" : "s"}
-                </p>
+            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={10} />
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-ink">{c.name}</p>
+                  <p className="text-xs text-muted">
+                    {c.account_count} account{c.account_count === 1 ? "" : "s"} · {c.user_count} user{c.user_count === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-2">
-                {/* Real app would have edit/delete here, keeping simple for v1 */}
+              <div className="flex flex-wrap items-center gap-1">
+                <label className="inline-flex min-h-11 cursor-pointer items-center rounded px-2 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
+                  {c.logo_url ? "Change photo" : "Add photo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      try {
+                        await api(`/admin/clients/${c.id}`, { method: "PUT", body: { logo_url: await photoToDataUrl(file) } });
+                        reload();
+                      } catch (err: any) {
+                        alert(err.message || "Could not use that image");
+                      }
+                    }}
+                  />
+                </label>
+                {c.logo_url && (
+                  <button
+                    onClick={async () => {
+                      await api(`/admin/clients/${c.id}`, { method: "PUT", body: { logo_url: "" } });
+                      reload();
+                    }}
+                    className="inline-flex min-h-11 items-center rounded px-2 text-xs text-ink2 hover:bg-surface2 hover:text-ink"
+                  >
+                    Remove
+                  </button>
+                )}
                 <button
                   onClick={async () => {
                     if (confirm(`Delete ${c.name}?`)) {
@@ -77,7 +123,7 @@ function ClientsSection({ state }: { state: ClientsState }) {
                       reload();
                     }
                   }}
-                  className="rounded px-2 py-1 text-xs text-crit hover:bg-crit/10"
+                  className="inline-flex min-h-11 items-center rounded px-2 text-xs text-crit hover:bg-crit/10"
                 >
                   Delete
                 </button>
