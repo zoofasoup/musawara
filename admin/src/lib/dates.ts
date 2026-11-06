@@ -60,3 +60,21 @@ export function presets(): DateRange[] {
 export function presetByKey(key: string): DateRange {
   return presets().find((p) => p.key === key) ?? presets()[1];
 }
+
+/** The same calendar days `months` months earlier (31 Mar - 1 month = 28/29 Feb). */
+export function shiftMonths(ymd: string, months: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10);
+}
+
+export type CompareMode = "prev" | "month" | "year" | "custom" | "off";
+
+/** Explicit comparison range for the modes that are not the server's default (previous equal-length period). */
+export function compareRange(range: { from: string; to: string }, mode: CompareMode, custom: { from: string; to: string } | null): { from: string; to: string } | null {
+  if (mode === "month") return { from: shiftMonths(range.from, -1), to: shiftMonths(range.to, -1) };
+  if (mode === "year") return { from: shiftMonths(range.from, -12), to: shiftMonths(range.to, -12) };
+  if (mode === "custom") return custom;
+  return null;
+}

@@ -117,8 +117,8 @@ export function trendBucket(from: string, to: string): TrendBucket {
   return days > 400 ? "month" : days > 120 ? "week" : "day";
 }
 
-export async function clientTrend(env: Env, clientId: number, from: string, to: string) {
-  const bucket = trendBucket(from, to);
+export async function clientTrend(env: Env, clientId: number, from: string, to: string, forceBucket?: TrendBucket) {
+  const bucket = forceBucket ?? trendBucket(from, to);
   // Monday on or before the date: date(d, '-6 days', 'weekday 1')
   const key = bucket === "day" ? "i.date" : bucket === "week" ? "date(i.date, '-6 days', 'weekday 1')" : "substr(i.date, 1, 7) || '-01'";
   const rows = await env.DB.prepare(

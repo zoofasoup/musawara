@@ -190,8 +190,8 @@ function EntityRows({
 
 type Show = "all" | "active" | "off";
 
-export function EntityTable({ clientId, from, to }: { clientId: number; from: string; to: string }) {
-  const query = `from=${from}&to=${to}`;
+export function EntityTable({ clientId, from, to, compare }: { clientId: number; from: string; to: string; compare?: { from: string; to: string } | null }) {
+  const query = `from=${from}&to=${to}${compare ? `&compFrom=${compare.from}&compTo=${compare.to}` : ""}`;
   const { data, error, loading, reload } = useApi<{ entities: Entity[] }>(
     `/clients/${clientId}/entities?level=campaign&${query}`
   );

@@ -5,7 +5,7 @@ import { onAccent } from "../lib/color";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
-import { presetByKey, type DateRange } from "../lib/dates";
+import { compareRange, presetByKey, shiftMonths, type CompareMode, type DateRange } from "../lib/dates";
 import { fmtDay, fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
@@ -73,11 +73,19 @@ function StaleBanner({ accounts }: { accounts: Meta["accounts"] }) {
 export function ClientDashboard({ clientId, share = false }: { clientId: number; share?: boolean }) {
   const { user } = useAuth();
   const [range, setRange] = useState<DateRange>(presetByKey("7d"));
-  const query = `from=${range.from}&to=${range.to}`;
+  // "Compare to": the default is the previous equal-length period (chosen by the server)
+  const [mode, setMode] = useState<CompareMode>("prev");
+  const [custom, setCustom] = useState<DateRange>(() => {
+    const r = presetByKey("7d");
+    return { key: "custom", label: "Custom", from: shiftMonths(r.from, -1), to: shiftMonths(r.to, -1) };
+  });
+  const compareOn = mode !== "off";
+  const cmp = compareRange(range, mode, mode === "custom" ? custom : null);
+  const query = `from=${range.from}&to=${range.to}${cmp ? `&compFrom=${cmp.from}&compTo=${cmp.to}` : ""}`;
 
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
   const summary = useApi<Summary>(`/clients/${clientId}/summary?${query}`);
-  const trend = useApi<{ days: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
+  const trend = useApi<{ days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
 
@@ -107,18 +115,29 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       : undefined;
     // Leads and purchases are the numbers that matter. Purchases are real sales
     // uploaded as offline conversions; Meta's own purchase counts are not used.
+    const pct = (n: number | null | undefined) => fmtPct(n);
+    const x = (n: number | null | undefined) => (n != null ? `${fmtNum(n, 1)}x` : "–");
+    const f2 = (n: number | null | undefined) => fmtNum(n ?? null, 2);
+    type K = Exclude<keyof Totals, never>;
+    const item = (label: string, fmt: (n: number | null | undefined) => string, key: K, dir: "higher-better" | "lower-better" | "neutral", note?: { text: string; tone?: "good" | "crit" | "muted" }) => ({
+      label, dir, note,
+      value: fmt(c?.[key] as number | null | undefined),
+      cur: c?.[key] as number | null | undefined,
+      prev: p?.[key] as number | null | undefined,
+      prevText: p ? fmt(p[key] as number | null | undefined) : undefined,
+    });
     return [
-      { label: "Spend", value: fmtRp(c?.spend), cur: c?.spend, prev: p?.spend, dir: "neutral" as const },
-      { label: "Leads", value: fmtNum(c?.leads), cur: c?.leads, prev: p?.leads, dir: "higher-better" as const },
-      { label: "Cost / Lead", value: fmtRp(c?.cpl), cur: c?.cpl, prev: p?.cpl, dir: "lower-better" as const },
-      { label: "Purchases", value: fmtNum(c?.purchases), cur: c?.purchases, prev: p?.purchases, dir: "higher-better" as const, note: c && c.purchases > 0 ? { text: `${fmtNum(c.purchases_sent)} of ${fmtNum(c.purchases)} sent to Meta`, tone: "muted" as const } : undefined },
-      { label: "Purchase value", value: fmtRp(c?.purchase_value), cur: c?.purchase_value, prev: p?.purchase_value, dir: "higher-better" as const },
-      { label: "CPA", value: fmtRp(c?.cpa), cur: c?.cpa, prev: p?.cpa, dir: "lower-better" as const, note: cpaNote },
-      { label: "ROAS", value: c?.roas != null ? `${fmtNum(c.roas, 1)}x` : "–", cur: c?.roas, prev: p?.roas, dir: "higher-better" as const, note: roasNote },
-      { label: "CTR", value: fmtPct(c?.ctr), cur: c?.ctr, prev: p?.ctr, dir: "higher-better" as const },
-      { label: "CPM", value: fmtRp(c?.cpm), cur: c?.cpm, prev: p?.cpm, dir: "lower-better" as const },
-      { label: "Frequency", value: fmtNum(c?.frequency ?? null, 2), cur: c?.frequency, prev: p?.frequency, dir: "neutral" as const },
-      { label: "Reach", value: fmtNum(c?.reach), cur: c?.reach, prev: p?.reach, dir: "higher-better" as const },
+      item("Spend", fmtRp, "spend", "neutral"),
+      item("Leads", fmtNum, "leads", "higher-better"),
+      item("Cost / Lead", fmtRp, "cpl", "lower-better"),
+      item("Purchases", fmtNum, "purchases", "higher-better", c && c.purchases > 0 ? { text: `${fmtNum(c.purchases_sent)} of ${fmtNum(c.purchases)} sent to Meta`, tone: "muted" } : undefined),
+      item("Purchase value", fmtRp, "purchase_value", "higher-better"),
+      item("CPA", fmtRp, "cpa", "lower-better", cpaNote),
+      item("ROAS", x, "roas", "higher-better", roasNote),
+      item("CTR", pct, "ctr", "higher-better"),
+      item("CPM", fmtRp, "cpm", "lower-better"),
+      item("Frequency", f2, "frequency", "neutral"),
+      item("Reach", fmtNum, "reach", "higher-better"),
     ];
   }, [summary.data, meta.data]);
 
@@ -159,13 +178,29 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
             </>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-          {summary.data && (
-            <span className="tnum text-[11px] text-muted">
-              vs {fmtDay(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
+          <DateRangePicker value={range} onChange={setRange} />
+          <label className="flex items-center gap-1.5 text-[11px] text-muted">
+            Compare
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value as CompareMode)}
+              aria-label="Compare to"
+              className="min-h-11 rounded-lg border border-border2 bg-surface px-2 text-xs text-ink lg:min-h-9"
+            >
+              <option value="prev">Previous period</option>
+              <option value="month">Previous month</option>
+              <option value="year">Previous year</option>
+              <option value="custom">Custom range…</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+          {mode === "custom" && <DateRangePicker value={custom} onChange={setCustom} />}
+          {compareOn && summary.data && (
+            <span className="tnum w-full text-right text-[11px] text-muted">
+              vs {fmtDayFull(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}
             </span>
           )}
-          <DateRangePicker value={range} onChange={setRange} />
         </div>
       </div>
 
@@ -183,7 +218,9 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
               current={k.cur}
               previous={k.prev}
               direction={k.dir}
-              note={(k as any).note}
+              note={k.note}
+              previousText={k.prevText}
+              compare={compareOn}
               loading={summary.loading}
             />
           ))}
@@ -199,14 +236,14 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         ) : trend.error ? (
           <ErrorState message={trend.error} onRetry={trend.reload} />
         ) : (
-          <TrendChart days={trend.data?.days ?? []} bucket={trend.data?.bucket} />
+          <TrendChart days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} bucket={trend.data?.bucket} />
         )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <SectionTitle>Campaigns</SectionTitle>
-          <EntityTable clientId={clientId} from={range.from} to={range.to} />
+          <EntityTable clientId={clientId} from={range.from} to={range.to} compare={cmp} />
         </div>
         <div className="space-y-6">
           {(pacing.data?.pacing?.length ?? 0) > 0 && (

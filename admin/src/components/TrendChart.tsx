@@ -38,7 +38,7 @@ const LINE_METRICS = [
 const BAR_COLOR = "var(--color-chart-1)";
 const LINE_COLOR = "var(--color-chart-2)";
 
-export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?: "day" | "week" | "month" }) {
+export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }) {
   const [barKey, setBarKey] = useState<"spend" | "leads">("spend");
   const [lineKey, setLineKey] = useState<"cpl" | "ctr" | "cpm" | "none">("cpl");
 
@@ -47,7 +47,11 @@ export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?
   const barLabel = bar.label;
   const lineLabel = line?.label;
 
-  const data = useMemo(() => days.map((d) => ({ ...d, barValue: d[barKey] ?? 0, lineValue: line ? d[line.key] : null })), [days, barKey, line]);
+  // the comparison period is drawn point by point against the current one (day 1 with day 1, ...)
+  const data = useMemo(
+    () => days.map((d, i) => ({ ...d, barValue: d[barKey] ?? 0, lineValue: line ? d[line.key] : null, prevValue: compare && compare[i] ? compare[i][barKey] ?? 0 : null, prevDate: compare?.[i]?.date ?? null })),
+    [days, compare, barKey, line]
+  );
 
   if (days.length === 0) {
     return <EmptyState title="No data in this date range" hint="Try a wider range, or wait for the next sync." />;
@@ -87,6 +91,12 @@ export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-3.5 rounded" style={{ background: LINE_COLOR }} />
               {lineLabel}
+            </span>
+          )}
+          {compare && compare.length > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-3.5 border-t-2 border-dashed" style={{ borderColor: "var(--color-ink2)" }} />
+              {barLabel}, compared period
             </span>
           )}
         </div>
@@ -134,6 +144,11 @@ export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?
                     <p className="tnum text-ink2">
                       {barLabel}: <span className="text-ink">{bar.fmt(d.barValue as any)}</span>
                     </p>
+                    {d.prevValue != null && (
+                      <p className="tnum text-ink2">
+                        Compared ({d.prevDate ? fmtDayFull(d.prevDate) : "–"}): <span className="text-ink">{bar.fmt(d.prevValue as any)}</span>
+                      </p>
+                    )}
                     {line && (
                       <p className="tnum text-ink2">
                         {lineLabel}: <span className="text-ink">{d.lineValue == null ? "–" : line.fmt(d.lineValue as any)}</span>
@@ -144,6 +159,9 @@ export function TrendChart({ days, bucket = "day" }: { days: TrendDay[]; bucket?
               }}
             />
             <Bar yAxisId="bar" dataKey="barValue" fill={BAR_COLOR} radius={[4, 4, 0, 0]} maxBarSize={28} />
+            {compare && compare.length > 0 && (
+              <Line yAxisId="bar" dataKey="prevValue" stroke="var(--color-ink2)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} activeDot={false} connectNulls isAnimationActive={false} />
+            )}
             {line && (
               <Line
                 yAxisId="line"

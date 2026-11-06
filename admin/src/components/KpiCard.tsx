@@ -9,6 +9,8 @@ export function KpiCard({
   loading,
   flat,
   note,
+  previousText,
+  compare = true,
 }: {
   label: string;
   value: string;
@@ -20,6 +22,10 @@ export function KpiCard({
   flat?: boolean;
   /** One short line under the delta, e.g. "Target Rp 1 jt", coloured by `tone`. */
   note?: { text: string; tone?: "good" | "crit" | "muted" };
+  /** The comparison period's value, formatted, shown as "vs Rp 24.103.000". */
+  previousText?: string;
+  /** false = comparison switched off: no delta line. */
+  compare?: boolean;
 }) {
   const box = flat
     ? "border-b border-r border-border bg-surface px-3.5 py-3"
@@ -40,10 +46,12 @@ export function KpiCard({
       <p className={`tnum mt-1 font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
       </p>
-      <div className="mt-1">
-        <Delta current={current} previous={previous} direction={direction} />
-        <span className="ml-1 text-[10px] text-muted">vs prev.</span>
-      </div>
+      {compare && (
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-1">
+          <Delta current={current} previous={previous} direction={direction} />
+          <span className="tnum text-[10px] text-muted">{previousText ? `vs ${previousText}` : "vs prev."}</span>
+        </div>
+      )}
       {note && (
         <p className={`mt-1 text-[11px] font-medium ${note.tone === "good" ? "text-good" : note.tone === "crit" ? "text-crit" : "text-muted"}`}>{note.text}</p>
       )}

@@ -16,7 +16,13 @@ function range(c: any): { from: string; to: string; prevFrom: string; prevTo: st
   const today = ymdInTz("Asia/Jakarta");
   const to = c.req.query("to") || addDays(today, -1);
   const from = c.req.query("from") || addDays(to, -6);
-  // comparison window: previous equal-length period immediately before `from`
+  // a chosen comparison period (Compare to: previous month / year / custom) wins
+  const cf = c.req.query("compFrom"), ct = c.req.query("compTo");
+  const ymd = /^\d{4}-\d{2}-\d{2}$/;
+  if (cf && ct && ymd.test(cf) && ymd.test(ct) && cf <= ct && (Date.parse(ct) - Date.parse(cf)) / 86_400_000 < 1200) {
+    return { from, to, prevFrom: cf, prevTo: ct };
+  }
+  // default: previous equal-length period immediately before `from`
   const [fy, fm, fd] = from.split("-").map(Number);
   const [ty, tm, td] = to.split("-").map(Number);
   const len = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000) + 1;
@@ -63,8 +69,11 @@ clients.get("/:clientId/summary", async (c) => {
 
 clients.get("/:clientId/trend", async (c) => {
   const clientId = c.get("access").clientId;
-  const { from, to } = range(c);
-  return c.json(await clientTrend(c.env, clientId, from, to));
+  const { from, to, prevFrom, prevTo } = range(c);
+  const current = await clientTrend(c.env, clientId, from, to);
+  // the comparison period uses the same bucket so the two series line up point by point
+  const compare = await clientTrend(c.env, clientId, prevFrom, prevTo, current.bucket);
+  return c.json({ ...current, compare: compare.days });
 });
 
 clients.get("/:clientId/entities", async (c) => {
