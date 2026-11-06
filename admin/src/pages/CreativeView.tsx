@@ -82,7 +82,7 @@ export function CreativeView({ clientId }: { clientId: number }) {
                     <div className="flex h-full items-center justify-center text-3xl opacity-30">🖼️</div>
                   )}
                   {fatigued && (
-                    <span className="absolute left-2 top-2 rounded-md bg-crit/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    <span className="absolute left-2 top-2 rounded-md bg-crit/90 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
                       Fatigued
                     </span>
                   )}
@@ -94,7 +94,7 @@ export function CreativeView({ clientId }: { clientId: number }) {
                     </p>
                     <StatusBadge status={ad.effective_status ?? ad.status} />
                   </div>
-                  <dl className="tnum grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
+                  <dl className="tnum grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                     <div>
                       <dt className="text-muted">Cost / Lead</dt>
                       <dd className="font-semibold text-ink">{fmtRp(ad.cpl)}</dd>

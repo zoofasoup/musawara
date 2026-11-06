@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
-import { Btn, inputCls, Panel, Pill, Section, type Notify } from "./kit";
+import { Btn, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 export type TokenStatus = { configured: boolean; source?: string; ok?: boolean; name?: string; error?: string };
 
@@ -111,7 +111,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
                 </Btn>
               )}
             </div>
-            <p className="flex items-center gap-1.5 text-[11px] text-muted">
+            <p className="flex items-center gap-1.5 text-xs text-muted">
               <Icon name="shield" className="h-3.5 w-3.5" /> Encrypted before it is stored, never shown again after saving.
             </p>
           </form>
@@ -126,7 +126,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
           <ol className="mt-2 space-y-2 text-xs text-ink2">
             {STEPS.map((s, i) => (
               <li key={i} className="flex gap-2.5">
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface3 text-[11px] font-medium text-ink">{i + 1}</span>
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface3 text-xs font-medium text-ink">{i + 1}</span>
                 <span className="pt-0.5">{s}</span>
               </li>
             ))}

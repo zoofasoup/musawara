@@ -12,7 +12,7 @@ import {
   buildSales, COLUMN_GUIDE, FIELD_HINT, FIELD_LABEL, guessMapping, parseWorkbook, planMeta, REQUIRED, templateCsv, unitEvent,
   type Field, type Mapping, type MetaUnit, type SaleRow, type Sheet,
 } from "../lib/conversions";
-import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Tone } from "./settings/kit";
+import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Tone } from "../components/kit";
 
 const EVENTS = [
   { v: "Purchase", l: "Purchase (a paid sale)" },
@@ -77,11 +77,11 @@ function FileGuide() {
                 {c.need === "required" ? "Wajib" : c.need === "recommended" ? "Disarankan" : "Opsional"}
               </Pill>
               <span className="min-w-0 flex-1 text-ink2">{c.note}</span>
-              <span className="font-mono text-[11px] text-muted">{c.example}</span>
+              <span className="font-mono text-xs text-muted">{c.example}</span>
             </li>
           ))}
         </ul>
-        <p className="text-[11px] text-muted">Satu baris = satu orang = satu penjualan. File Excel boleh berisi banyak sheet (satu per bulan). Judul kolom lain tetap bisa dipakai, dicocokkan di langkah 3.</p>
+        <p className="text-xs text-muted">Satu baris = satu orang = satu penjualan. File Excel boleh berisi banyak sheet (satu per bulan). Judul kolom lain tetap bisa dipakai, dicocokkan di langkah 3.</p>
         <Btn icon="database" onClick={downloadTemplate}>Unduh template (CSV)</Btn>
       </div>
     </details>
@@ -118,7 +118,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
       </div>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-left text-xs">
-          <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
+          <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
             <tr><th className="px-3 py-2">Month</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Sent to Meta</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -147,7 +147,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
         <p className="mb-1.5 text-xs font-medium text-ink">By closer{month ? ` · ${month}` : ""}</p>
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-left text-xs">
-            <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
+            <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
               <tr><th className="px-3 py-2">Closer</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Average</th><th className="px-3 py-2 text-right">Share</th></tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -172,7 +172,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
       </div>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[860px] text-left text-xs">
-          <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
+          <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
             <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Who</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Closer</th><th className="px-3 py-2">Departure</th><th className="px-3 py-2">Room</th><th className="px-3 py-2 text-right">DP</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Meta</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -192,7 +192,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
             ))}
           </tbody>
         </table>
-        {data.rows.length >= 400 && <p className="border-t border-border px-3 py-2 text-[11px] text-muted">Showing the latest 400.</p>}
+        {data.rows.length >= 400 && <p className="border-t border-border px-3 py-2 text-xs text-muted">Showing the latest 400.</p>}
       </Panel>
     </div>
   );
@@ -460,7 +460,7 @@ export function Conversions() {
                   <span>No Meta token yet. Add it once in Settings, Meta connection. The same token is used here (it needs the ads_management permission).</span>
                 </p>
               ) : (
-                <p className="flex items-center gap-1.5 text-[11px] text-muted"><Icon name="key" className="h-3.5 w-3.5" /> Sends with the token from Settings, Meta connection (needs ads_management).</p>
+                <p className="flex items-center gap-1.5 text-xs text-muted"><Icon name="key" className="h-3.5 w-3.5" /> Sends with the token from Settings, Meta connection (needs ads_management).</p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-xs text-muted">Dataset
@@ -523,7 +523,7 @@ export function Conversions() {
                 <span className="font-medium text-ink">{s.name}</span>
                 <span className="tnum text-muted">{s.body.length} rows</span>
                 {!selected.has(s.name) && sheets.some((o) => o.name !== s.name && o.name.toLowerCase().startsWith(s.name.toLowerCase())) && (
-                  <span className="text-[11px] text-warn">looks like an older copy of another sheet, left unticked</span>
+                  <span className="text-xs text-warn">looks like an older copy of another sheet, left unticked</span>
                 )}
               </label>
             ))}
@@ -546,7 +546,7 @@ export function Conversions() {
                     <option value="">Not in my file</option>
                     {headersAll.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
-                  {FIELD_HINT[f] && <span className="mt-0.5 block text-[11px] text-muted">{FIELD_HINT[f]}</span>}
+                  {FIELD_HINT[f] && <span className="mt-0.5 block text-xs text-muted">{FIELD_HINT[f]}</span>}
                 </label>
               ))}
             </div>
@@ -583,7 +583,7 @@ export function Conversions() {
 
             <Panel className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-left text-xs">
-                <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
+                <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
                   <tr><th className="px-3 py-2">Row</th><th className="px-3 py-2">Who</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Closer</th><th className="px-3 py-2">Departure</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Dashboard</th>{mode === "meta" && <th className="px-3 py-2">Meta</th>}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -609,7 +609,7 @@ export function Conversions() {
                   ))}
                 </tbody>
               </table>
-              {shown.length > 200 && <p className="border-t border-border px-3 py-2 text-[11px] text-muted">Showing the first 200 rows of this view.</p>}
+              {shown.length > 200 && <p className="border-t border-border px-3 py-2 text-xs text-muted">Showing the first 200 rows of this view.</p>}
             </Panel>
           </div>
         </Step>

@@ -3,7 +3,7 @@ import { api, type useApi } from "../../lib/api";
 import { ClientAvatar } from "../../components/Layout";
 import { fmtDigits } from "../../lib/format";
 import { Icon } from "../../components/icons";
-import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "./kit";
+import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 /** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
 async function photoToDataUrl(file: File): Promise<string> {
@@ -69,7 +69,7 @@ function ClientCard({ c, reload, notify }: { c: any; reload: () => void; notify:
 
   return (
     <Panel className="p-3.5">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
       {/* the avatar itself is the upload target */}
       <label className="group relative inline-flex h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl" title="Change photo">
         <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={14} />
@@ -78,14 +78,14 @@ function ClientCard({ c, reload, notify }: { c: any; reload: () => void; notify:
         </span>
         <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label={`Change photo for ${c.name}`} onChange={(e) => { setPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       </label>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-32">
         <p className="truncate text-sm font-medium text-ink">{c.name}</p>
         <div className="mt-1 flex flex-wrap gap-1.5">
           <Pill icon="chart">{c.account_count} account{c.account_count === 1 ? "" : "s"}</Pill>
           <Pill icon="users">{c.user_count} user{c.user_count === 1 ? "" : "s"}</Pill>
         </div>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center">
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
         {c.logo_url && (
           <Btn
             tone="ghost"

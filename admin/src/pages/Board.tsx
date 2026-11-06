@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { btnCls as btn, ConfirmBtn, fieldCls as field } from "../components/kit";
 
 type Task = { id: number; client_id: number; client_name: string; title: string; status: string; assignee: string | null; due_date: string | null };
 
@@ -14,8 +15,6 @@ const COLUMNS = [
   { key: "done", label: "Done" },
 ];
 
-const field = "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink";
-const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 function today() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -119,15 +118,12 @@ export function Board() {
                             <option key={c.key} value={c.key}>{c.label}</option>
                           ))}
                         </select>
-                        <button
-                          className="inline-flex min-h-11 items-center px-3 text-xs text-muted hover:text-crit"
-                          onClick={() => {
-                            if (!window.confirm(`Delete "${t.title}"?`)) return;
-                            void act(() => api(`/admin/tasks/${t.id}`, { method: "DELETE" }));
-                          }}
-                        >
-                          Delete
-                        </button>
+                        <ConfirmBtn
+                          label="Delete"
+                          confirmLabel="Delete task"
+                          icon="trash"
+                          onConfirm={() => void act(() => api(`/admin/tasks/${t.id}`, { method: "DELETE" }))}
+                        />
                       </div>
                     </div>
                   ))}

@@ -35,7 +35,7 @@ export function ShareView() {
         )}
       </main>
       <footer className="border-t border-border py-5 text-center">
-        <span className="text-[11px] text-muted">Powered by </span>
+        <span className="text-xs text-muted">Powered by </span>
         <Wordmark compact />
       </footer>
     </div>

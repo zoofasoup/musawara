@@ -7,7 +7,7 @@ import { AccountsSection, accountHealth } from "./settings/AccountsSection";
 import { ClientsSection } from "./settings/ClientsSection";
 import { MetaSection, type TokenStatus } from "./settings/MetaSection";
 import { TeamSection } from "./settings/TeamSection";
-import { useNotify, type Tone } from "./settings/kit";
+import { useNotify, type Tone } from "../components/kit";
 
 const TILE_TONE: Record<Tone, string> = {
   good: "bg-good/12 text-good",
@@ -31,9 +31,9 @@ function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: Ico
         <Icon name={icon} className="h-5 w-5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium uppercase tracking-wider text-muted">{label}</span>
+        <span className="block text-xs font-medium uppercase tracking-wider text-muted">{label}</span>
         <span className="block truncate text-sm font-medium text-ink">{value}</span>
-        <span className="block truncate text-[11px] text-muted">{sub}</span>
+        <span className="block truncate text-xs text-muted">{sub}</span>
       </span>
     </a>
   );

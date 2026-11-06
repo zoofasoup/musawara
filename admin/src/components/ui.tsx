@@ -57,7 +57,7 @@ export function StatusBadge({ status }: { status: string | null }) {
   if (!status) return null;
   const style = STATUS_STYLES[status] ?? "bg-muted/15 text-ink2";
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${style}`}>
+    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide ${style}`}>
       {status.replace(/_/g, " ")}
     </span>
   );
@@ -126,8 +126,8 @@ export function Sparkline({ points, color = "var(--accent)" }: { points: number[
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-ink2">{children}</h2>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <h2 className="whitespace-nowrap text-sm font-semibold uppercase tracking-wider text-ink2">{children}</h2>
       {right}
     </div>
   );

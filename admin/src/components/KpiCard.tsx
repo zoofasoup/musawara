@@ -41,7 +41,7 @@ export function KpiCard({
   }
   return (
     <div className={box}>
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">{label}</p>
       {/* never truncate a number: long amounts get a smaller size, and may wrap after "Rp" on narrow cards */}
       <p className={`tnum mt-1 font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
@@ -49,11 +49,11 @@ export function KpiCard({
       {compare && (
         <div className="mt-1 flex flex-wrap items-baseline gap-x-1">
           <Delta current={current} previous={previous} direction={direction} />
-          <span className="tnum text-[10px] text-muted">{previousText ? `vs ${previousText}` : "vs prev."}</span>
+          <span className="tnum text-xs text-muted">{previousText ? `vs ${previousText}` : "vs prev."}</span>
         </div>
       )}
       {note && (
-        <p className={`mt-1 text-[11px] font-medium ${note.tone === "good" ? "text-good" : note.tone === "crit" ? "text-crit" : "text-muted"}`}>{note.text}</p>
+        <p className={`mt-1 text-xs font-medium ${note.tone === "good" ? "text-good" : note.tone === "crit" ? "text-crit" : "text-muted"}`}>{note.text}</p>
       )}
     </div>
   );

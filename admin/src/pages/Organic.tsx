@@ -6,6 +6,7 @@ import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { btnCls as btn, ConfirmBtn, selectSmCls as sel, Sheet } from "../components/kit";
 
 type Day = { day: string; count: number };
 type Account = {
@@ -60,8 +61,6 @@ const LABELS: Record<PostLabel, { text: string; cls: string }> = {
   new: { text: "New", cls: "bg-surface3 text-muted" },
 };
 
-const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink disabled:opacity-50";
-const sel = "min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink";
 
 function Thumb({ post, className = "" }: { post: Post; className?: string }) {
   const [failed, setFailed] = useState(false);
@@ -78,7 +77,7 @@ function Thumb({ post, className = "" }: { post: Post; className?: string }) {
 function LabelChip({ label }: { label: PostLabel | null | undefined }) {
   if (!label) return null;
   const l = LABELS[label];
-  return <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${l.cls}`}>{l.text}</span>;
+  return <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${l.cls}`}>{l.text}</span>;
 }
 
 function StoryRow({ a }: { a: Account }) {
@@ -117,14 +116,14 @@ function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null 
   );
   const n = (v: number | null) => (v == null ? "–" : fmtCompact(v));
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-bg p-4 sm:rounded-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Post detail">
+    <Sheet title="Post detail" onClose={onClose}>
+      <div>
         <div className="flex gap-3">
           <Thumb post={post} className="h-28 w-28 shrink-0 rounded-lg" />
           <div className="min-w-0">
             <div className="flex items-center gap-2"><LabelChip label={label} /><span className="text-xs text-muted">{FORMAT_NAME[post.format]} · {fmtDay(post.day)}</span></div>
             <p className="mt-1 text-xs text-muted">@{post.ig_username}</p>
-            {post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-accent hover:underline">Open on Instagram</a>}
+            {post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">Open on Instagram</a>}
           </div>
         </div>
         <dl className="mt-4 grid grid-cols-3 gap-x-3 gap-y-3">
@@ -139,7 +138,7 @@ function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null 
         {post.caption && <p className="mt-4 whitespace-pre-line text-sm text-ink2">{post.caption}</p>}
         <button className={`${btn} mt-4 w-full justify-center`} onClick={onClose}>Close</button>
       </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -208,7 +207,6 @@ export function Organic() {
     });
   const remove = (a: Account) =>
     run("rm" + a.id, async () => {
-      if (!confirm(`Stop tracking @${a.ig_username ?? a.ig_user_id}? Recorded stories stay.`)) return;
       await api(`/admin/organic/accounts/${a.id}`, { method: "DELETE" });
       reloadAll();
     });
@@ -216,7 +214,7 @@ export function Organic() {
   const tracked = new Set(accounts.map((a) => a.ig_user_id));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
+    <div className="mx-auto max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-ink">Organic</h1>
@@ -280,7 +278,7 @@ export function Organic() {
                   <button key={p.media_id} onClick={() => setOpen(p)} className="group text-left">
                     <div className="relative overflow-hidden rounded-lg border border-border">
                       <Thumb post={p} className="aspect-square w-full" />
-                      <span className="absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white">{FORMAT_NAME[p.format] ?? p.format}</span>
+                      <span className="absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">{FORMAT_NAME[p.format] ?? p.format}</span>
                       <span className="absolute right-1.5 top-1.5"><LabelChip label={labels.get(p.media_id)} /></span>
                     </div>
                     <p className="tnum mt-1.5 text-xs text-ink2">
@@ -294,7 +292,7 @@ export function Organic() {
 
           <div className="mt-6 flex flex-wrap gap-2">
             {clientAccounts.map((a) => (
-              <button key={a.id} className={btn} disabled={!!busy} onClick={() => remove(a)}>Stop tracking @{a.ig_username ?? a.ig_user_id}</button>
+              <ConfirmBtn key={a.id} label={`Stop tracking @${a.ig_username ?? a.ig_user_id}`} confirmLabel="Stop (stories stay)" icon="trash" onConfirm={() => remove(a)} />
             ))}
           </div>
         </>

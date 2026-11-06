@@ -246,7 +246,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
 
   const header = (key: SortKey, label: string, extraClass = "") => (
     <th
-      className={`cursor-pointer select-none px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-muted hover:text-ink2 ${extraClass}`}
+      className={`cursor-pointer select-none px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted hover:text-ink2 ${extraClass}`}
       onClick={() => {
         if (sortKey === key) setSortDir((d) => (d === 1 ? -1 : 1));
         else {
@@ -294,7 +294,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
               <thead>
                 <tr className="bg-surface2/60">
                   <th
-                    className="cursor-pointer select-none px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted hover:text-ink2"
+                    className="cursor-pointer select-none px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted hover:text-ink2"
                     onClick={() => {
                       if (sortKey === "name") setSortDir((d) => (d === 1 ? -1 : 1));
                       else {
@@ -305,10 +305,10 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
                   >
                     Campaign {sortKey === "name" ? (sortDir === -1 ? "↓" : "↑") : ""}
                   </th>
-                  <th className="hidden px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted md:table-cell">
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted md:table-cell">
                     Delivery
                   </th>
-                  <th className="hidden px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-muted xl:table-cell">Budget</th>
+                  <th className="hidden px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted xl:table-cell">Budget</th>
                   {header("spend", "Spend")}
                   {header("leads", "Leads")}
                   {header("cpl", "Cost / Lead · Δ")}
@@ -344,7 +344,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
                                 {c.name ?? c.entity_id}
                               </p>
                               {c.objective && (
-                                <p className="text-[10px] uppercase tracking-wide text-muted">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                   {c.objective.replace(/^OUTCOME_/, "")}
                                 </p>
                               )}
@@ -413,7 +413,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
                     </p>
                   </div>
                 </div>
-                <p className="tnum mt-1.5 text-[11px] text-muted">
+                <p className="tnum mt-1.5 text-xs text-muted">
                   {budgetText(c, "campaign")} · {fmtNum(c.link_clicks)} link clicks · CPC {fmtRp(cpcOf(c))}
                 </p>
               </div>

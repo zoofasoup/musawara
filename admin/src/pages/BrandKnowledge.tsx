@@ -5,12 +5,12 @@ import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { btnCls as btn } from "../components/kit";
 
 type Section = { key: string; label: string; hint: string; body: string; updated_at: string | null; updated_by: string | null };
 type Link = { id: number; label: string; url: string };
 type Brand = { sections: Section[]; links: Link[]; markdown: string };
 
-const btn = "rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 function SectionCard({ clientId, s, canEdit, onSaved }: { clientId: number; s: Section; canEdit: boolean; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
@@ -71,7 +71,7 @@ function SectionCard({ clientId, s, canEdit, onSaved }: { clientId: number; s: S
         <>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink2">{s.body}</p>
           {s.updated_at && (
-            <p className="mt-2 text-[11px] text-muted">
+            <p className="mt-2 text-xs text-muted">
               Updated {s.updated_at.slice(0, 10)}
               {s.updated_by ? ` by ${s.updated_by}` : ""}
             </p>

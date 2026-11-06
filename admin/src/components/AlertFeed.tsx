@@ -42,7 +42,7 @@ export function AlertFeed({
           <SeverityDot severity={a.severity} />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] leading-snug text-ink">{a.message}</p>
-            <p className="mt-0.5 text-[11px] text-muted">
+            <p className="mt-0.5 text-xs text-muted">
               {showClient && a.client_name ? `${a.client_name} · ` : ""}
               {TYPE_LABELS[a.type] ?? a.type} · {fmtDateTime(a.created_at)}
               {a.acknowledged ? " · acknowledged" : ""}
@@ -51,7 +51,7 @@ export function AlertFeed({
           {onAck && !a.acknowledged && (
             <button
               onClick={() => onAck(a.id)}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border2 bg-surface px-3 text-[11px] font-medium text-ink2 hover:bg-surface3 hover:text-ink"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border2 bg-surface px-3 text-xs font-medium text-ink2 hover:bg-surface3 hover:text-ink"
             >
               Ack
             </button>

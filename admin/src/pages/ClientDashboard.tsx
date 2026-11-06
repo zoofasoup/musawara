@@ -180,7 +180,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
           <DateRangePicker value={range} onChange={setRange} />
-          <label className="flex items-center gap-1.5 text-[11px] text-muted">
+          <label className="flex items-center gap-1.5 text-xs text-muted">
             Compare
             <select
               value={mode}
@@ -197,7 +197,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           </label>
           {mode === "custom" && <DateRangePicker value={custom} onChange={setCustom} />}
           {compareOn && summary.data && (
-            <span className="tnum w-full text-right text-[11px] text-muted">
+            <span className="tnum w-full text-right text-xs text-muted">
               vs {fmtDayFull(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}
             </span>
           )}

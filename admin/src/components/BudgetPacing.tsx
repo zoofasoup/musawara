@@ -26,7 +26,7 @@ export function BudgetPacing({ pacing }: { pacing: Pacing[] }) {
           <div key={p.account_id}>
             <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
               <p className="text-[13px] font-medium text-ink">{p.account_name ?? "Account"}</p>
-              <p className="tnum text-[11px] text-ink2">
+              <p className="tnum text-xs text-ink2">
                 Day {p.day_of_month}/{p.days_in_month} · projected{" "}
                 <span className={off ? (deviation > 0 ? "font-semibold text-warn" : "font-semibold text-warn") : "text-ink"}>
                   {fmtRp(p.projected)}
@@ -45,7 +45,7 @@ export function BudgetPacing({ pacing }: { pacing: Pacing[] }) {
               {/* ideal linear pace marker */}
               <div className="absolute inset-y-0 w-0.5 bg-ink/70" style={{ left: `${idealPct}%` }} title="Ideal pace" />
             </div>
-            <div className="tnum mt-1 flex justify-between text-[11px] text-muted">
+            <div className="tnum mt-1 flex justify-between text-xs text-muted">
               <span>
                 Spent <span className="text-ink2">{fmtRp(p.spent)}</span>
               </span>

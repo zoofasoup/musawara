@@ -1,8 +1,8 @@
-// Shared building blocks for the Settings page: section shell, buttons, pills,
+// Shared building blocks (buttons, inputs, panels, pills, toasts): section shell, buttons, pills,
 // confirm/copy helpers and a tiny toast host (replaces alert()/confirm()).
 
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Icon, type IconName } from "../../components/icons";
+import { Icon, type IconName } from "./icons";
 
 export type Notify = (text: string, kind?: "ok" | "err") => void;
 
@@ -14,7 +14,7 @@ export function useNotify() {
     setTimeout(() => setItems((s) => s.filter((i) => i.id !== id)), kind === "err" ? 8000 : 3500);
   }, []);
   const node = (
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:items-end">
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:items-end">
       {items.map((i) => (
         <div
           key={i.id}
@@ -43,7 +43,7 @@ export type Tone = keyof typeof TONES;
 
 export function Pill({ tone = "neutral", icon, children }: { tone?: Tone; icon?: IconName; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${TONES[tone]}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${TONES[tone]}`}>
       {icon && <Icon name={icon} className="h-3 w-3" />}
       {children}
     </span>
@@ -81,6 +81,64 @@ export const inputCls =
   "min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink placeholder:text-muted outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20";
 
 export const selectCls = inputCls.replace("w-full", "w-full sm:w-auto");
+
+/** Inline field and small neutral button for toolbars and rows (not full width). */
+export const fieldCls =
+  "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20";
+export const selectSmCls = "min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink outline-none focus:border-[var(--accent)]";
+export const btnCls =
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50";
+
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/**
+ * Modal sheet: bottom sheet on phones, centred card on larger screens.
+ * Escape and the scrim close it, focus moves in and returns on close, Tab stays inside.
+ */
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const lock = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    box.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onClose();
+      if (e.key !== "Tab" || !box.current) return;
+      const items = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = lock;
+      prev?.focus?.();
+    };
+  }, [onClose]);
+  return (
+    <div className="sheet-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        className="sheet-body max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-bg p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 /** Destructive action that needs a second tap, so no browser confirm() popup. */
 export function ConfirmBtn({ label, confirmLabel = "Tap again to confirm", icon = "trash", onConfirm }: { label: string; confirmLabel?: string; icon?: IconName; onConfirm: () => void }) {

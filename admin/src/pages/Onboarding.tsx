@@ -5,13 +5,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { btnCls as btn } from "../components/kit";
 
 type State = {
   items: { id: number; label: string; done: number; done_at: string | null }[];
   brand: { filled: number; total: number };
 };
 
-const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 export function Onboarding({ clientId }: { clientId: number }) {
   const { data, error, reload } = useApi<State>(`/admin/clients/${clientId}/onboarding`);

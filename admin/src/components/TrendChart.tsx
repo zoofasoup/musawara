@@ -82,7 +82,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-ink2">
+        <div className="ml-auto flex items-center gap-3 text-xs text-ink2">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: BAR_COLOR }} />
             {barLabel}
@@ -109,7 +109,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
             <XAxis
               dataKey="date"
               tickFormatter={fmtDay}
-              tick={{ fill: "var(--color-muted)", fontSize: 10 }}
+              tick={{ fill: "var(--color-muted)", fontSize: 12 }}
               axisLine={{ stroke: "var(--color-border2)" }}
               tickLine={false}
               minTickGap={24}
@@ -117,7 +117,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
             <YAxis
               yAxisId="bar"
               tickFormatter={(v: number) => fmtCompact(v)}
-              tick={{ fill: "var(--color-muted)", fontSize: 10 }}
+              tick={{ fill: "var(--color-muted)", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
               width={44}
@@ -127,7 +127,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
                 yAxisId="line"
                 orientation="right"
                 tickFormatter={(v: number) => fmtCompact(v)}
-                tick={{ fill: LINE_COLOR, fontSize: 10 }}
+                tick={{ fill: LINE_COLOR, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
                 width={44}

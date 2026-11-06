@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, BASE, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
-import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "./kit";
+import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 type TeamState = ReturnType<typeof useApi<{ users: any[]; invites: any[] }>>;
 

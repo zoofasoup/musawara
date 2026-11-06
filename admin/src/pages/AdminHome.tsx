@@ -15,9 +15,9 @@ type Overview = {
     name: string;
     logo_url: string | null;
     brand_color: string;
-    totals: { spend: number; results: number; cpr: number | null };
+    totals: { spend: number; leads: number; purchases: number; cpl: number | null; cpa: number | null };
     spark: Array<{ date: string; spend: number }>;
-    cpr_target: number | null;
+    target_cpa: number | null;
     unacknowledged_alerts: number;
   }>;
   alerts: Alert[];
@@ -31,17 +31,27 @@ type Overview = {
   }>;
 };
 
-function CprChip({ cpr, target }: { cpr: number | null; target: number | null }) {
-  if (cpr == null) return <span className="rounded-md bg-muted/15 px-1.5 py-0.5 text-[11px] font-semibold text-muted">CPR –</span>;
+/** Cost per purchase against the client's target: green on target, amber up to 20% over, red beyond. */
+function CpaChip({ cpa, target }: { cpa: number | null; target: number | null }) {
+  if (cpa == null) return <span className="rounded-md bg-muted/15 px-1.5 py-0.5 text-xs font-medium text-muted">CPA –</span>;
   let cls = "bg-muted/15 text-ink2";
   if (target && target > 0) {
-    const ratio = cpr / target;
+    const ratio = cpa / target;
     cls = ratio <= 1 ? "bg-good/15 text-good" : ratio <= 1.2 ? "bg-warn/15 text-warn" : "bg-crit/15 text-crit";
   }
   return (
-    <span className={`tnum rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${cls}`} title={target ? `Target ${fmtRp(target)}` : "No target set"}>
-      CPR {fmtRp(cpr)}
+    <span className={`tnum rounded-md px-1.5 py-0.5 text-xs font-medium ${cls}`} title={target ? `Target ${fmtRp(target)}` : "No target set"}>
+      CPA {fmtRp(cpa)}
     </span>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs uppercase tracking-wider text-muted">{label}</p>
+      <p className="truncate text-base font-semibold text-ink">{value}</p>
+    </div>
   );
 }
 
@@ -70,7 +80,7 @@ export function AdminHome() {
             <span
               key={s.id}
               title={failed && s.last_error ? s.last_error : undefined}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                 failed
                   ? "border-crit/40 bg-crit/10 text-crit"
                   : stale
@@ -94,36 +104,42 @@ export function AdminHome() {
           <EmptyState title="No clients yet" hint="Add your first client in Settings." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {d.clients.map((c) => (
-              <Link
-                key={c.id}
-                to={`/c/${c.id}`}
-                className="group rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border2 hover:bg-surface2"
-                style={{ ["--accent" as any]: c.brand_color }}
-              >
-                <div className="mb-3 flex items-center gap-2.5">
-                  <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
-                  <span className="mr-auto truncate text-sm font-semibold text-ink">{c.name}</span>
-                  {c.unacknowledged_alerts > 0 && (
-                    <span className="rounded-full bg-crit/15 px-2 py-0.5 text-[11px] font-bold text-crit">
-                      {c.unacknowledged_alerts} ⚠
-                    </span>
+            {d.clients.map((c) => {
+              const empty = c.totals.spend === 0 && c.totals.leads === 0 && c.totals.purchases === 0;
+              return (
+                <Link
+                  key={c.id}
+                  to={`/c/${c.id}`}
+                  className="press group rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border2 hover:bg-surface2"
+                  style={{ ["--accent" as any]: c.brand_color }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
+                    <span className="mr-auto truncate text-sm font-semibold text-ink">{c.name}</span>
+                    {c.unacknowledged_alerts > 0 && (
+                      <span className="rounded-full bg-crit/15 px-2 py-0.5 text-xs font-bold text-crit">{c.unacknowledged_alerts} ⚠</span>
+                    )}
+                    {empty && <span className="text-xs text-muted">No data yet</span>}
+                  </div>
+                  {!empty && (
+                    <>
+                      <div className="tnum mt-3 grid grid-cols-[1.6fr_1fr_1fr] gap-2">
+                        <Stat label="Spend" value={fmtRp(c.totals.spend)} />
+                        <Stat label="Leads" value={fmtNum(c.totals.leads)} />
+                        <Stat label="Purchases" value={fmtNum(c.totals.purchases)} />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <CpaChip cpa={c.totals.cpa} target={c.target_cpa} />
+                        <span className="tnum text-xs text-muted">{c.totals.cpl != null ? `CPL ${fmtRp(c.totals.cpl)}` : ""}</span>
+                      </div>
+                      <div className="mt-2">
+                        <Sparkline points={c.spark.map((p) => p.spend)} color={c.brand_color} />
+                      </div>
+                    </>
                   )}
-                </div>
-                <div className="tnum mb-2 flex items-baseline justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted">Spend</p>
-                    <p className="text-base font-semibold text-ink">{fmtRp(c.totals.spend)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted">Results</p>
-                    <p className="text-base font-semibold text-ink">{fmtNum(c.totals.results)}</p>
-                  </div>
-                  <CprChip cpr={c.totals.cpr} target={c.cpr_target} />
-                </div>
-                <Sparkline points={c.spark.map((p) => p.spend)} color={c.brand_color} />
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

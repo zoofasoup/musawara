@@ -8,6 +8,7 @@ import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { btnCls as btn, fieldCls as field } from "../components/kit";
 
 const SOURCES = [
   { key: "meta", label: "Meta Ads", color: "var(--color-chart-1)" },
@@ -36,8 +37,6 @@ type Entry = {
   note: string | null;
 };
 
-const field = "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink";
-const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 export function Spend() {
   const [range, setRange] = useState<DateRange>(presetByKey("30d"));
@@ -117,7 +116,7 @@ export function Spend() {
               <KpiCard label="Total spend" value={fmtRp(d.total)} current={d.total} previous={d.previous_total} direction="neutral" />
               {sources.slice(0, 3).map((s) => (
                 <div key={s.key} className="rounded-xl border border-border bg-surface p-3.5">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{label(s.key)}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted">{label(s.key)}</p>
                   <p className="tnum mt-1 truncate text-xl font-semibold text-ink">{fmtRp(s.total)}</p>
                   <p className="tnum mt-1 text-xs text-ink2">{fmtPct(d.total ? (s.total / d.total) * 100 : 0, 0)} of total</p>
                 </div>
@@ -128,7 +127,7 @@ export function Spend() {
               <EmptyState title="No spend in this range" hint="Meta syncs nightly. Add marketplace spend below." />
             ) : (
               <div className="rounded-xl border border-border bg-surface p-4">
-                <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink2">
+                <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
                   {sources.map((s) => (
                     <span key={s.key} className="inline-flex items-center gap-1.5">
                       <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SOURCES.find((x) => x.key === s.key)?.color }} />
@@ -140,8 +139,8 @@ export function Spend() {
                   <ResponsiveContainer>
                     <BarChart data={days} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
                       <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                      <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
-                      <YAxis tickFormatter={(v: number) => fmtCompact(v)} tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                      <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
+                      <YAxis tickFormatter={(v: number) => fmtCompact(v)} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={44} />
                       <Tooltip
                         cursor={{ fill: "var(--color-hair)" }}
                         content={({ active, payload, label: l }) => {
@@ -176,7 +175,7 @@ export function Spend() {
                       <span className="text-ink">{label(s.key)}</span>
                       <span className="text-right">
                         <span className="font-semibold text-ink">{fmtRp(s.total)}</span>
-                        {s.fee > 0 && <span className="block text-[11px] text-muted">ads {fmtRp(s.ads)} · fees {fmtRp(s.fee)}</span>}
+                        {s.fee > 0 && <span className="block text-xs text-muted">ads {fmtRp(s.ads)} · fees {fmtRp(s.fee)}</span>}
                       </span>
                     </li>
                   ))}
@@ -228,7 +227,7 @@ export function Spend() {
               <li key={e.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="tnum block text-ink">{fmtRp(e.amount)} · {label(e.source)} · {e.category === "fee" ? "fees" : "ads"}</span>
-                  <span className="block truncate text-[11px] text-muted">
+                  <span className="block truncate text-xs text-muted">
                     {fmtDayFull(e.date)} · {e.client_name ?? "Company-wide"}{e.note ? ` · ${e.note}` : ""}
                   </span>
                 </span>

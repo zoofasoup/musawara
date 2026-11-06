@@ -64,7 +64,7 @@ export function Login() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
-        <p className="mt-4 text-center text-[11px] text-muted">
+        <p className="mt-4 text-center text-xs text-muted">
           Access is by invitation from Musawara Creative.
         </p>
       </div>

@@ -3,7 +3,7 @@ import { api, useApi } from "../../lib/api";
 import { ClientAvatar } from "../../components/Layout";
 import { Icon } from "../../components/icons";
 import { fmtAgo, fmtDateTime, fmtDayFull, fmtNum, hoursSince } from "../../lib/format";
-import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, selectCls, type Notify, type Tone } from "./kit";
+import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, selectCls, type Notify, type Tone } from "../../components/kit";
 
 const ymdAdd = (ymd: string, days: number) => new Date(Date.parse(ymd + "T00:00:00Z") + days * 86_400_000).toISOString().slice(0, 10);
 
@@ -26,12 +26,12 @@ type Plan = { from: string; to: string; chunks: PlanChunk[]; covered: number; re
 function Stat({ icon, label, value, sub }: { icon: Parameters<typeof Icon>[0]["name"]; label: string; value: string; sub?: string }) {
   return (
     <div className="min-w-0 rounded-lg bg-surface2 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted">
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted">
         <Icon name={icon} className="h-3.5 w-3.5" />
         {label}
       </p>
       <p className="tnum mt-1 truncate text-[13px] font-medium text-ink" title={value}>{value}</p>
-      {sub && <p className="truncate text-[11px] text-muted">{sub}</p>}
+      {sub && <p className="truncate text-xs text-muted">{sub}</p>}
     </div>
   );
 }
@@ -190,7 +190,7 @@ function AccountCard({ a, notify, reload }: { a: any; notify: Notify; reload: ()
                 <div className="h-2 overflow-hidden rounded-full bg-surface3">
                   <div className="h-full rounded-full bg-[var(--accent)] transition-[width]" style={{ width: `${Math.max(pct, 4)}%` }} />
                 </div>
-                <p className="tnum mt-1 text-[11px] text-muted">
+                <p className="tnum mt-1 text-xs text-muted">
                   {progress.total ? `${progress.done} of ${progress.total} ranges · ` : ""}
                   {progress.label}
                 </p>
@@ -303,7 +303,7 @@ export function AccountsSection({
               Connect
             </Btn>
           </div>
-          <p className="flex items-center gap-1.5 text-[11px] text-muted">
+          <p className="flex items-center gap-1.5 text-xs text-muted">
             <Icon name="info" className="h-3.5 w-3.5" /> Find the ID in Ads Manager, in the account dropdown at the top left. The system user must be assigned to that account.
           </p>
         </form>

@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { BASE } from "../lib/api";
+import { Icon, type IconName } from "./icons";
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
@@ -10,7 +11,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
         alt="musawara"
         className="h-7 w-auto"
       />
-      {!compact && <span className="text-[11px] font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
+      {!compact && <span className="text-xs font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
     </span>
   );
 }
@@ -34,49 +35,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, client, logout } = useAuth();
   const navigate = useNavigate();
 
-  const links =
+  const links: Array<{ to: string; label: string; short?: string; icon: IconName }> =
     user?.role === "admin"
       ? [
-          { to: "/", label: "Overview", short: "Home" },
-          { to: "/board", label: "Board" },
-          { to: "/spend", label: "Spend" },
-          { to: "/conversions", label: "Sales", short: "Sales" },
-          { to: "/organic", label: "Organic" },
-          { to: "/settings", label: "Settings" },
+          { to: "/", label: "Overview", short: "Home", icon: "home" },
+          { to: "/board", label: "Board", icon: "board" },
+          { to: "/spend", label: "Spend", icon: "spend" },
+          { to: "/conversions", label: "Sales", icon: "tag" },
+          { to: "/organic", label: "Organic", icon: "image" },
+          { to: "/settings", label: "Settings", icon: "sliders" },
         ]
       : user?.client_id
         ? [
-            { to: `/c/${user.client_id}`, label: "Dashboard" },
-            { to: `/c/${user.client_id}/creatives`, label: "Creatives" },
-            { to: `/c/${user.client_id}/brand`, label: "Brand" },
+            { to: `/c/${user.client_id}`, label: "Dashboard", icon: "chart" },
+            { to: `/c/${user.client_id}/creatives`, label: "Creatives", icon: "image" },
+            { to: `/c/${user.client_id}/brand`, label: "Brand", icon: "building" },
           ]
         : [];
+  const isEnd = (to: string) => to === "/" || to === `/c/${user?.client_id}`;
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-1 px-4 sm:gap-4">
-          <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="inline-flex min-h-11 shrink-0 items-center">
+          <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="inline-flex min-h-11 min-w-11 shrink-0 items-center">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
-          <nav className="flex items-center sm:gap-1">
+          <nav className="hidden items-center gap-1 sm:flex">
             {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
-                end={l.to === "/" || l.to === `/c/${user?.client_id}`}
+                end={isEnd(l.to)}
                 className={({ isActive }) =>
-                  `inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-1.5 text-[13px] sm:px-2.5 font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
+                  `inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-2.5 text-[13px] font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
                 }
               >
-                {l.short ? (
-                  <>
-                    <span className="sm:hidden">{l.short}</span>
-                    <span className="hidden sm:inline">{l.label}</span>
-                  </>
-                ) : (
-                  l.label
-                )}
+                {l.label}
               </NavLink>
             ))}
           </nav>
@@ -90,14 +85,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 await logout();
                 navigate("/login");
               }}
-              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg border border-border bg-surface px-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink sm:px-2.5"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink"
             >
               Sign out
             </button>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 sm:pb-6">{children}</main>
+
+      {/* Phones: tab bar at the bottom, within thumb reach. */}
+      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden">
+        <div className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={isEnd(l.to)}
+              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
+            >
+              <Icon name={l.icon} className="h-5 w-5" />
+              <span className="leading-none">{l.short ?? l.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
