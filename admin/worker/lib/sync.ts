@@ -71,6 +71,55 @@ ON CONFLICT(ad_account_id, level, entity_id) DO UPDATE SET
   objective=excluded.objective, daily_budget=excluded.daily_budget, parent_id=excluded.parent_id,
   thumbnail_url=COALESCE(excluded.thumbnail_url, entities.thumbnail_url), updated_at=datetime('now')`;
 
+/**
+ * Pull campaign/adset/ad insights for [since, until] and upsert them, one level
+ * at a time (sequential, rate-limit friendly). Used by the daily sync and by
+ * the history backfill, which feeds it one month at a time.
+ */
+export async function pullInsights(env: Env, account: AdAccountRow, since: string, until: string): Promise<number> {
+  const cfg = await getResultConfig(env, account.id);
+  let rows = 0;
+  for (const level of ["campaign", "adset", "ad"] as const) {
+    const data = await fetchInsights(env, account.meta_account_id, level, since, until);
+    const stmts: D1PreparedStatement[] = [];
+    for (const r of data) {
+      const entityId = level === "campaign" ? r.campaign_id : level === "adset" ? r.adset_id : r.ad_id;
+      const entityName = level === "campaign" ? r.campaign_name : level === "adset" ? r.adset_name : r.ad_name;
+      const parentId = level === "campaign" ? null : level === "adset" ? r.campaign_id : r.adset_id;
+      if (!entityId || !r.date_start) continue;
+      const spend = Number(r.spend) || 0;
+      const impressions = Number(r.impressions) || 0;
+      const clicks = Number(r.clicks) || 0;
+      const results = deriveResults(r.actions, r.campaign_id ?? null, cfg);
+      stmts.push(
+        env.DB.prepare(UPSERT_INSIGHT).bind(
+          account.id,
+          level,
+          entityId,
+          entityName ?? null,
+          parentId,
+          r.campaign_id ?? null,
+          r.date_start,
+          spend,
+          impressions,
+          Number(r.reach) || 0,
+          clicks,
+          Number(r.inline_link_clicks) || 0,
+          impressions > 0 ? (clicks / impressions) * 100 : null,
+          impressions > 0 ? (spend / impressions) * 1000 : null,
+          r.frequency != null ? Number(r.frequency) : null,
+          results,
+          results && results > 0 ? spend / results : null,
+          r.actions ? JSON.stringify(r.actions) : null
+        )
+      );
+    }
+    rows += stmts.length;
+    await runBatched(env, stmts);
+  }
+  return rows;
+}
+
 export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jobId: number; rows: number }> {
   const job = await env.DB.prepare("INSERT INTO sync_jobs (ad_account_id) VALUES (?) RETURNING id")
     .bind(account.id)
@@ -102,49 +151,10 @@ export async function syncAccount(env: Env, account: AdAccountRow): Promise<{ jo
     for (const a of tree.ads) push("ad", a, a.adset_id ?? null, null, a.creative?.thumbnail_url ?? null);
     await runBatched(env, entityStmts);
 
-    // 2. Insights, 28-day repull, one level at a time (sequential — rate-limit friendly)
+    // 2. Insights, 28-day repull (Meta restates recent days)
     const until = ymdInTz(account.timezone);
     const since = addDays(until, -(SYNC_LOOKBACK_DAYS - 1));
-    const cfg = await getResultConfig(env, account.id);
-
-    for (const level of ["campaign", "adset", "ad"] as const) {
-      const data = await fetchInsights(env, account.meta_account_id, level, since, until);
-      const stmts: D1PreparedStatement[] = [];
-      for (const r of data) {
-        const entityId = level === "campaign" ? r.campaign_id : level === "adset" ? r.adset_id : r.ad_id;
-        const entityName = level === "campaign" ? r.campaign_name : level === "adset" ? r.adset_name : r.ad_name;
-        const parentId = level === "campaign" ? null : level === "adset" ? r.campaign_id : r.adset_id;
-        if (!entityId || !r.date_start) continue;
-        const spend = Number(r.spend) || 0;
-        const impressions = Number(r.impressions) || 0;
-        const clicks = Number(r.clicks) || 0;
-        const results = deriveResults(r.actions, r.campaign_id ?? null, cfg);
-        stmts.push(
-          env.DB.prepare(UPSERT_INSIGHT).bind(
-            account.id,
-            level,
-            entityId,
-            entityName ?? null,
-            parentId,
-            r.campaign_id ?? null,
-            r.date_start,
-            spend,
-            impressions,
-            Number(r.reach) || 0,
-            clicks,
-            Number(r.inline_link_clicks) || 0,
-            impressions > 0 ? (clicks / impressions) * 100 : null,
-            impressions > 0 ? (spend / impressions) * 1000 : null,
-            r.frequency != null ? Number(r.frequency) : null,
-            results,
-            results && results > 0 ? spend / results : null,
-            r.actions ? JSON.stringify(r.actions) : null
-          )
-        );
-      }
-      rows += stmts.length;
-      await runBatched(env, stmts);
-    }
+    rows += await pullInsights(env, account, since, until);
 
     await env.DB.prepare("UPDATE sync_jobs SET finished_at=datetime('now'), status='success', rows_upserted=? WHERE id=?")
       .bind(rows, jobId)

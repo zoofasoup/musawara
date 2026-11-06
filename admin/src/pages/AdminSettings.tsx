@@ -3,6 +3,16 @@ import { api, BASE, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 import { ClientAvatar } from "../components/Layout";
 
+/** Calendar-month chunks from `months` months ago through the current month. */
+function monthChunks(months: number): Array<{ since: string; until: string }> {
+  const now = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date()) + "T00:00:00Z");
+  return Array.from({ length: months + 1 }, (_, i) => {
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - i), 1));
+    const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0));
+    return { since: first.toISOString().slice(0, 10), until: last.toISOString().slice(0, 10) };
+  });
+}
+
 /** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
 async function photoToDataUrl(file: File): Promise<string> {
   const bmp = await createImageBitmap(file);
@@ -136,6 +146,35 @@ function ClientsSection({ state }: { state: ClientsState }) {
   );
 }
 
+function BackfillButton({ accountId, onDone }: { accountId: number; onDone: () => void }) {
+  const [progress, setProgress] = useState<string | null>(null);
+  const run = async () => {
+    const chunks = monthChunks(12);
+    if (!confirm(`Pull the last 13 months of history from Meta (${chunks.length} steps)? Existing data is updated, nothing is deleted.`)) return;
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        setProgress(`${i + 1}/${chunks.length}`);
+        await api(`/admin/accounts/${accountId}/backfill`, { method: "POST", body: chunks[i] });
+      }
+      alert("History pulled.");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setProgress(null);
+      onDone();
+    }
+  };
+  return (
+    <button
+      onClick={run}
+      disabled={progress !== null}
+      className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3 disabled:opacity-60"
+    >
+      {progress ? `Pulling ${progress}…` : "Backfill 13 mo"}
+    </button>
+  );
+}
+
 function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clients: any[] } | undefined; reloadClients: () => void }) {
   const { data, loading, error, reload } = useApi<{ accounts: any[] }>("/admin/accounts");
   const [adding, setAdding] = useState(false);
@@ -219,6 +258,8 @@ function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clie
                     {a.status} · Currency: {a.currency} · TZ: {a.timezone}
                   </p>
                 </div>
+                <div className="flex shrink-0 gap-2">
+                <BackfillButton accountId={a.id} onDone={reload} />
                 <button
                   onClick={async () => {
                     try {
@@ -228,10 +269,11 @@ function AdAccountsSection({ clientsData, reloadClients }: { clientsData: { clie
                       alert(err.message);
                     }
                   }}
-                  className="rounded bg-surface2 px-2 py-1 text-xs text-ink hover:bg-surface3"
+                  className="inline-flex min-h-11 items-center rounded bg-surface2 px-3 text-xs text-ink hover:bg-surface3"
                 >
                   Sync Now
                 </button>
+                </div>
               </div>
               <div className="mt-3 flex gap-4 text-sm">
                 <div>

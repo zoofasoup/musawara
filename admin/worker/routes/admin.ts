@@ -4,7 +4,7 @@ import { requireAdmin } from "../middleware";
 import { randomToken } from "../lib/auth";
 import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
-import { rederiveResults, syncAccount } from "../lib/sync";
+import { pullInsights, rederiveResults, syncAccount } from "../lib/sync";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
 import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
@@ -429,6 +429,32 @@ admin.post("/accounts/:id/sync", async (c) => {
     return c.json({ ok: true, ...result });
   } catch (e: any) {
     return c.json({ error: `Sync failed: ${e.message}` }, 502);
+  }
+});
+
+/**
+ * History backfill, one chunk (<= 31 days) per call so a Worker request stays
+ * short and a failure only loses that chunk; the admin UI walks month by month.
+ * Meta keeps ~37 months of insights (reach per day only ~13 months).
+ */
+admin.post("/accounts/:id/backfill", async (c) => {
+  const account = await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE id=?")
+    .bind(c.req.param("id"))
+    .first<AdAccountRow>();
+  if (!account) return c.json({ error: "Account not found" }, 404);
+  if (!(await getMetaToken(c.env))) return c.json({ error: "No Meta access token configured." }, 400);
+  const { since, until } = await c.req.json().catch(() => ({}));
+  const ymd = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ymd.test(since) || !ymd.test(until) || since > until) return c.json({ error: "Invalid date range" }, 400);
+  const today = ymdInTz(account.timezone);
+  const end = until > today ? today : until;
+  if (since < addDays(today, -1125)) return c.json({ error: "Meta only keeps about 37 months of insights" }, 400);
+  if (since > end || end > addDays(since, 30)) return c.json({ error: "Range must be 31 days or less" }, 400);
+  try {
+    const rows = await pullInsights(c.env, account, since, end);
+    return c.json({ ok: true, rows, since, until: end });
+  } catch (e: any) {
+    return c.json({ error: `Backfill failed for ${since}: ${e.message}` }, 502);
   }
 });
 
