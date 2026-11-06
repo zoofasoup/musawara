@@ -74,3 +74,8 @@ export function fmtAgo(sqlUtc: string | null | undefined): string {
   if (h < 48) return `${Math.round(h)} h ago`;
   return `${Math.round(h / 24)} d ago`;
 }
+
+/** Digits-only string shown with thousand separators ("1000000" -> "1.000.000") for money inputs. */
+export function fmtDigits(raw: string): string {
+  return raw ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(raw)) : "";
+}

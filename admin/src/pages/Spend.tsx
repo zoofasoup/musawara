@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, useApi } from "../lib/api";
 import { presetByKey, todayJakarta, type DateRange } from "../lib/dates";
-import { fmtCompact, fmtDay, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
+import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
@@ -215,7 +215,7 @@ export function Spend() {
             {clients.data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={field} aria-label="Date" />
-          <input type="number" required min="1" step="any" inputMode="numeric" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount (Rp)" aria-label="Amount in Rupiah" className={`${field} w-full sm:w-40`} />
+          <input type="text" required inputMode="numeric" value={fmtDigits(form.amount)} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })} placeholder="Amount (Rp)" aria-label="Amount in Rupiah" className={`${field} w-full sm:w-40`} />
           <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Note" aria-label="Note" maxLength={200} className={`${field} w-full sm:w-auto sm:flex-1`} />
           <button className={btn}>Add</button>
         </form>

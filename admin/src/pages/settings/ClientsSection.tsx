@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, type useApi } from "../../lib/api";
 import { ClientAvatar } from "../../components/Layout";
+import { fmtDigits } from "../../lib/format";
 import { Icon } from "../../components/icons";
 import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "./kit";
 
@@ -40,7 +41,7 @@ function TargetCpa({ c, reload, notify }: { c: any; reload: () => void; notify: 
         <span className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">Rp</span>
           <input
-            value={v}
+            value={fmtDigits(v)}
             onChange={(e) => setV(e.target.value.replace(/\D/g, ""))}
             inputMode="numeric"
             placeholder="not set"
