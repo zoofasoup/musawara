@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { useApi } from "../lib/api";
-import { presets, type DateRange } from "../lib/dates";
+import { presetByKey, type DateRange } from "../lib/dates";
 import { fmtNum, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
 import type { Entity } from "../components/EntityTable";
@@ -14,7 +14,7 @@ const FATIGUE_FREQUENCY = 3.5;
 type SortMode = "cpr" | "spend" | "ctr";
 
 export function CreativeView({ clientId }: { clientId: number }) {
-  const [range, setRange] = useState<DateRange>(presets()[0]);
+  const [range, setRange] = useState<DateRange>(presetByKey("7d"));
   const [sort, setSort] = useState<SortMode>("cpr");
   const { data, error, loading, reload } = useApi<{ ads: Entity[] }>(
     `/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`

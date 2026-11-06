@@ -35,10 +35,15 @@ export function presets(): DateRange[] {
   const lastMonthEnd = addDays(monthStart, -1);
   const lastMonthStart = lastMonthEnd.slice(0, 8) + "01";
   return [
+    { key: "yesterday", label: "Yesterday", from: yesterday, to: yesterday },
     { key: "7d", label: "Last 7 days", from: addDays(yesterday, -6), to: yesterday },
     { key: "14d", label: "Last 14 days", from: addDays(yesterday, -13), to: yesterday },
     { key: "30d", label: "Last 30 days", from: addDays(yesterday, -29), to: yesterday },
     { key: "month", label: "This month", from: monthStart, to: today },
     { key: "lastmonth", label: "Last month", from: lastMonthStart, to: lastMonthEnd },
   ];
+}
+
+export function presetByKey(key: string): DateRange {
+  return presets().find((p) => p.key === key) ?? presets()[1];
 }

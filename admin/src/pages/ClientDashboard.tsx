@@ -5,8 +5,8 @@ import { onAccent } from "../lib/color";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
-import { presets, type DateRange } from "../lib/dates";
-import { fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } from "../lib/format";
+import { presetByKey, type DateRange } from "../lib/dates";
+import { fmtDay, fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
@@ -65,7 +65,7 @@ function StaleBanner({ accounts }: { accounts: Meta["accounts"] }) {
 
 export function ClientDashboard({ clientId, share = false }: { clientId: number; share?: boolean }) {
   const { user } = useAuth();
-  const [range, setRange] = useState<DateRange>(presets()[0]);
+  const [range, setRange] = useState<DateRange>(presetByKey("7d"));
   const query = `from=${range.from}&to=${range.to}`;
 
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
@@ -76,6 +76,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
   const resultLabel = meta.data?.resultLabel ?? "Results";
   const accent = meta.data?.client.brand_color ?? "#7a2de3";
+  const lastSync = meta.data?.accounts.map((a) => a.last_sync).filter(Boolean).sort().at(-1) ?? null;
 
   const kpis = useMemo(() => {
     const c = summary.data?.current;
@@ -97,51 +98,66 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   return (
     <div style={{ ["--accent" as any]: accent, ["--on-accent" as any]: onAccent(accent) }}>
       {/* header */}
-      <div className="mb-5 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex items-center gap-3">
         {meta.data ? (
           <>
             <ClientAvatar name={meta.data.client.name} logoUrl={meta.data.client.logo_url} color={accent} size={10} />
-            <div className="mr-auto">
-              <h1 className="text-lg font-semibold leading-tight text-ink">{meta.data.client.name}</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-semibold leading-tight text-ink">{meta.data.client.name}</h1>
               <p className="tnum text-xs text-muted">
-                {fmtDayFull(range.from)} – {fmtDayFull(range.to)}
-                {summary.data && (
-                  <span> · vs {fmtDayFull(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}</span>
-                )}
+                {lastSync ? `Updated ${fmtDateTime(lastSync)}` : "Not synced yet"}
+                {" · "}
+                {meta.data.accounts.length} {meta.data.accounts.length === 1 ? "account" : "accounts"}
               </p>
             </div>
           </>
         ) : (
-          <div className="mr-auto h-10 w-48 skeleton" />
+          <div className="h-10 w-48 skeleton" />
         )}
-        {!share && user?.role === "admin" && (
-          <div className="flex gap-2">
-            <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
-              Brand knowledge
-            </Link>
-            <Link to={`/c/${clientId}/onboarding`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">
-              Onboarding
-            </Link>
-          </div>
-        )}
-        <DateRangePicker value={range} onChange={setRange} />
+      </div>
+
+      {/* toolbar: secondary pages on the left, date range on the right */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {!share && user?.role === "admin" && (
+            <>
+              <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
+                Brand knowledge
+              </Link>
+              <Link to={`/c/${clientId}/onboarding`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
+                Onboarding
+              </Link>
+            </>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          {summary.data && (
+            <span className="tnum text-[11px] text-muted">
+              vs {fmtDay(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}
+            </span>
+          )}
+          <DateRangePicker value={range} onChange={setRange} />
+        </div>
       </div>
 
       {meta.data && <StaleBanner accounts={meta.data.accounts} />}
 
-      {/* KPI row */}
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-        {kpis.map((k) => (
-          <KpiCard
-            key={k.label}
-            label={k.label}
-            value={k.value}
-            current={k.cur}
-            previous={k.prev}
-            direction={k.dir}
-            loading={summary.loading}
-          />
-        ))}
+      {/* metrics strip */}
+      <div className="mb-5 overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="-mb-px -mr-px grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+          {kpis.map((k) => (
+            <KpiCard
+              key={k.label}
+              flat
+              label={k.label}
+              value={k.value}
+              current={k.cur}
+              previous={k.prev}
+              direction={k.dir}
+              loading={summary.loading}
+            />
+          ))}
+        </div>
       </div>
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}
 

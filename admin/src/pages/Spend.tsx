@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, useApi } from "../lib/api";
-import { presets, todayJakarta, type DateRange } from "../lib/dates";
+import { presetByKey, todayJakarta, type DateRange } from "../lib/dates";
 import { fmtCompact, fmtDay, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
@@ -40,7 +40,7 @@ const field = "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2
 const btn = "inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink";
 
 export function Spend() {
-  const [range, setRange] = useState<DateRange>(presets()[2]);
+  const [range, setRange] = useState<DateRange>(presetByKey("30d"));
   const [clientId, setClientId] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({ source: "shopee", category: "ads", client_id: "", date: todayJakarta(), amount: "", note: "" });
