@@ -63,17 +63,17 @@ function MetricCells({ e, level }: { e: Entity; level: string }) {
   const cpc = cpcOf(e);
   return (
     <>
-      <td className="tnum hidden px-3 py-2.5 text-right text-[12px] text-ink2 xl:table-cell">{budgetText(e, level)}</td>
-      <td className="tnum px-3 py-2.5 text-right text-ink">{fmtRp(e.spend)}</td>
-      <td className="tnum px-3 py-2.5 text-right text-ink">{fmtNum(e.leads)}</td>
-      <td className="tnum px-3 py-2.5 text-right">
+      <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-[12px] text-ink2 xl:table-cell">{budgetText(e, level)}</td>
+      <td className="tnum whitespace-nowrap px-3 py-2.5 text-right text-ink">{fmtRp(e.spend)}</td>
+      <td className="tnum whitespace-nowrap px-3 py-2.5 text-right text-ink">{fmtNum(e.leads)}</td>
+      <td className="tnum whitespace-nowrap px-3 py-2.5 text-right">
         <span className="text-ink">{fmtRp(e.cpl)}</span>
         <Delta current={e.cpl} previous={e.previous.cpl} direction="lower-better" className="ml-1.5" />
       </td>
-      <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtNum(e.link_clicks)}</td>
-      <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtRp(cpc)}</td>
-      <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtPct(e.ctr)}</td>
-      <td className="tnum hidden px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtNum(e.frequency, 1)}</td>
+      <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtNum(e.link_clicks)}</td>
+      <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtRp(cpc)}</td>
+      <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtPct(e.ctr)}</td>
+      <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink2 lg:table-cell">{fmtNum(e.frequency, 1)}</td>
     </>
   );
 }
@@ -377,12 +377,12 @@ export function EntityTable({ clientId, from, to }: { clientId: number; from: st
                     Results from {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"}
                   </td>
                   <td className="hidden xl:table-cell" />
-                  <td className="tnum px-3 py-2.5 text-right text-ink">{fmtRp(total.spend)}</td>
-                  <td className="tnum px-3 py-2.5 text-right text-ink">{fmtNum(total.leads)}</td>
-                  <td className="tnum px-3 py-2.5 text-right text-ink">{fmtRp(total.cpl)}</td>
-                  <td className="tnum hidden px-3 py-2.5 text-right text-ink lg:table-cell">{fmtNum(total.link_clicks)}</td>
-                  <td className="tnum hidden px-3 py-2.5 text-right text-ink lg:table-cell">{fmtRp(total.cpc)}</td>
-                  <td className="tnum hidden px-3 py-2.5 text-right text-ink lg:table-cell">{fmtPct(total.ctr)}</td>
+                  <td className="tnum whitespace-nowrap px-3 py-2.5 text-right text-ink">{fmtRp(total.spend)}</td>
+                  <td className="tnum whitespace-nowrap px-3 py-2.5 text-right text-ink">{fmtNum(total.leads)}</td>
+                  <td className="tnum whitespace-nowrap px-3 py-2.5 text-right text-ink">{fmtRp(total.cpl)}</td>
+                  <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink lg:table-cell">{fmtNum(total.link_clicks)}</td>
+                  <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink lg:table-cell">{fmtRp(total.cpc)}</td>
+                  <td className="tnum hidden whitespace-nowrap px-3 py-2.5 text-right text-ink lg:table-cell">{fmtPct(total.ctr)}</td>
                   <td className="hidden lg:table-cell" />
                 </tr>
               </tfoot>

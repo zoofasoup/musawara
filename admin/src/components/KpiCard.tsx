@@ -36,7 +36,8 @@ export function KpiCard({
   return (
     <div className={box}>
       <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{label}</p>
-      <p className="tnum mt-1 truncate text-xl font-semibold text-ink" title={value}>
+      {/* never truncate a number: long amounts get a smaller size, and may wrap after "Rp" on narrow cards */}
+      <p className={`tnum mt-1 font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
       </p>
       <div className="mt-1">
