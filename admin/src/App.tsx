@@ -1,22 +1,23 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 
 // Pages
-import { AdminHome } from "./pages/AdminHome";
-import { ClientDashboard } from "./pages/ClientDashboard";
-import { CreativeView } from "./pages/CreativeView";
-import { Invite } from "./pages/Invite";
+const AdminHome = lazy(() => import("./pages/AdminHome").then((m) => ({ default: m.AdminHome })));
+const ClientDashboard = lazy(() => import("./pages/ClientDashboard").then((m) => ({ default: m.ClientDashboard })));
+const CreativeView = lazy(() => import("./pages/CreativeView").then((m) => ({ default: m.CreativeView })));
+const Invite = lazy(() => import("./pages/Invite").then((m) => ({ default: m.Invite })));
 import { Login } from "./pages/Login";
-import { ShareView } from "./pages/ShareView";
-import { AdminSettings } from "./pages/AdminSettings";
-import { BrandKnowledge } from "./pages/BrandKnowledge";
-import { Onboarding } from "./pages/Onboarding";
-import { Spend } from "./pages/Spend";
-import { Board } from "./pages/Board";
-import { Conversions } from "./pages/Conversions";
-import { Organic } from "./pages/Organic";
+const ShareView = lazy(() => import("./pages/ShareView").then((m) => ({ default: m.ShareView })));
+const AdminSettings = lazy(() => import("./pages/AdminSettings").then((m) => ({ default: m.AdminSettings })));
+const BrandKnowledge = lazy(() => import("./pages/BrandKnowledge").then((m) => ({ default: m.BrandKnowledge })));
+const Onboarding = lazy(() => import("./pages/Onboarding").then((m) => ({ default: m.Onboarding })));
+const Spend = lazy(() => import("./pages/Spend").then((m) => ({ default: m.Spend })));
+const Board = lazy(() => import("./pages/Board").then((m) => ({ default: m.Board })));
+const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ default: m.Conversions })));
+const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, ready } = useAuth();
@@ -44,6 +45,7 @@ function RootRedirect() {
 export function App() {
   return (
     <BrowserRouter basename={BASE}>
+      <Suspense fallback={null}>
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -139,6 +141,7 @@ export function App() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -3,9 +3,8 @@
 import type { ReactNode } from "react";
 import { fmtNum } from "../lib/format";
 
-export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton ${className}`} />;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+export { Skeleton };
 
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (

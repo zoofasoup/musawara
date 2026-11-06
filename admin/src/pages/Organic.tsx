@@ -7,6 +7,7 @@ import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 import { btnCls as btn, ConfirmBtn, selectSmCls as sel, Sheet } from "../components/kit";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Day = { day: string; count: number };
 type Account = {
@@ -235,19 +236,15 @@ export function Organic() {
         <div className="mt-5"><EmptyState title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." /></div>
       ) : (
         <>
-          <div className="mt-5 flex gap-1 overflow-x-auto border-b border-border" role="tablist">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                role="tab"
-                aria-selected={t.id === activeId}
-                onClick={() => setClientId(t.id)}
-                className={`min-h-11 shrink-0 border-b-2 px-4 text-sm font-medium ${t.id === activeId ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
+          <Tabs value={String(activeId)} onValueChange={(v) => setClientId(Number(v))} className="mt-5">
+            <TabsList variant="line" className="h-auto w-full flex-wrap justify-start border-b border-border">
+              {tabs.map((t) => (
+                <TabsTrigger key={t.id} value={String(t.id)} className="min-h-11 flex-none px-4 text-sm">
+                  {t.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           <div className="mt-4 grid gap-2">
             {clientAccounts.map((a) => <StoryRow key={a.id} a={a} />)}
