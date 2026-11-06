@@ -4,6 +4,8 @@ export type Env = {
   JWT_SECRET: string;
   META_ACCESS_TOKEN?: string;
   APP_NAME: string;
+  /** Test-only override of https://graph.facebook.com for the Conversions API. */
+  GRAPH_BASE?: string;
 };
 
 export type Role = "admin" | "client";

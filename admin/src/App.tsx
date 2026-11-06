@@ -15,6 +15,7 @@ import { BrandKnowledge } from "./pages/BrandKnowledge";
 import { Onboarding } from "./pages/Onboarding";
 import { Spend } from "./pages/Spend";
 import { Board } from "./pages/Board";
+import { Conversions } from "./pages/Conversions";
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, ready } = useAuth();
@@ -113,6 +114,15 @@ export function App() {
           element={
             <ProtectedRoute requireAdmin>
               <Spend />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/conversions"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Conversions />
             </ProtectedRoute>
           }
         />
