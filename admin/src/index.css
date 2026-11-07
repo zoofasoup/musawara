@@ -22,6 +22,9 @@
   src:local("TASA Explorer ExtraBold"),local("TASAExplorer-ExtraBold"),
       url("https://cdn.jsdelivr.net/fontsource/fonts/tasa-explorer@latest/latin-800-normal.woff2") format("woff2")}
 
+/* The app is light-only: make shadcn's dark: variants class-based so a dark OS theme never triggers them. */
+@custom-variant dark (&:is(.dark *));
+
 @theme {
   --font-sans: "TASA Orbiter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "TASA Explorer", "TASA Orbiter", ui-sans-serif, system-ui, sans-serif;
@@ -152,4 +155,11 @@ h1, h2, h3 {
 }
 :where(button, [role="tab"], a.press):not(:disabled):active {
   transform: scale(0.97);
+}
+
+/* Borders default to the palette's hairline colour instead of currentColor (the shadcn/ReUI components rely on this). */
+@layer base {
+  *, ::before, ::after, ::backdrop {
+    border-color: var(--color-border);
+  }
 }

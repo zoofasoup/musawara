@@ -365,7 +365,7 @@ conv.get("/sales", async (c) => {
     c.env.DB.prepare(
       `SELECT sale_date, label, value, source, consultant, meta_state, has_contact, departure_date, package_name, room_type, down_payment, pay_status FROM sales
        WHERE client_id=? ${byState ? "AND meta_state=?" : ""} ${monthSql}
-       ORDER BY sale_date DESC, id DESC LIMIT 400`
+       ORDER BY sale_date DESC, id DESC LIMIT 3000`
     )
       .bind(...[clientId, ...(byState ? [state] : []), ...(byMonth ? [month] : [])])
       .all(),

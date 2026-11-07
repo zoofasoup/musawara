@@ -13,6 +13,7 @@ import {
   type Field, type Mapping, type MetaUnit, type SaleRow, type Sheet,
 } from "../lib/conversions";
 import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Tone } from "../components/kit";
+import { SalesGrid, type SavedSale } from "./SalesGrid";
 
 const EVENTS = [
   { v: "Purchase", l: "Purchase (a paid sale)" },
@@ -88,17 +89,9 @@ function FileGuide() {
   );
 }
 
-const PAY: Record<string, { label: string; tone: Tone }> = {
-  dp: { label: "DP", tone: "warn" },
-  paid: { label: "Lunas", tone: "good" },
-  cancelled: { label: "Batal", tone: "crit" },
-};
-
 function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: number }) {
-  const [state, setState] = useState<"all" | "dashboard" | "sent">("all");
-  const [month, setMonth] = useState("");
-  const { data, loading } = useApi<{ months: any[]; closers: any[]; rows: any[] }>(
-    clientId ? `/admin/conversions/sales?client_id=${clientId}&state=${state}&month=${month}&k=${refreshKey}` : null
+  const { data, loading } = useApi<{ months: any[]; rows: SavedSale[] }>(
+    clientId ? `/admin/conversions/sales?client_id=${clientId}&k=${refreshKey}` : null
   );
   if (!clientId) return <p className="text-xs text-muted">Choose a client above to see its saved sales.</p>;
   if (loading && !data) return <div className="h-24 skeleton rounded-xl" />;
@@ -107,7 +100,6 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
   const sent = data.months.reduce((s, m) => s + (m.sent ?? 0), 0);
   const value = data.months.reduce((s, m) => s + (m.value ?? 0), 0);
   const cancelled = data.months.reduce((s, m) => s + (m.cancelled ?? 0), 0);
-  const closerTotal = data.closers.reduce((s, c) => s + c.value, 0);
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-xs">
@@ -133,67 +125,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
           </tbody>
         </table>
       </Panel>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs text-muted">Month
-          <select value={month} onChange={(e) => setMonth(e.target.value)} className={`${inputCls} mt-1 min-w-[9rem]`}>
-            <option value="">All months</option>
-            {data.months.map((m) => <option key={m.month} value={m.month}>{m.month}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <div>
-        <p className="mb-1.5 text-xs font-medium text-ink">By closer{month ? ` · ${month}` : ""}</p>
-        <Panel className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-xs">
-            <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
-              <tr><th className="px-3 py-2">Closer</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Average</th><th className="px-3 py-2 text-right">Share</th></tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {data.closers.map((c) => (
-                <tr key={c.closer}>
-                  <td className="px-3 py-2 font-medium text-ink">{c.closer}</td>
-                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtNum(c.n)}</td>
-                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(c.value)}</td>
-                  <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(c.n ? c.value / c.n : 0)}</td>
-                  <td className="tnum px-3 py-2 text-right text-ink2">{closerTotal ? Math.round((c.value / closerTotal) * 100) : 0}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-      </div>
-
-      <div role="group" aria-label="Filter sales" className="inline-flex rounded-lg bg-surface3 p-0.5">
-        {([["all", "All"], ["dashboard", "Dashboard only"], ["sent", "Sent to Meta"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setState(k)} aria-pressed={state === k} className={`inline-flex min-h-11 items-center rounded-md px-3 text-xs font-medium lg:min-h-8 ${state === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
-        ))}
-      </div>
-      <Panel className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left text-xs">
-          <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Who</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2">Closer</th><th className="px-3 py-2">Departure</th><th className="px-3 py-2">Room</th><th className="px-3 py-2 text-right">DP</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Meta</th></tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {data.rows.map((r, i) => (
-              <tr key={i} className={r.pay_status === "cancelled" ? "opacity-60" : ""}>
-                <td className="tnum px-3 py-2 text-ink2">{fmtDayFull(r.sale_date)}</td>
-                <td className="px-3 py-2 text-ink">{r.label || "–"}</td>
-                <td className="tnum px-3 py-2 text-right text-ink2">{fmtRp(r.value)}</td>
-                <td className="px-3 py-2 text-ink">{r.consultant || "–"}</td>
-                <td className="tnum px-3 py-2 text-ink2">{r.departure_date ? fmtDayFull(r.departure_date) : "–"}</td>
-                <td className="px-3 py-2 text-ink2">{[r.package_name, r.room_type].filter(Boolean).join(" · ") || "–"}</td>
-                <td className="tnum px-3 py-2 text-right text-ink2">{r.down_payment != null ? fmtRp(r.down_payment) : "–"}</td>
-                <td className="px-3 py-2">{r.pay_status ? <Pill tone={PAY[r.pay_status].tone}>{PAY[r.pay_status].label}</Pill> : <span className="text-muted">–</span>}</td>
-                <td className="max-w-[9rem] truncate px-3 py-2 text-ink2" title={r.source}>{r.source || "–"}</td>
-                <td className="px-3 py-2">{r.meta_state === "sent" ? <Pill tone="good" icon="check">Sent</Pill> : <Pill tone="neutral">Dashboard only</Pill>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data.rows.length >= 400 && <p className="border-t border-border px-3 py-2 text-xs text-muted">Showing the latest 400.</p>}
-      </Panel>
+      <SalesGrid rows={data.rows} months={data.months} />
     </div>
   );
 }
