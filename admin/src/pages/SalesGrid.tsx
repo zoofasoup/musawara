@@ -2,11 +2,12 @@
 // Meta state, toggle columns, page through, export what is on screen.
 
 import { useMemo, useState } from "react";
+import { api } from "../lib/api";
 import { useTable, type ColumnDef, type PaginationState, type SortingState, type ColumnVisibilityState } from "@tanstack/react-table";
-import { Columns3, Download } from "lucide-react";
+import { Columns3, Download, Pencil } from "lucide-react";
 import { csvCell } from "../lib/csv";
 import { fmtDayFull, fmtNum, fmtRp } from "../lib/format";
-import { Btn, inputCls, Panel, Pill, selectCls, type Tone } from "../components/kit";
+import { Btn, ConfirmBtn, inputCls, Panel, Pill, selectCls, Sheet, type Notify, type Tone } from "../components/kit";
 import { DataGrid, DataGridContainer, dataGridFeatures, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
 import { DataGridColumnVisibility } from "@/components/reui/data-grid/data-grid-column-visibility";
@@ -14,6 +15,8 @@ import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagina
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 
 export type SavedSale = {
+  id: number;
+  edited_at: string | null;
   sale_date: string;
   label: string | null;
   value: number;
@@ -38,7 +41,7 @@ type State = (typeof STATES)[number][0];
 
 const dash = <span className="text-muted">–</span>;
 
-const columns: ColumnDef<DataGridFeatures, SavedSale>[] = [
+const makeColumns = (onEdit: (s: SavedSale) => void): ColumnDef<DataGridFeatures, SavedSale>[] => [
   {
     accessorKey: "sale_date",
     size: 120,
@@ -50,7 +53,12 @@ const columns: ColumnDef<DataGridFeatures, SavedSale>[] = [
     accessorKey: "label",
     size: 110,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Who" />,
-    cell: ({ row }) => row.original.label || dash,
+    cell: ({ row }) => (
+      <span>
+        {row.original.label || dash}
+        {row.original.edited_at && <span className="ml-1 text-xs text-muted" title="Edited by hand">·edited</span>}
+      </span>
+    ),
     meta: { headerTitle: "Who" },
   },
   {
@@ -113,6 +121,19 @@ const columns: ColumnDef<DataGridFeatures, SavedSale>[] = [
     cell: ({ row }) => (row.original.meta_state === "sent" ? <Pill tone="good" icon="check">Sent</Pill> : <Pill tone="neutral">Dashboard only</Pill>),
     meta: { headerTitle: "Meta" },
   },
+  {
+    id: "edit",
+    size: 56,
+    enableSorting: false,
+    enableHiding: false,
+    header: () => <span className="sr-only">Edit</span>,
+    cell: ({ row }) => (
+      <button type="button" aria-label={`Edit ${row.original.label ?? "sale"}`} onClick={() => onEdit(row.original)} className="inline-flex size-9 items-center justify-center rounded-lg text-ink2 hover:bg-secondary hover:text-ink">
+        <Pencil className="size-4" />
+      </button>
+    ),
+    meta: { headerTitle: "Edit" },
+  },
 ];
 
 function exportCsv(rows: SavedSale[]) {
@@ -130,7 +151,110 @@ function exportCsv(rows: SavedSale[]) {
   URL.revokeObjectURL(url);
 }
 
-export function SalesGrid({ rows, months }: { rows: SavedSale[]; months: Array<{ month: string }> }) {
+
+const PAY_OPTIONS = [["", "Unknown"], ["dp", "DP"], ["paid", "Lunas"], ["cancelled", "Batal (cancelled)"]] as const;
+
+function SaleEditor({ sale, notify, onClose, onChanged }: { sale: SavedSale; notify: Notify; onClose: () => void; onChanged: () => void }) {
+  const sent = sale.meta_state === "sent";
+  const [f, setF] = useState({
+    label: sale.label ?? "",
+    sale_date: sale.sale_date,
+    value: String(sale.value),
+    consultant: sale.consultant ?? "",
+    departure_date: sale.departure_date ?? "",
+    package_name: sale.package_name ?? "",
+    room_type: sale.room_type ?? "",
+    down_payment: sale.down_payment != null ? String(sale.down_payment) : "",
+    pay_status: sale.pay_status ?? "",
+    source: sale.source ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const save = async () => {
+    const body: Record<string, unknown> = {
+      label: f.label,
+      consultant: f.consultant,
+      source: f.source,
+      package_name: f.package_name,
+      room_type: f.room_type,
+      departure_date: f.departure_date || null,
+      down_payment: f.down_payment === "" ? null : Number(f.down_payment),
+      pay_status: f.pay_status || null,
+    };
+    if (!sent) {
+      body.sale_date = f.sale_date;
+      body.value = Number(f.value);
+    }
+    setBusy(true);
+    try {
+      await api(`/admin/conversions/sales/${sale.id}`, { method: "PATCH", body });
+      notify("Sale updated.");
+      onChanged();
+      onClose();
+    } catch (e: any) {
+      notify(e.message, "err");
+    }
+    setBusy(false);
+  };
+
+  const remove = async () => {
+    try {
+      await api(`/admin/conversions/sales/${sale.id}`, { method: "DELETE" });
+      notify("Sale deleted. Uploading the same file again will not bring it back.");
+      onChanged();
+      onClose();
+    } catch (e: any) {
+      notify(e.message, "err");
+    }
+  };
+
+  const field = (label: string, k: keyof typeof f, props: Record<string, unknown> = {}, locked = false) => (
+    <label className="block text-xs text-muted">{label}
+      <input value={f[k]} onChange={set(k)} disabled={locked} className={`${inputCls} mt-1 disabled:opacity-60`} {...props} />
+    </label>
+  );
+
+  return (
+    <Sheet title="Edit sale" onClose={onClose}>
+      <h3 className="text-base font-semibold text-ink">Edit sale</h3>
+      <p className="mt-1 text-xs text-muted">
+        {sent
+          ? "Sent to Meta: the date and value are locked because Meta already holds them. Everything else can change, and you can mark it cancelled."
+          : "Not sent to Meta yet: every field can change."}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="col-span-2">{field("Who (label)", "label")}</div>
+        {field("Date", "sale_date", { type: "date" }, sent)}
+        {field("Value (Rp)", "value", { type: "number", inputMode: "numeric", min: 0 }, sent)}
+        {field("Closer", "consultant")}
+        {field("Departure", "departure_date", { type: "date" })}
+        {field("Package", "package_name")}
+        {field("Room", "room_type")}
+        {field("DP (Rp)", "down_payment", { type: "number", inputMode: "numeric", min: 0 })}
+        <label className="block text-xs text-muted">Status
+          <select value={f.pay_status} onChange={set("pay_status")} className={`${selectCls} mt-1`}>
+            {PAY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <div className="col-span-2">{field("Source", "source")}</div>
+      </div>
+      {sale.edited_at && <p className="mt-3 text-xs text-muted">Edited by hand. A later upload of the original file will not overwrite this.</p>}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <Btn tone="primary" onClick={save} loading={busy}>Save changes</Btn>
+        {sent ? (
+          <span className="text-xs text-muted">Sent sales cannot be deleted.</span>
+        ) : (
+          <ConfirmBtn label="Delete" confirmLabel="Delete sale" onConfirm={remove} />
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale[]; months: Array<{ month: string }>; notify: Notify; onChanged: () => void }) {
+  const [editing, setEditing] = useState<SavedSale | null>(null);
+  const columns = useMemo(() => makeColumns(setEditing), []);
   const [state, setState] = useState<State>("all");
   const [month, setMonth] = useState("");
   const [closer, setCloser] = useState("");
@@ -239,6 +363,7 @@ export function SalesGrid({ rows, months }: { rows: SavedSale[]; months: Array<{
           </table>
         </Panel>
       </div>
+      {editing && <SaleEditor key={editing.id} sale={editing} notify={notify} onClose={() => setEditing(null)} onChanged={onChanged} />}
     </div>
   );
 }

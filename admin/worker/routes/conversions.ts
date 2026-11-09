@@ -9,6 +9,7 @@
 
 import { Hono } from "hono";
 import { encryptString } from "../lib/secretbox";
+import { canDelete, planEdit } from "../lib/saleEdit";
 import { CAPI_TOKEN_KEY, getCapiToken, MAX_EVENT_AGE_DAYS, SEND_CHUNK, sendCapiEvents, type CapiEvent } from "../lib/capi";
 import { fetchAccountInfo, getMetaToken, metaGetAll } from "../lib/meta";
 import type { Env, Vars } from "../types";
@@ -279,11 +280,12 @@ conv.post("/sales/check", async (c) => {
   for (let i = 0; i < keys.length; i += 90) {
     const part = keys.slice(i, i + 90);
     const res = await c.env.DB.prepare(
-      `SELECT sale_key, meta_state FROM sales WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`
+      `SELECT sale_key, meta_state, deleted_at FROM sales WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`
     )
       .bind(client_id, ...part)
-      .all<{ sale_key: string; meta_state: string }>();
-    for (const r of res.results) existing[r.sale_key] = r.meta_state;
+      .all<{ sale_key: string; meta_state: string; deleted_at: string | null }>();
+    // "deleted" tells the upload not to bring a sale back that was removed by hand
+    for (const r of res.results) existing[r.sale_key] = r.deleted_at ? "deleted" : r.meta_state;
   }
   return c.json({ existing });
 });
@@ -330,7 +332,8 @@ conv.post("/sales/import", async (c) => {
            package_name=COALESCE(excluded.package_name, sales.package_name),
            room_type=COALESCE(excluded.room_type, sales.room_type),
            down_payment=COALESCE(excluded.down_payment, sales.down_payment),
-           pay_status=COALESCE(excluded.pay_status, sales.pay_status), updated_at=datetime('now')`
+           pay_status=COALESCE(excluded.pay_status, sales.pay_status), updated_at=datetime('now')
+         WHERE sales.edited_at IS NULL AND sales.deleted_at IS NULL`
       ).bind(client_id, r.sale_key, r.sale_date, r.value, str(r.label, 40), str(r.source, 80), str(r.consultant, 60), r.group_key ?? null, r.has_contact ? 1 : 0,
              r.departure_date ?? null, str(r.package_name, 80), str(r.room_type, 30), r.down_payment ?? null, r.pay_status ?? null)
     )
@@ -355,22 +358,50 @@ conv.get("/sales", async (c) => {
               ROUND(SUM(CASE WHEN COALESCE(pay_status,'') <> 'cancelled' THEN value ELSE 0 END)) AS value,
               SUM(meta_state='sent' AND COALESCE(pay_status,'') <> 'cancelled') AS sent,
               SUM(pay_status='cancelled') AS cancelled
-       FROM sales WHERE client_id=? GROUP BY 1 ORDER BY 1 DESC`
+       FROM sales WHERE client_id=? AND deleted_at IS NULL GROUP BY 1 ORDER BY 1 DESC`
     ).bind(clientId).all(),
     c.env.DB.prepare(
       `SELECT COALESCE(NULLIF(consultant, ''), '(no closer)') AS closer, COUNT(*) AS n, ROUND(SUM(value)) AS value, SUM(meta_state='sent') AS sent
-       FROM sales WHERE client_id=? AND COALESCE(pay_status,'') <> 'cancelled' ${monthSql}
+       FROM sales WHERE client_id=? AND deleted_at IS NULL AND COALESCE(pay_status,'') <> 'cancelled' ${monthSql}
        GROUP BY 1 ORDER BY value DESC`
     ).bind(...(byMonth ? [clientId, month] : [clientId])).all(),
     c.env.DB.prepare(
-      `SELECT sale_date, label, value, source, consultant, meta_state, has_contact, departure_date, package_name, room_type, down_payment, pay_status FROM sales
-       WHERE client_id=? ${byState ? "AND meta_state=?" : ""} ${monthSql}
+      `SELECT id, sale_date, label, value, source, consultant, meta_state, has_contact, departure_date, package_name, room_type, down_payment, pay_status, edited_at FROM sales
+       WHERE client_id=? AND deleted_at IS NULL ${byState ? "AND meta_state=?" : ""} ${monthSql}
        ORDER BY sale_date DESC, id DESC LIMIT 3000`
     )
       .bind(...[clientId, ...(byState ? [state] : []), ...(byMonth ? [month] : [])])
       .all(),
   ]);
   return c.json({ months: months.results, closers: closers.results, rows: rows.results });
+});
+
+/** Correct one sale by hand. See lib/saleEdit.ts for what a sent sale may change. */
+conv.patch("/sales/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const patch = await c.req.json().catch(() => null);
+  if (!Number.isInteger(id) || !patch || typeof patch !== "object") return c.json({ error: "Bad request" }, 400);
+  const sale = await c.env.DB.prepare("SELECT meta_state FROM sales WHERE id=? AND deleted_at IS NULL").bind(id).first<{ meta_state: string }>();
+  if (!sale) return c.json({ error: "Sale not found" }, 404);
+  const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const plan = planEdit(sale, patch as Record<string, unknown>, today);
+  if (!plan.ok) return c.json({ error: plan.error }, plan.error.includes("sent to Meta") ? 409 : 400);
+  const cols = Object.keys(plan.set);
+  await c.env.DB.prepare(`UPDATE sales SET ${cols.map((k) => `${k}=?`).join(", ")}, edited_at=datetime('now'), updated_at=datetime('now') WHERE id=?`)
+    .bind(...cols.map((k) => plan.set[k]), id)
+    .run();
+  return c.json({ ok: true });
+});
+
+/** Remove a sale that was never sent to Meta. It is kept as a tombstone so re-uploading the file does not bring it back. */
+conv.delete("/sales/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const sale = await c.env.DB.prepare("SELECT meta_state FROM sales WHERE id=? AND deleted_at IS NULL").bind(id).first<{ meta_state: string }>();
+  if (!sale) return c.json({ error: "Sale not found" }, 404);
+  const ok = canDelete(sale);
+  if (!ok.ok) return c.json({ error: ok.error }, 409);
+  await c.env.DB.prepare("UPDATE sales SET deleted_at=datetime('now'), updated_at=datetime('now') WHERE id=?").bind(id).run();
+  return c.json({ ok: true });
 });
 
 // ------------------------------------------------------------------ history

@@ -12,7 +12,7 @@ import {
   buildSales, COLUMN_GUIDE, FIELD_HINT, FIELD_LABEL, guessMapping, parseWorkbook, planMeta, REQUIRED, templateCsv, unitEvent,
   type Field, type Mapping, type MetaUnit, type SaleRow, type Sheet,
 } from "../lib/conversions";
-import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Tone } from "../components/kit";
+import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Notify, type Tone } from "../components/kit";
 import { SalesGrid, type SavedSale } from "./SalesGrid";
 
 const EVENTS = [
@@ -89,7 +89,7 @@ function FileGuide() {
   );
 }
 
-function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: number }) {
+function SavedSales({ clientId, refreshKey, notify, onChanged }: { clientId: string; refreshKey: number; notify: Notify; onChanged: () => void }) {
   const { data, loading } = useApi<{ months: any[]; rows: SavedSale[] }>(
     clientId ? `/admin/conversions/sales?client_id=${clientId}&k=${refreshKey}` : null
   );
@@ -125,7 +125,7 @@ function SavedSales({ clientId, refreshKey }: { clientId: string; refreshKey: nu
           </tbody>
         </table>
       </Panel>
-      <SalesGrid rows={data.rows} months={data.months} />
+      <SalesGrid rows={data.rows} months={data.months} notify={notify} onChanged={onChanged} />
     </div>
   );
 }
@@ -226,6 +226,7 @@ export function Conversions() {
         const { existing } = keys.length
           ? await api<{ existing: Record<string, string> }>("/admin/conversions/sales/check", { method: "POST", body: { client_id: Number(clientId), keys } })
           : { existing: {} as Record<string, string> };
+        for (const r of built) if (r.status === "new" && existing[r.sale_key!] === "deleted") { r.status = "dup_in_file"; r.reason = "Deleted by you earlier, not added again"; }
         for (const r of built) if (r.status === "new" && existing[r.sale_key!]) { r.status = "saved"; r.reason = existing[r.sale_key!] === "sent" ? "Already saved, sent to Meta" : "Already saved"; }
 
         let planned = mode === "meta" ? planMeta(built, existing) : [];
@@ -576,7 +577,7 @@ export function Conversions() {
 
       <section className="space-y-3">
         <h2 className="text-base font-bold text-ink">Saved sales</h2>
-        <SavedSales clientId={clientId} refreshKey={refreshKey} />
+        <SavedSales clientId={clientId} refreshKey={refreshKey} notify={notify} onChanged={() => setRefreshKey((k) => k + 1)} />
       </section>
 
       <section className="space-y-3">
