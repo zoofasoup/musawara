@@ -1,32 +1,26 @@
-// Creative view: ad grid sorted by cost per lead ascending (winners first),
-// frequency > 3.5 badged as "Fatigued".
+// Creative view: every ad with delivery in the range, with the metrics that matter and a
+// verdict against the client's own ads. Sort by what you are judging.
 
 import { useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { presetByKey, type DateRange } from "../lib/dates";
-import { fmtNum, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
-import type { Entity } from "../components/EntityTable";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle, StatusBadge } from "../components/ui";
+import { CreativeGrid, type Creative } from "../components/CreativeCards";
+import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
-const FATIGUE_FREQUENCY = 3.5;
-
-type SortMode = "cpl" | "spend" | "ctr";
+const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
+  cpl: ["Best cost / lead", (a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity)],
+  spend: ["Spend", (a, b) => b.spend - a.spend],
+  hook: ["Hook rate", (a, b) => (b.hook_rate ?? -1) - (a.hook_rate ?? -1)],
+  hold: ["Hold rate", (a, b) => (b.hold_rate ?? -1) - (a.hold_rate ?? -1)],
+  ctr: ["Link CTR", (a, b) => (b.link_ctr ?? -1) - (a.link_ctr ?? -1)],
+};
 
 export function CreativeView({ clientId }: { clientId: number }) {
-  const [range, setRange] = useState<DateRange>(presetByKey("7d"));
-  const [sort, setSort] = useState<SortMode>("cpl");
-  const { data, error, loading, reload } = useApi<{ ads: Entity[] }>(
-    `/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`
-  );
-
-  const ads = useMemo(() => {
-    const list = [...(data?.ads ?? [])];
-    if (sort === "cpl") list.sort((a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity));
-    if (sort === "spend") list.sort((a, b) => b.spend - a.spend);
-    if (sort === "ctr") list.sort((a, b) => (b.ctr ?? -1) - (a.ctr ?? -1));
-    return list;
-  }, [data, sort]);
+  const [range, setRange] = useState<DateRange>(presetByKey("30d"));
+  const [sort, setSort] = useState("cpl");
+  const { data, error, loading, reload } = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
+  const ads = useMemo(() => [...(data?.ads ?? [])].sort(SORTS[sort][1]), [data, sort]);
 
   return (
     <div>
@@ -34,93 +28,23 @@ export function CreativeView({ clientId }: { clientId: number }) {
         <h1 className="text-lg font-semibold text-ink">Creatives</h1>
         <DateRangePicker value={range} onChange={setRange} />
       </div>
-
       <SectionTitle
         right={
-          <div className="flex items-center gap-1 rounded-lg bg-surface2 p-0.5">
-            {(
-              [
-                ["cpl", "Best cost / lead"],
-                ["spend", "Spend"],
-                ["ctr", "CTR"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setSort(key)}
-                className={`rounded-md px-2 py-1 text-xs font-medium ${sort === key ? "bg-surface3 text-ink" : "text-muted hover:text-ink2"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by" className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink">
+            {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+          </select>
         }
       >
         Ads ({ads.length})
       </SectionTitle>
-
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <CardSkeleton key={i} lines={4} />
-          ))}
-        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} lines={4} />)}</div>
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : ads.length === 0 ? (
         <EmptyState title="No ads with delivery in this period" />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {ads.map((ad) => {
-            const fatigued = (ad.frequency ?? 0) > FATIGUE_FREQUENCY;
-            return (
-              <div key={ad.entity_id} className="overflow-hidden rounded-xl border border-border bg-surface">
-                <div className="relative aspect-square bg-surface2">
-                  {ad.thumbnail_url ? (
-                    <img src={ad.thumbnail_url} alt={ad.name ?? ""} className="h-full w-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-3xl opacity-30">🖼️</div>
-                  )}
-                  {fatigued && (
-                    <span className="absolute left-2 top-2 rounded-md bg-crit/90 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
-                      Fatigued
-                    </span>
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <div className="mb-1.5 flex items-start justify-between gap-1.5">
-                    <p className="truncate text-xs font-medium text-ink" title={ad.name ?? ad.entity_id}>
-                      {ad.name ?? ad.entity_id}
-                    </p>
-                    <StatusBadge status={ad.effective_status ?? ad.status} />
-                  </div>
-                  <dl className="tnum grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                    <div>
-                      <dt className="text-muted">Cost / Lead</dt>
-                      <dd className="font-semibold text-ink">{fmtRp(ad.cpl)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Spend</dt>
-                      <dd className="text-ink2">{fmtRp(ad.spend)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Leads</dt>
-                      <dd className="text-ink2">{fmtNum(ad.leads)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">CTR</dt>
-                      <dd className="text-ink2">{fmtPct(ad.ctr)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Freq</dt>
-                      <dd className={fatigued ? "font-semibold text-crit" : "text-ink2"}>{fmtNum(ad.frequency, 1)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <CreativeGrid ads={ads} />
       )}
     </div>
   );

@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
 import { clientAccess } from "../middleware";
-import { clientEntities, clientTotals, clientTrend } from "../lib/metrics";
+import { clientCreatives, clientEntities, clientTotals, clientTrend } from "../lib/metrics";
 import { SECTIONS, brandMarkdown } from "../lib/brand";
 import { addDays, dayOfMonth, daysInMonth, monthStart, ymdInTz } from "../lib/dates";
 
@@ -94,13 +94,11 @@ clients.get("/:clientId/entities", async (c) => {
   return c.json({ entities: rows });
 });
 
-/** Creative view: all ads in range with thumbnails, winners first (CPR asc). */
+/** Creative view: every ad with delivery in the range, with hook/hold/link rates and a verdict. */
 clients.get("/:clientId/creatives", async (c) => {
   const clientId = c.get("access").clientId;
-  const { from, to, prevFrom, prevTo } = range(c);
-  const ads = await clientEntities(c.env, clientId, "ad", from, to, prevFrom, prevTo);
-  ads.sort((a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity));
-  return c.json({ ads });
+  const { from, to } = range(c);
+  return c.json({ ads: await clientCreatives(c.env, clientId, from, to) });
 });
 
 clients.get("/:clientId/alerts", async (c) => {

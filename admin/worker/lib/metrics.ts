@@ -5,6 +5,7 @@
 // isn't derivable from daily rows) — documented assumption.
 
 import type { Env } from "../types";
+import { buildCreatives, type CreativeRaw } from "./creative";
 
 export type Totals = {
   spend: number;
@@ -217,4 +218,68 @@ export async function clientSparkline(env: Env, clientId: number, from: string, 
     .bind(clientId, from, to)
     .all<{ date: string; spend: number }>();
   return rows.results;
+}
+
+
+/**
+ * Ad-level creative stats for a range: raw sums from the daily rows (3-second views come
+ * from the stored actions, video plays and ThruPlays from the stored extras), then rates and
+ * a verdict per ad (see lib/creative.ts).
+ */
+export async function clientCreatives(env: Env, clientId: number, from: string, to: string) {
+  const latest = (field: string) =>
+    `(SELECT json_extract(x.extras_json, '$.rank.${field}') FROM insights_daily x
+       WHERE x.ad_account_id=i.ad_account_id AND x.level='ad' AND x.entity_id=i.entity_id
+         AND json_extract(x.extras_json, '$.rank.${field}') IS NOT NULL ORDER BY x.date DESC LIMIT 1)`;
+  const rows = await env.DB.prepare(
+    `SELECT i.entity_id, MAX(i.entity_name) AS entity_name,
+            SUM(i.spend) spend, SUM(i.impressions) impressions, SUM(i.reach) reach,
+            SUM(i.link_clicks) link_clicks, SUM(i.leads) leads,
+            SUM((SELECT SUM(CAST(json_extract(j.value, '$.value') AS REAL)) FROM json_each(i.actions_json) j
+                 WHERE json_extract(j.value, '$.action_type') = 'video_view')) views3s,
+            SUM(COALESCE(json_extract(i.extras_json, '$.video.thruplay'), 0)) thruplays,
+            SUM(COALESCE(json_extract(i.extras_json, '$.video.plays'), 0)) plays,
+            SUM(COALESCE(json_extract(i.extras_json, '$.video.avg_watch_s'), 0) * COALESCE(json_extract(i.extras_json, '$.video.plays'), 0)) watch_weighted,
+            COUNT(DISTINCT CASE WHEN i.spend > 0 THEN i.date END) days_active,
+            MIN(CASE WHEN i.spend > 0 THEN i.date END) first_date,
+            ${latest("quality")} quality, ${latest("engagement")} engagement, ${latest("conversion")} conversion
+     FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+     WHERE a.client_id=? AND i.level='ad' AND i.date BETWEEN ? AND ?
+     GROUP BY i.entity_id HAVING SUM(i.spend) > 0`
+  )
+    .bind(clientId, from, to)
+    .all<any>();
+  const meta = await env.DB.prepare(
+    `SELECT e.entity_id, e.name, e.status, e.effective_status, e.thumbnail_url
+     FROM entities e JOIN ad_accounts a ON a.id = e.ad_account_id WHERE a.client_id=? AND e.level='ad'`
+  )
+    .bind(clientId)
+    .all<any>();
+  const byId = new Map(meta.results.map((m: any) => [m.entity_id, m]));
+  const raws: CreativeRaw[] = rows.results.map((r: any) => {
+    const m = byId.get(r.entity_id);
+    const rank = (v: string | null) => (v && v !== "UNKNOWN" ? v : null);
+    return {
+      entity_id: r.entity_id,
+      name: m?.name ?? r.entity_name,
+      thumbnail_url: m?.thumbnail_url ?? null,
+      status: m?.status ?? null,
+      effective_status: m?.effective_status ?? null,
+      spend: r.spend ?? 0,
+      impressions: r.impressions ?? 0,
+      reach: r.reach ?? 0,
+      link_clicks: r.link_clicks ?? 0,
+      leads: r.leads ?? 0,
+      views3s: r.views3s ?? 0,
+      thruplays: r.thruplays ?? 0,
+      plays: r.plays ?? 0,
+      watch_weighted: r.watch_weighted ?? 0,
+      days_active: r.days_active ?? 0,
+      first_date: r.first_date ?? null,
+      quality: rank(r.quality),
+      engagement: rank(r.engagement),
+      conversion: rank(r.conversion),
+    };
+  });
+  return buildCreatives(raws).sort((a, b) => b.spend - a.spend);
 }

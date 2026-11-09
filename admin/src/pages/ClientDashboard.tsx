@@ -9,13 +9,14 @@ import { compareRange, presetByKey, shiftMonths, type CompareMode, type DateRang
 import { fmtDay, fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
+import { CreativeGrid, type Creative } from "../components/CreativeCards";
 import { KpiCard } from "../components/KpiCard";
 import { TrendChart, type TrendDay } from "../components/TrendChart";
 import { EntityTable } from "../components/EntityTable";
 import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
-import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
 
 type Meta = {
   client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
@@ -88,6 +89,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const trend = useApi<{ days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
+  const creatives = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
 
   const resultLabel = meta.data?.resultLabel ?? "Results";
   const accent = meta.data?.client.brand_color ?? "#7a2de3";
@@ -118,6 +120,11 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
     const pct = (n: number | null | undefined) => fmtPct(n);
     const x = (n: number | null | undefined) => (n != null ? `${fmtNum(n, 1)}x` : "–");
     const f2 = (n: number | null | undefined) => fmtNum(n ?? null, 2);
+    // Share of leads that became a sale in the same period (a rough close rate: sales can come from older leads).
+    const leadToSale = (cur?: Totals, prev?: Totals) => {
+      const r = (t?: Totals) => (t && t.leads > 0 ? (t.purchases / t.leads) * 100 : null);
+      return { label: "Lead → Sale", dir: "higher-better" as const, note: undefined, value: fmtPct(r(cur)), cur: r(cur), prev: r(prev), prevText: prev ? fmtPct(r(prev)) : undefined };
+    };
     type K = Exclude<keyof Totals, never>;
     const item = (label: string, fmt: (n: number | null | undefined) => string, key: K, dir: "higher-better" | "lower-better" | "neutral", note?: { text: string; tone?: "good" | "crit" | "muted" }) => ({
       label, dir, note,
@@ -131,6 +138,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       item("Leads", fmtNum, "leads", "higher-better"),
       item("Cost / Lead", fmtRp, "cpl", "lower-better"),
       item("Purchases", fmtNum, "purchases", "higher-better", c && c.purchases > 0 ? { text: `${fmtNum(c.purchases_sent)} of ${fmtNum(c.purchases)} sent to Meta`, tone: "muted" } : undefined),
+      leadToSale(c, p),
       item("Purchase value", fmtRp, "purchase_value", "higher-better"),
       item("CPA", fmtRp, "cpa", "lower-better", cpaNote),
       item("ROAS", x, "roas", "higher-better", roasNote),
@@ -237,6 +245,23 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           <ErrorState message={trend.error} onRetry={trend.reload} />
         ) : (
           <TrendChart days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} bucket={trend.data?.bucket} />
+        )}
+      </div>
+
+      <div className="mb-6">
+        <SectionTitle
+          right={!share && <Link to={`/c/${clientId}/creatives`} className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">All creatives</Link>}
+        >
+          Top creatives by spend
+        </SectionTitle>
+        {creatives.loading ? (
+          <CardSkeleton lines={4} />
+        ) : creatives.error ? (
+          <ErrorState message={creatives.error} onRetry={creatives.reload} />
+        ) : (creatives.data?.ads.length ?? 0) === 0 ? (
+          <EmptyState title="No ads with delivery in this period" />
+        ) : (
+          <CreativeGrid ads={creatives.data!.ads.slice(0, 5)} />
         )}
       </div>
 
