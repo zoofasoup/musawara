@@ -1,6 +1,8 @@
 export type Env = {
   DB: D1Database;
   ASSETS: Fetcher;
+  /** Post media for Publish (private R2 bucket). */
+  MEDIA: R2Bucket;
   JWT_SECRET: string;
   META_ACCESS_TOKEN?: string;
   /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */

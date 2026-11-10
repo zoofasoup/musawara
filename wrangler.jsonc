@@ -30,6 +30,9 @@
       "database_id": "1b93c912-9d32-4c47-a310-0a2ada2ff98c"
     }
   ],
+  // Publish: uploaded post media. Private; served only through /api/clients/:id/publish/media.
+  // The bucket must exist before `wrangler deploy`: npx wrangler r2 bucket create musawara-media
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "musawara-media" }],
 
   // 20:00 UTC = 03:00 WIB. Sinkronisasi Meta malam hari (admin/worker/lib/sync.ts).
   "triggers": { "crons": ["0 * * * *"] },
