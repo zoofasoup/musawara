@@ -26,7 +26,7 @@ New D1 tables (migration `0014_publish.sql`), all keyed by `client_id`:
 - `posts`: `client_id`, `status` (draft|scheduled|publishing|published|failed|needs_check), `kind` (feed|carousel|reel|story), `caption`, `scheduled_at` (UTC), `created_by`, `attempts`, `last_error`.
 - `post_targets`: one row per post x channel with its own `status`, `external_post_id`, `container_id`, `last_error`. One target failing never fails the others.
 - `post_media`: `post_id`, `position`, R2 key, type, width, height, duration.
-- `publish_slots`: recurring weekday + time per client, used for "next slot".
+- `publish_slots`: recurring weekday + time per client, used for "next slot". Added later with the calendar (migration 0015), not in 0014.
 
 Status machine: `draft -> scheduled -> publishing -> published | failed | needs_check`.
 
