@@ -4,7 +4,7 @@ import { requireAdmin } from "../middleware";
 import { randomToken } from "../lib/auth";
 import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
-import { pullInsights, rederiveResults, syncAccount } from "../lib/sync";
+import { pullInsights, rederiveResults, syncAccount, syncAllAccounts } from "../lib/sync";
 import { halfMonthChunks, isCovered, MAX_HISTORY_DAYS, mergeRanges, REACH_WINDOW_DAYS } from "../lib/history";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
@@ -461,6 +461,15 @@ admin.post("/accounts/:id/sync", async (c) => {
   } catch (e: any) {
     return c.json({ error: `Sync failed: ${e.message}` }, 502);
   }
+});
+
+/** "Sync now" for every active account (the light 2-day pull the hourly cron does). Runs in the background; the page reloads a little later. */
+admin.post("/sync-all", async (c) => {
+  if (!(await getMetaToken(c.env))) return c.json({ error: "No Meta access token configured. Add one in Settings → Meta Token." }, 400);
+  const running = await c.env.DB.prepare("SELECT id FROM sync_jobs WHERE status='running' AND started_at > datetime('now','-10 minutes') LIMIT 1").first();
+  if (running) return c.json({ error: "A sync is already running. Please wait a minute." }, 429);
+  c.executionCtx.waitUntil(syncAllAccounts(c.env, true));
+  return c.json({ ok: true, started: true }, 202);
 });
 
 /**
