@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import clientRoutes from "./routes/clients";
 import shareRoutes from "./routes/share";
+import sheetSyncRoutes from "./routes/sheetSync";
 import { syncAllAccounts } from "./lib/sync";
 import { pollAllOrganic } from "./lib/organic";
 
@@ -18,6 +19,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/clients", clientRoutes);
 app.route("/api/share", shareRoutes);
+app.route("/api/sheet-sync", sheetSyncRoutes);
 
 app.get("/api/health", (c) => c.json({ ok: true, app: c.env.APP_NAME }));
 

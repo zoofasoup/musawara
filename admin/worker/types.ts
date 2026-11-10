@@ -3,6 +3,8 @@ export type Env = {
   ASSETS: Fetcher;
   JWT_SECRET: string;
   META_ACCESS_TOKEN?: string;
+  /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */
+  SHEET_SYNC_TOKEN?: string;
   APP_NAME: string;
   /** Test-only override of https://graph.facebook.com for the Conversions API. */
   GRAPH_BASE?: string;

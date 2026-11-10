@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { Icon } from "../components/icons";
-import { fmtDayFull, fmtDateTime, fmtNum, fmtRp } from "../lib/format";
+import { fmtAgo, fmtDayFull, fmtDateTime, fmtNum, fmtRp } from "../lib/format";
 import {
   buildSales, COLUMN_GUIDE, FIELD_HINT, FIELD_LABEL, guessMapping, parseWorkbook, planMeta, REQUIRED, templateCsv, unitEvent,
   type Field, type Mapping, type MetaUnit, type SaleRow, type Sheet,
@@ -90,7 +90,7 @@ function FileGuide() {
 }
 
 function SavedSales({ clientId, refreshKey, notify, onChanged }: { clientId: string; refreshKey: number; notify: Notify; onChanged: () => void }) {
-  const { data, loading } = useApi<{ months: any[]; rows: SavedSale[] }>(
+  const { data, loading } = useApi<{ months: any[]; rows: SavedSale[]; sheetSync: { at: string; inserted: number; updated: number; error?: string } | null }>(
     clientId ? `/admin/conversions/sales?client_id=${clientId}&k=${refreshKey}` : null
   );
   if (!clientId) return <p className="text-xs text-muted">Choose a client above to see its saved sales.</p>;
@@ -108,6 +108,13 @@ function SavedSales({ clientId, refreshKey, notify, onChanged }: { clientId: str
         <Pill tone="neutral" icon="database">{fmtNum(total - sent)} dashboard only</Pill>
         {cancelled > 0 && <Pill tone="crit">{fmtNum(cancelled)} cancelled (not counted)</Pill>}
       </div>
+      {data.sheetSync && (
+        <p className={`text-xs ${data.sheetSync.error ? "text-crit" : "text-muted"}`}>
+          {data.sheetSync.error
+            ? `Google Sheet sync failed ${fmtAgo(data.sheetSync.at)}: ${data.sheetSync.error}`
+            : `Google Sheet synced ${fmtAgo(data.sheetSync.at)} · ${fmtNum(data.sheetSync.inserted)} new, ${fmtNum(data.sheetSync.updated)} checked`}
+        </p>
+      )}
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-left text-xs">
           <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">

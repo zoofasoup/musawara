@@ -10,13 +10,14 @@
 import { Hono } from "hono";
 import { encryptString } from "../lib/secretbox";
 import { canDelete, planEdit } from "../lib/saleEdit";
+import { HEX64, saveSales, todayWib, validateSale } from "../lib/sales";
+import { syncKey } from "../lib/sheetSync";
 import { CAPI_TOKEN_KEY, getCapiToken, MAX_EVENT_AGE_DAYS, SEND_CHUNK, sendCapiEvents, type CapiEvent } from "../lib/capi";
 import { fetchAccountInfo, getMetaToken, metaGetAll } from "../lib/meta";
 import type { Env, Vars } from "../types";
 
 const conv = new Hono<{ Bindings: Env; Variables: Vars }>();
 
-const HEX64 = /^[a-f0-9]{64}$/;
 const ACTION_SOURCES = ["physical_store", "chat", "phone_call", "email", "other", "system_generated", "business_messaging"];
 const UNCERTAIN_AFTER_MIN = 10;
 
@@ -267,8 +268,6 @@ async function markSalesSent(env: Env, clientId: number, events: Array<{ key: st
 }
 
 // ------------------------------------------------------------------ sales (the dashboard's source of truth)
-const YMD = /^\d{4}-\d{2}-\d{2}$/;
-const PAY_STATUS = ["dp", "paid", "cancelled"];
 
 /** Which sale keys are already saved, and whether each reached Meta. Unknown keys are new. */
 conv.post("/sales/check", async (c) => {
@@ -294,52 +293,12 @@ conv.post("/sales/check", async (c) => {
 conv.post("/sales/import", async (c) => {
   const { client_id, rows } = await c.req.json().catch(() => ({}));
   if (!client_id || !Array.isArray(rows) || rows.length === 0 || rows.length > 300) return c.json({ error: "Send between 1 and 300 rows per call" }, 400);
-  const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const today = todayWib();
   for (const r of rows) {
-    const bad =
-      !HEX64.test(r?.sale_key ?? "") ? "bad sale_key"
-      : !YMD.test(r?.sale_date ?? "") || r.sale_date < "2020-01-01" || r.sale_date > today ? "bad sale_date"
-      : !(typeof r.value === "number" && isFinite(r.value) && r.value > 0 && r.value < 1e11) ? "bad value"
-      : r.group_key != null && !HEX64.test(r.group_key) ? "bad group_key"
-      : r.departure_date != null && (!YMD.test(r.departure_date) || r.departure_date < "2020-01-01" || r.departure_date > "2040-12-31") ? "bad departure_date"
-      : r.down_payment != null && !(typeof r.down_payment === "number" && isFinite(r.down_payment) && r.down_payment >= 0 && r.down_payment < 1e11) ? "bad down_payment"
-      : r.pay_status != null && !PAY_STATUS.includes(r.pay_status) ? "bad pay_status"
-      : null;
+    const bad = validateSale(r, today);
     if (bad) return c.json({ error: `Row rejected: ${bad}` }, 400);
   }
-  const keys = rows.map((r: any) => r.sale_key);
-  const known = new Set<string>();
-  for (let i = 0; i < keys.length; i += 90) {
-    const part = keys.slice(i, i + 90);
-    const res = await c.env.DB.prepare(`SELECT sale_key FROM sales WHERE client_id=? AND sale_key IN (${part.map(() => "?").join(",")})`)
-      .bind(client_id, ...part)
-      .all<{ sale_key: string }>();
-    res.results.forEach((r) => known.add(r.sale_key));
-  }
-  const str = (v: unknown, n: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null);
-  await c.env.DB.batch(
-    rows.map((r: any) =>
-      c.env.DB.prepare(
-        `INSERT INTO sales (client_id, sale_key, sale_date, value, label, source, consultant, group_key, has_contact,
-                            departure_date, package_name, room_type, down_payment, pay_status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-         ON CONFLICT(client_id, sale_key) DO UPDATE SET
-           sale_date=excluded.sale_date, value=excluded.value, label=COALESCE(excluded.label, sales.label),
-           source=COALESCE(excluded.source, sales.source), consultant=COALESCE(excluded.consultant, sales.consultant),
-           group_key=COALESCE(excluded.group_key, sales.group_key),
-           has_contact=MAX(sales.has_contact, excluded.has_contact),
-           departure_date=COALESCE(excluded.departure_date, sales.departure_date),
-           package_name=COALESCE(excluded.package_name, sales.package_name),
-           room_type=COALESCE(excluded.room_type, sales.room_type),
-           down_payment=COALESCE(excluded.down_payment, sales.down_payment),
-           pay_status=COALESCE(excluded.pay_status, sales.pay_status), updated_at=datetime('now')
-         WHERE sales.edited_at IS NULL AND sales.deleted_at IS NULL`
-      ).bind(client_id, r.sale_key, r.sale_date, r.value, str(r.label, 40), str(r.source, 80), str(r.consultant, 60), r.group_key ?? null, r.has_contact ? 1 : 0,
-             r.departure_date ?? null, str(r.package_name, 80), str(r.room_type, 30), r.down_payment ?? null, r.pay_status ?? null)
-    )
-  );
-  const updated = rows.filter((r: any) => known.has(r.sale_key)).length;
-  return c.json({ inserted: rows.length - updated, updated });
+  return c.json(await saveSales(c.env, client_id, rows));
 });
 
 /** Saved sales: per-month and per-closer summaries plus the rows, filterable by month and by whether they reached Meta. Cancelled sales are listed but not counted. */
@@ -351,7 +310,7 @@ conv.get("/sales", async (c) => {
   const byState = state === "dashboard" || state === "sent";
   const byMonth = month && /^\d{4}-\d{2}$/.test(month);
   const monthSql = byMonth ? "AND substr(sale_date, 1, 7) = ?" : "";
-  const [months, closers, rows] = await Promise.all([
+  const [months, closers, rows, sync] = await Promise.all([
     c.env.DB.prepare(
       `SELECT substr(sale_date, 1, 7) AS month,
               SUM(COALESCE(pay_status,'') <> 'cancelled') AS n,
@@ -372,8 +331,9 @@ conv.get("/sales", async (c) => {
     )
       .bind(...[clientId, ...(byState ? [state] : []), ...(byMonth ? [month] : [])])
       .all(),
+    c.env.DB.prepare("SELECT value FROM app_settings WHERE key=?").bind(syncKey(clientId)).first<{ value: string }>(),
   ]);
-  return c.json({ months: months.results, closers: closers.results, rows: rows.results });
+  return c.json({ months: months.results, closers: closers.results, rows: rows.results, sheetSync: sync ? JSON.parse(sync.value) : null });
 });
 
 /** Correct one sale by hand. See lib/saleEdit.ts for what a sent sale may change. */
