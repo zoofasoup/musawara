@@ -100,8 +100,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   async function syncNow() {
     setSyncing(true);
     try {
-      await api(`/admin/clients/${clientId}/sync`, { method: "POST", body: {} });
-      notify("Sync started. Numbers refresh in a moment.");
+      const r = await api<{ sheet: boolean }>(`/admin/clients/${clientId}/sync`, { method: "POST", body: {} });
+      notify(r.sheet ? "Sync started for ads and the Google Sheet. Numbers refresh in a moment." : "Sync started. Numbers refresh in a moment.");
       setTimeout(() => {
         meta.reload();
         summary.reload();

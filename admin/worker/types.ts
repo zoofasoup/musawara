@@ -7,6 +7,8 @@ export type Env = {
   META_ACCESS_TOKEN?: string;
   /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */
   SHEET_SYNC_TOKEN?: string;
+  /** Web-app URL of the Apps Script in the closing sheet (wrangler secret). Unset = "Sync now" skips the sheet. */
+  SHEET_TRIGGER_URL?: string;
   APP_NAME: string;
   /** Test-only override of https://graph.facebook.com for the Conversions API. */
   GRAPH_BASE?: string;

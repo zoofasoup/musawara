@@ -55,6 +55,23 @@ function syncSales() {
   console.log("Synced: " + out.inserted + " new, " + out.updated + " checked, " + out.skipped + " skipped, " + out.future + " future-dated.");
 }
 
+/**
+ * Lets the dashboard's "Sync now" button push right away. Deploy this project as a web app
+ * (Deploy > New deployment > Web app, Execute as: Me, Who has access: Anyone) and give the dashboard
+ * the web app URL. The request must carry the same SYNC_TOKEN, so the URL alone does nothing.
+ */
+function doPost(e) {
+  const expected = PropertiesService.getScriptProperties().getProperty("SYNC_TOKEN");
+  let given = "";
+  try {
+    given = JSON.parse(e.postData.contents).token || "";
+  } catch (err) {}
+  const reply = (obj) => ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+  if (!expected || given !== expected) return reply({ error: "Unauthorized" });
+  syncSales();
+  return reply({ ok: true });
+}
+
 /** Run once: replaces any old trigger with one that runs syncSales every hour. */
 function setup() {
   ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === "syncSales").forEach((t) => ScriptApp.deleteTrigger(t));

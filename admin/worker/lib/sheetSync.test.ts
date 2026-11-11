@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sheetsToSales, tokenMatches } from "./sheetSync.ts";
+import { sheetsToSales, sheetTriggerReady, tokenMatches, triggerSheetSync } from "./sheetSync.ts";
 
 // Layout of the real "Data Closing 2026" tabs: title rows above, header on row 4.
 const head = ["No", "Nama", "No. Whatsapp", "Tanggal Closing", "Pax", "Paket Harga", "Diskon", "Tanggal Berangkat", "Sumber", "DP", "Umroh Consultant (UC)"];
@@ -68,4 +68,62 @@ test("token check", async () => {
   assert.equal(await tokenMatches("abc", "abc"), true);
   assert.equal(await tokenMatches("abc", "abd"), false);
   assert.equal(await tokenMatches("", "abc"), false);
+});
+
+// "Sync now" can also ask the sheet's Apps Script web app to push right away.
+// A fake env: only the app_settings lookup the readiness check makes.
+const envWith = (over: Record<string, unknown>, connected: boolean) =>
+  ({ DB: { prepare: () => ({ bind: () => ({ first: async () => (connected ? { 1: 1 } : null) }) }) }, ...over }) as any;
+const READY = { SHEET_TRIGGER_URL: "https://script.example/exec", SHEET_SYNC_TOKEN: "tok" };
+
+async function withFetch(status: number, fn: (calls: { url: string; init: any }[]) => Promise<void>) {
+  const real = globalThis.fetch;
+  const calls: { url: string; init: any }[] = [];
+  globalThis.fetch = (async (url: any, init: any) => {
+    calls.push({ url: String(url), init });
+    return new Response("{}", { status });
+  }) as any;
+  try {
+    await fn(calls);
+  } finally {
+    globalThis.fetch = real;
+  }
+}
+
+test("sheet trigger is ready only when configured and the client's sheet has synced before", async () => {
+  assert.equal(await sheetTriggerReady(envWith(READY, true), 1), true);
+  assert.equal(await sheetTriggerReady(envWith({ SHEET_SYNC_TOKEN: "tok" }, true), 1), false); // no URL
+  assert.equal(await sheetTriggerReady(envWith({ SHEET_TRIGGER_URL: "https://x/exec" }, true), 1), false); // no token
+  assert.equal(await sheetTriggerReady(envWith(READY, false), 1), false); // never synced
+});
+
+test("sheet trigger posts the shared token to the script", async () => {
+  await withFetch(200, async (calls) => {
+    await triggerSheetSync(envWith(READY, true));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://script.example/exec");
+    assert.equal(calls[0].init.method, "POST");
+    assert.deepEqual(JSON.parse(calls[0].init.body), { token: "tok" });
+  });
+});
+
+test("a failing or unreachable script is logged, never thrown", async () => {
+  const log = console.error;
+  console.error = () => {};
+  try {
+    await withFetch(500, async () => {
+      await triggerSheetSync(envWith(READY, true));
+    });
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error("offline");
+    }) as any;
+    try {
+      await triggerSheetSync(envWith(READY, true));
+    } finally {
+      globalThis.fetch = real;
+    }
+  } finally {
+    console.error = log;
+  }
 });

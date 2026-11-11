@@ -68,6 +68,27 @@ export async function syncSheet(env: Env, clientId: number, raw: RawSheet[]): Pr
   return result;
 }
 
+/** True when "Sync now" can also ask the sheet to push: the trigger is set up and this client's sheet has synced before. */
+export async function sheetTriggerReady(env: Env, clientId: number): Promise<boolean> {
+  if (!env.SHEET_TRIGGER_URL || !env.SHEET_SYNC_TOKEN) return false;
+  const row = await env.DB.prepare("SELECT 1 FROM app_settings WHERE key=?").bind(syncKey(clientId)).first();
+  return row != null;
+}
+
+/** Asks the Apps Script web app in the sheet to push now. Never throws: the hourly push is the safety net. */
+export async function triggerSheetSync(env: Env): Promise<void> {
+  try {
+    const res = await fetch(env.SHEET_TRIGGER_URL!, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ token: env.SHEET_SYNC_TOKEN }),
+    });
+    if (!res.ok) console.error(`sheet trigger answered ${res.status}`);
+  } catch (e) {
+    console.error("sheet trigger failed:", e);
+  }
+}
+
 /** Constant-time check of the shared token (both sides hashed first so lengths match). */
 export async function tokenMatches(given: string, expected: string): Promise<boolean> {
   const h = async (s: string) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));

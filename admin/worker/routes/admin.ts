@@ -5,6 +5,7 @@ import { randomToken } from "../lib/auth";
 import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
 import { pullInsights, rederiveResults, syncAccount, syncAccounts } from "../lib/sync";
+import { sheetTriggerReady, triggerSheetSync } from "../lib/sheetSync";
 import { halfMonthChunks, isCovered, MAX_HISTORY_DAYS, mergeRanges, REACH_WINDOW_DAYS } from "../lib/history";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
@@ -465,21 +466,32 @@ admin.post("/accounts/:id/sync", async (c) => {
   }
 });
 
-/** "Sync now" for one client's active ad accounts (the light 2-day Meta pull the hourly cron does). Runs in the background; the page reloads a little later. */
+/**
+ * "Sync now" for one client: the light 2-day Meta pull of its active ad accounts (what the hourly cron
+ * does) and, when the closing sheet is connected, a request for the sheet to push right away.
+ * Runs in the background; the page reloads a little later.
+ */
 admin.post("/clients/:id/sync", async (c) => {
   const clientId = Number(c.req.param("id"));
   if (!Number.isInteger(clientId)) return c.json({ error: "Bad client id" }, 400);
-  if (!(await getMetaToken(c.env))) return c.json({ error: "No Meta access token configured. Add one in Settings → Meta Token." }, 400);
-  const accounts = await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE client_id=? AND status='active'").bind(clientId).all<AdAccountRow>();
-  if (accounts.results.length === 0) return c.json({ error: "This client has no active ad account." }, 400);
-  const running = await c.env.DB.prepare(
-    "SELECT id FROM sync_jobs WHERE status='running' AND started_at > datetime('now','-10 minutes') AND ad_account_id IN (SELECT id FROM ad_accounts WHERE client_id=?) LIMIT 1"
-  )
-    .bind(clientId)
-    .first();
-  if (running) return c.json({ error: "A sync is already running. Please wait a minute." }, 429);
-  c.executionCtx.waitUntil(syncAccounts(c.env, accounts.results, true));
-  return c.json({ ok: true, started: true }, 202);
+  const token = await getMetaToken(c.env);
+  const accounts = token
+    ? (await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE client_id=? AND status='active'").bind(clientId).all<AdAccountRow>()).results
+    : [];
+  const sheet = await sheetTriggerReady(c.env, clientId);
+  if (accounts.length === 0 && !sheet) {
+    return c.json({ error: token ? "This client has no active ad account." : "No Meta access token configured. Add one in Settings → Meta Token." }, 400);
+  }
+  if (accounts.length > 0) {
+    const running = await c.env.DB.prepare(
+      "SELECT id FROM sync_jobs WHERE status='running' AND started_at > datetime('now','-10 minutes') AND ad_account_id IN (SELECT id FROM ad_accounts WHERE client_id=?) LIMIT 1"
+    )
+      .bind(clientId)
+      .first();
+    if (running) return c.json({ error: "A sync is already running. Please wait a minute." }, 429);
+  }
+  c.executionCtx.waitUntil(Promise.all([syncAccounts(c.env, accounts, true), sheet ? triggerSheetSync(c.env) : null]));
+  return c.json({ ok: true, started: true, ads: accounts.length > 0, sheet }, 202);
 });
 
 /**
