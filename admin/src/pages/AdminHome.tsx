@@ -1,14 +1,12 @@
 // Agency overview: client cards (7-day performance + sparkline + alert count),
 // global alert feed, sync health strip.
 
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { fmtDateTime, fmtNum, fmtRp, hoursSince } from "../lib/format";
 import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { ClientAvatar } from "../components/Layout";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle, Sparkline } from "../components/ui";
-import { Btn, useNotify } from "../components/kit";
 
 type Overview = {
   range: { from: string; to: string };
@@ -59,21 +57,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function AdminHome() {
   const { data, error, loading, reload } = useApi<Overview>("/admin/overview");
-  const { notify, node } = useNotify();
-  const [syncing, setSyncing] = useState(false);
-
-  // The pull runs in the background on the server; give it a moment, then show the new numbers.
-  async function syncNow() {
-    setSyncing(true);
-    try {
-      await api("/admin/sync-all", { method: "POST", body: {} });
-      notify("Sync started. Numbers refresh in a moment.");
-      setTimeout(() => { reload(); setSyncing(false); }, 20_000);
-    } catch (e: any) {
-      notify(e.message ?? "Could not start the sync", "err");
-      setSyncing(false);
-    }
-  }
 
   if (loading)
     return (
@@ -88,12 +71,8 @@ export function AdminHome() {
 
   return (
     <div className="space-y-8">
-      {node}
       {/* sync health strip */}
       <div className="flex flex-wrap items-center gap-2">
-        <Btn icon="refresh" loading={syncing} onClick={syncNow} className="mr-1">
-          {syncing ? "Syncing…" : "Sync now"}
-        </Btn>
         {d.syncHealth.map((s) => {
           const stale = (hoursSince(s.last_success) ?? 99) > 26;
           const failed = s.last_status === "failed";

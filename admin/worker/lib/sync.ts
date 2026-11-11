@@ -211,17 +211,21 @@ export async function syncAccount(
   }
 }
 
-/** Sequential sync of all active accounts — used by the cron trigger (full nightly, light hourly). */
-export async function syncAllAccounts(env: Env, light = false): Promise<void> {
-  const accounts = await env.DB.prepare("SELECT * FROM ad_accounts WHERE status='active'").all<AdAccountRow>();
-  for (const account of accounts.results) {
+/** Sequential sync of the given accounts; one bad account must not block the rest. */
+export async function syncAccounts(env: Env, accounts: AdAccountRow[], light = false): Promise<void> {
+  for (const account of accounts) {
     try {
       await syncAccount(env, account, light);
     } catch (e) {
       console.error(`sync failed for account ${account.meta_account_id}:`, e);
-      // keep going — one bad account must not block the rest
     }
   }
+}
+
+/** All active accounts — used by the cron trigger (full nightly, light hourly). */
+export async function syncAllAccounts(env: Env, light = false): Promise<void> {
+  const accounts = await env.DB.prepare("SELECT * FROM ad_accounts WHERE status='active'").all<AdAccountRow>();
+  await syncAccounts(env, accounts.results, light);
 }
 
 /**

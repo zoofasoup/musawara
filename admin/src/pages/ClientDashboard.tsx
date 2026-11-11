@@ -17,6 +17,7 @@ import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { Btn, useNotify } from "../components/kit";
 
 type Meta = {
   client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
@@ -91,6 +92,32 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
   const creatives = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
 
+  // "Sync now" (admins only): pulls this client's Meta ads data. It runs in the background on the
+  // server; give it a moment, then reload every panel (the campaign table remounts via syncTick).
+  const { notify, node } = useNotify();
+  const [syncing, setSyncing] = useState(false);
+  const [syncTick, setSyncTick] = useState(0);
+  async function syncNow() {
+    setSyncing(true);
+    try {
+      await api(`/admin/clients/${clientId}/sync`, { method: "POST", body: {} });
+      notify("Sync started. Numbers refresh in a moment.");
+      setTimeout(() => {
+        meta.reload();
+        summary.reload();
+        trend.reload();
+        alerts.reload();
+        pacing.reload();
+        creatives.reload();
+        setSyncTick((t) => t + 1);
+        setSyncing(false);
+      }, 20_000);
+    } catch (e: any) {
+      notify(e.message ?? "Could not start the sync", "err");
+      setSyncing(false);
+    }
+  }
+
   const resultLabel = meta.data?.resultLabel ?? "Results";
   const accent = meta.data?.client.brand_color ?? "#7a2de3";
   const lastSync = meta.data?.accounts.map((a) => a.last_sync).filter(Boolean).sort().at(-1) ?? null;
@@ -153,6 +180,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
   return (
     <div style={{ ["--accent" as any]: accent, ["--on-accent" as any]: onAccent(accent) }}>
+      {node}
       {/* header */}
       <div className="mb-3 flex items-center gap-3">
         {meta.data ? (
@@ -169,6 +197,11 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           </>
         ) : (
           <div className="h-10 w-48 skeleton" />
+        )}
+        {!share && user?.role === "admin" && (
+          <Btn icon="refresh" loading={syncing} onClick={syncNow} className="ml-auto shrink-0">
+            {syncing ? "Syncing…" : "Sync now"}
+          </Btn>
         )}
       </div>
 
@@ -268,7 +301,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <SectionTitle>Campaigns</SectionTitle>
-          <EntityTable clientId={clientId} from={range.from} to={range.to} compare={cmp} />
+          <EntityTable key={syncTick} clientId={clientId} from={range.from} to={range.to} compare={cmp} />
         </div>
         <div className="space-y-6">
           {(pacing.data?.pacing?.length ?? 0) > 0 && (
