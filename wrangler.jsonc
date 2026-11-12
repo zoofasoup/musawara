@@ -8,7 +8,11 @@
   // "main" dipakai hanya untuk /api/*. Karena "run_worker_first" dibatasi ke
   // /api/*, permintaan halaman biasa tetap dilayani langsung dari aset tanpa
   // menjalankan kode Worker, jadi tidak terhitung sebagai invokasi.
-  "name": "musawara-web",
+  //
+  // Nama = Worker produksi yang memegang domain musawara.id dan semua secret
+  // (JWT_SECRET, SHEET_SYNC_TOKEN). Jangan diganti tanpa memindahkan keduanya:
+  // nama baru membuat Worker kosong tanpa secret, dan cron-nya gagal tiap jam.
+  "name": "musawara-id",
   "compatibility_date": "2026-08-01",
   "main": "worker/index.ts",
 
