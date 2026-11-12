@@ -17,7 +17,7 @@ const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
 };
 
 export function CreativeView({ clientId }: { clientId: number }) {
-  const [range, setRange] = useState<DateRange>(presetByKey("30d"));
+  const [range, setRange] = useState<DateRange>(presetByKey("month"));
   const [sort, setSort] = useState("cpl");
   const { data, error, loading, reload } = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
   const ads = useMemo(() => [...(data?.ads ?? [])].sort(SORTS[sort][1]), [data, sort]);

@@ -1,4 +1,4 @@
-// Agency overview: client cards (7-day performance + sparkline + alert count),
+// Agency overview: client cards (this month's performance + sparkline + alert count),
 // global alert feed, sync health strip.
 
 import { Link } from "react-router-dom";
@@ -99,7 +99,7 @@ export function AdminHome() {
 
       {/* client cards */}
       <div>
-        <SectionTitle>Clients · last 7 days</SectionTitle>
+        <SectionTitle>Clients · this month</SectionTitle>
         {d.clients.length === 0 ? (
           <EmptyState title="No clients yet" hint="Add your first client in Settings." />
         ) : (

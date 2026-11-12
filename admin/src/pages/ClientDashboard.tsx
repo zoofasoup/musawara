@@ -74,11 +74,11 @@ function StaleBanner({ accounts }: { accounts: Meta["accounts"] }) {
 
 export function ClientDashboard({ clientId, share = false }: { clientId: number; share?: boolean }) {
   const { user } = useAuth();
-  const [range, setRange] = useState<DateRange>(presetByKey("7d"));
+  const [range, setRange] = useState<DateRange>(presetByKey("month"));
   // "Compare to": the default is the previous equal-length period (chosen by the server)
   const [mode, setMode] = useState<CompareMode>("prev");
   const [custom, setCustom] = useState<DateRange>(() => {
-    const r = presetByKey("7d");
+    const r = presetByKey("month");
     return { key: "custom", label: "Custom", from: shiftMonths(r.from, -1), to: shiftMonths(r.to, -1) };
   });
   const compareOn = mode !== "off";

@@ -39,7 +39,7 @@ type Entry = {
 
 
 export function Spend() {
-  const [range, setRange] = useState<DateRange>(presetByKey("30d"));
+  const [range, setRange] = useState<DateRange>(presetByKey("month"));
   const [clientId, setClientId] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({ source: "shopee", category: "ads", client_id: "", date: todayJakarta(), amount: "", note: "" });

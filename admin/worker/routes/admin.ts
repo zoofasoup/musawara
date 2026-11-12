@@ -43,16 +43,18 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
 
 // ---------------------------------------------------------------- overview
 admin.get("/overview", async (c) => {
+  // Totals are "this month" (1st to today, like the client pages' default); the sparkline keeps its 14-day trend.
   const today = ymdInTz("Asia/Jakarta");
-  const to = addDays(today, -1);
-  const from = addDays(to, -6);
-  const sparkFrom = addDays(to, -13);
+  const from = today.slice(0, 8) + "01";
+  const to = today;
+  const sparkTo = addDays(today, -1);
+  const sparkFrom = addDays(sparkTo, -13);
 
   const clientRows = await c.env.DB.prepare("SELECT * FROM clients ORDER BY name").all<any>();
   const cards = [];
   for (const client of clientRows.results) {
     const totals = await clientTotals(c.env, client.id, from, to);
-    const spark = await clientSparkline(c.env, client.id, sparkFrom, to);
+    const spark = await clientSparkline(c.env, client.id, sparkFrom, sparkTo);
     const target = await c.env.DB.prepare(
       `SELECT MIN(s.cpr_target) t FROM account_settings s
        JOIN ad_accounts a ON a.id=s.ad_account_id WHERE a.client_id=? AND s.cpr_target > 0`
