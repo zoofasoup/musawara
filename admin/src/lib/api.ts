@@ -33,8 +33,10 @@ export async function api<T = any>(
 }
 
 /** Declarative GET with loading/error/reload — pass null to skip. */
-// Mount point of the SPA, without trailing slash ("/admin" in production).
-export const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Where the built files live, without trailing slash ("/admin" in production). Logos and other static files load from here on every host.
+export const ASSET_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Mount point of the routes. On app.* and portal.* the SPA sits at the root of the host (see portal/worker.ts).
+export const BASE = /^(app|portal)\./.test(window.location.hostname) ? "" : ASSET_BASE;
 
 export function useApi<T = any>(path: string | null) {
   const [data, setData] = useState<T | undefined>(undefined);

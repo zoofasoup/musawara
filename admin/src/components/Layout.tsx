@@ -1,13 +1,13 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { BASE } from "../lib/api";
+import { ASSET_BASE } from "../lib/api";
 import { Icon, type IconName } from "./icons";
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <img
-        src={`${BASE}/logo/${compact ? "musawara-mark" : "musawara-lockup"}.png`}
+        src={`${ASSET_BASE}/logo/${compact ? "musawara-mark" : "musawara-lockup"}.png`}
         alt="musawara"
         className="h-7 w-auto"
       />

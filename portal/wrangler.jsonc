@@ -1,0 +1,14 @@
+{
+  // app.musawara.id (team) and portal.musawara.id (clients): the admin SPA at the root of
+  // its own host. Everything is forwarded to the main Worker, see worker.ts.
+  // Deploy with: npx wrangler deploy -c portal/wrangler.jsonc
+  "name": "musawara-portal",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "services": [{ "binding": "MAIN", "service": "musawara-id" }],
+  "routes": [
+    { "pattern": "app.musawara.id", "custom_domain": true },
+    { "pattern": "portal.musawara.id", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}
