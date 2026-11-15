@@ -18,6 +18,14 @@ const Spend = lazy(() => import("./pages/Spend").then((m) => ({ default: m.Spend
 const Board = lazy(() => import("./pages/Board").then((m) => ({ default: m.Board })));
 const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ default: m.Conversions })));
 const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
+const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
+const ShareReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ShareReport })));
+const CrmInbox = lazy(() => import("./pages/crm/CrmInbox").then((m) => ({ default: m.CrmInbox })));
+const CrmContacts = lazy(() => import("./pages/crm/CrmContacts").then((m) => ({ default: m.CrmContacts })));
+const CrmTemplates = lazy(() => import("./pages/crm/CrmTemplates").then((m) => ({ default: m.CrmTemplates })));
+const CrmCampaigns = lazy(() => import("./pages/crm/CrmCampaigns").then((m) => ({ default: m.CrmCampaigns })));
+const CrmConnection = lazy(() => import("./pages/crm/CrmConnection").then((m) => ({ default: m.CrmConnection })));
+import { CrmLayout } from "./pages/crm/CrmLayout";
 
 function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, ready } = useAuth();
@@ -51,6 +59,7 @@ export function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/invite/:token" element={<Invite />} />
         <Route path="/share/:token" element={<ShareView />} />
+        <Route path="/share/:token/report" element={<ShareReport />} />
 
         {/* Protected Routes */}
         <Route
@@ -134,6 +143,66 @@ export function App() {
           element={
             <ProtectedRoute requireAdmin>
               <Conversions />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/c/:id/report"
+          element={
+            <ProtectedRoute>
+              <ClientRoute page={ClientReport} />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
+        <Route
+          path="/crm/inbox"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CrmLayout>
+                <CrmInbox />
+              </CrmLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/crm/contacts"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CrmLayout>
+                <CrmContacts />
+              </CrmLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/crm/templates"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CrmLayout>
+                <CrmTemplates />
+              </CrmLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/crm/broadcasts"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CrmLayout>
+                <CrmCampaigns />
+              </CrmLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/crm/connection"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CrmLayout>
+                <CrmConnection />
+              </CrmLayout>
             </ProtectedRoute>
           }
         />
