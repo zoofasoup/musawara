@@ -91,6 +91,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
   const creatives = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
+  // client users see how many approvals are waiting for them (the API refuses everyone else)
+  const pendingApprovals = useApi<{ requests: unknown[] }>(!share && user?.role === "client" ? `/approvals/${clientId}/requests?status=pending` : null);
 
   // "Sync now" (admins only): pulls this client's Meta ads data. It runs in the background on the
   // server; give it a moment, then reload every panel (the campaign table remounts via syncTick).
@@ -213,6 +215,12 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
               <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
                 Brand knowledge
               </Link>
+              <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
+                Approvals
+              </Link>
+              <Link to={`/c/${clientId}/assets`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
+                Assets
+              </Link>
               <Link to={`/c/${clientId}/onboarding`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
                 Onboarding
               </Link>
@@ -246,6 +254,13 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       </div>
 
       {meta.data && <StaleBanner accounts={meta.data.accounts} />}
+
+      {(pendingApprovals.data?.requests.length ?? 0) > 0 && (
+        <Link to={`/c/${clientId}/approvals`} className="mb-4 flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--accent)]/40 bg-surface px-3.5 py-2.5 text-[13px] text-ink hover:bg-surface2">
+          <span>{pendingApprovals.data!.requests.length === 1 ? "1 item is" : `${pendingApprovals.data!.requests.length} items are`} waiting for your approval.</span>
+          <span className="font-medium text-musawara-ink">Review</span>
+        </Link>
+      )}
 
       {/* metrics strip */}
       <div className="mb-5 overflow-hidden rounded-xl border border-border bg-surface">
