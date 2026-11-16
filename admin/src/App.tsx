@@ -20,6 +20,9 @@ const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ defa
 const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
 const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
 const ShareReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ShareReport })));
+const Assets = lazy(() => import("./pages/Assets").then((m) => ({ default: m.Assets })));
+const Approvals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.Approvals })));
+const TeamApprovals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.TeamApprovals })));
 const CrmInbox = lazy(() => import("./pages/crm/CrmInbox").then((m) => ({ default: m.CrmInbox })));
 const CrmContacts = lazy(() => import("./pages/crm/CrmContacts").then((m) => ({ default: m.CrmContacts })));
 const CrmTemplates = lazy(() => import("./pages/crm/CrmTemplates").then((m) => ({ default: m.CrmTemplates })));
@@ -152,6 +155,30 @@ export function App() {
           element={
             <ProtectedRoute>
               <ClientRoute page={ClientReport} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/c/:id/approvals"
+          element={
+            <ProtectedRoute>
+              <ClientRoute page={Approvals} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/c/:id/assets"
+          element={
+            <ProtectedRoute requireAdmin>
+              <ClientRoute page={Assets} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/approvals"
+          element={
+            <ProtectedRoute requireAdmin>
+              <TeamApprovals />
             </ProtectedRoute>
           }
         />
