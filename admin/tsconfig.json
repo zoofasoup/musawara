@@ -16,5 +16,5 @@
     "types": ["@cloudflare/workers-types", "vite/client"]
   },
   "include": ["src", "worker"],
-  "exclude": ["src/**/*.test.ts", "worker/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "worker/**/*.test.ts", "worker/testkit"]
 }

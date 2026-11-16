@@ -44,6 +44,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { to: "/conversions", label: "Sales", icon: "tag" },
           { to: "/organic", label: "Organic", icon: "image" },
           { to: "/approvals", label: "Approvals", icon: "checkCircle" },
+          { to: "/planning", label: "Planning", short: "Plan", icon: "clock" },
           { to: "/crm", label: "CRM", icon: "users" },
           { to: "/settings", label: "Settings", icon: "sliders" },
         ]
