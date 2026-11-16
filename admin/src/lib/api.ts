@@ -8,9 +8,12 @@ export function setShareToken(token: string | null) {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Machine-readable reason when the API sends one (the CRM proxy: gateway_unconfigured, gateway_down). */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -28,7 +31,7 @@ export async function api<T = any>(
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
   const data: any = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data?.error || `Request failed (${res.status})`, res.status);
+  if (!res.ok) throw new ApiError(data?.error || `Request failed (${res.status})`, res.status, data?.code);
   return data as T;
 }
 
