@@ -197,7 +197,17 @@ publish.post("/media", async (c) => {
 publish.get("/media/:file", async (c) => {
   const file = c.req.param("file");
   if (!FILE_RE.test(file)) return c.json({ error: "Not found" }, 404);
-  const obj = await c.env.MEDIA.get(`c${clientOf(c)}/${file}`, { range: c.req.raw.headers });
+  const key = `c${clientOf(c)}/${file}`;
+  let obj: R2ObjectBody | null;
+  try {
+    obj = await c.env.MEDIA.get(key, { range: c.req.raw.headers });
+  } catch (e) {
+    // an unsatisfiable Range makes R2 throw; anything else is a real error
+    if (!c.req.header("range")) throw e;
+    const head = await c.env.MEDIA.head(key);
+    if (!head) return c.json({ error: "Not found" }, 404);
+    return new Response(null, { status: 416, headers: { "content-range": `bytes */${head.size}` } });
+  }
   if (!obj) return c.json({ error: "Not found" }, 404);
   const headers = new Headers({
     "content-type": obj.httpMetadata?.contentType ?? "application/octet-stream",
@@ -207,12 +217,18 @@ publish.get("/media/:file", async (c) => {
     etag: obj.httpEtag,
   });
   let status = 200;
+  // some runtimes serve the whole object for a start past the end instead of throwing
+  const startAt = /^bytes=(\d+)-/.exec(c.req.header("range") ?? "");
+  if (startAt && Number(startAt[1]) >= obj.size) {
+    await obj.body.cancel();
+    return new Response(null, { status: 416, headers: { "content-range": `bytes */${obj.size}` } });
+  }
   const r = obj.range as { offset?: number; length?: number; suffix?: number } | undefined;
   if (r && c.req.header("range")) {
-    const start = r.suffix != null ? obj.size - r.suffix : r.offset ?? 0;
-    const len = r.suffix != null ? r.suffix : r.length ?? obj.size - start;
-    headers.set("content-range", `bytes ${start}-${start + len - 1}/${obj.size}`);
-    headers.set("content-length", String(len));
+    const start = r.suffix != null ? Math.max(0, obj.size - r.suffix) : Math.min(r.offset ?? 0, obj.size);
+    const end = r.suffix != null ? obj.size : Math.min(start + (r.length ?? obj.size - start), obj.size);
+    headers.set("content-range", `bytes ${start}-${end - 1}/${obj.size}`);
+    headers.set("content-length", String(end - start));
     status = 206;
   } else {
     headers.set("content-length", String(obj.size));
