@@ -41,6 +41,13 @@ export const ASSET_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Mount point of the routes. On app.* and portal.* the SPA sits at the root of the host (see portal/worker.ts).
 export const BASE = /^(app|portal)\./.test(window.location.hostname) ? "" : ASSET_BASE;
 
+/** The host an account with this role signs in at: team on app.*, clients on portal.*. Anywhere else (local dev) the current origin. */
+export function homeOrigin(role: "admin" | "client"): string {
+  const host = window.location.hostname;
+  if (host === "musawara.id" || host.endsWith(".musawara.id")) return `https://${role === "admin" ? "app" : "portal"}.musawara.id`;
+  return window.location.origin + ASSET_BASE;
+}
+
 export function useApi<T = any>(path: string | null, extra?: { headers?: Record<string, string>; key?: string }) {
   const headersRef = useRef(extra?.headers);
   headersRef.current = extra?.headers;

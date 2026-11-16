@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, BASE, type useApi } from "../../lib/api";
+import { api, homeOrigin, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
 import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
 
@@ -26,7 +26,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
         method: "POST",
         body: { email, role, client_id: role === "client" ? Number(clientId) : null },
       });
-      setInviteUrl(window.location.origin + BASE + res.path);
+      setInviteUrl(homeOrigin(role) + res.path);
       setEmail("");
       setAdding(false);
       reload();

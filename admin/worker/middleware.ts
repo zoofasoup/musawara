@@ -3,6 +3,7 @@ import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import type { AuthUser, Env, Vars } from "./types";
 import { SESSION_COOKIE } from "./lib/auth";
+import { roleAllowedOnHost } from "./lib/audience";
 
 type Ctx = { Bindings: Env; Variables: Vars };
 
@@ -11,6 +12,8 @@ async function userFromCookie(c: any): Promise<AuthUser | null> {
   if (!token) return null;
   try {
     const payload: any = await verify(token, c.env.JWT_SECRET, "HS256");
+    // A session only counts on the host reserved for its role (app.* team, portal.* clients).
+    if (!roleAllowedOnHost(payload.role, new URL(c.req.url).hostname)) return null;
     return {
       id: payload.sub,
       email: payload.email,

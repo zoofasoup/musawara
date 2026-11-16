@@ -4,6 +4,7 @@ import { sign } from "hono/jwt";
 import type { Env, Vars } from "../types";
 import { hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPassword } from "../lib/auth";
 import { requireAuth } from "../middleware";
+import { homeHostFor, roleAllowedOnHost, type Role } from "../lib/audience";
 
 const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -28,6 +29,12 @@ async function startSession(c: any, user: any) {
   });
 }
 
+/** 403 telling the user where their account signs in, or null when this host serves their role. */
+function wrongHost(c: any, role: Role) {
+  if (roleAllowedOnHost(role, new URL(c.req.url).hostname)) return null;
+  return c.json({ error: `This account signs in at ${homeHostFor(role)}`, code: "wrong_host" }, 403);
+}
+
 auth.post("/login", async (c) => {
   const { email, password } = await c.req.json().catch(() => ({}));
   if (!email || !password) return c.json({ error: "Email and password are required" }, 400);
@@ -35,6 +42,8 @@ auth.post("/login", async (c) => {
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return c.json({ error: "Invalid email or password" }, 401);
   }
+  const wrong = wrongHost(c, user.role);
+  if (wrong) return wrong;
   await startSession(c, user);
   return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, client_id: user.client_id } });
 });
@@ -88,6 +97,8 @@ auth.post("/invites/:token/accept", async (c) => {
     .bind(c.req.param("token"))
     .first<any>();
   if (!invite) return c.json({ error: "Invite not found or already used" }, 404);
+  const wrong = wrongHost(c, invite.role);
+  if (wrong) return wrong;
   const { name, email, password } = await c.req.json().catch(() => ({}));
   const finalEmail = (invite.email || email || "").trim();
   if (!finalEmail || !name || !password || password.length < 8) {
