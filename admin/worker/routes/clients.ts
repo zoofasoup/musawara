@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import type { Env, Vars } from "../types";
 import { clientAccess } from "../middleware";
 import publish from "./publish";
+import planning from "./planning";
 import { clientCreatives, clientEntities, clientTotals, clientTrend } from "../lib/metrics";
 import { SECTIONS, brandMarkdown } from "../lib/brand";
 import { addDays, dayOfMonth, daysInMonth, monthStart, ymdInTz } from "../lib/dates";
@@ -13,6 +14,7 @@ import { addDays, dayOfMonth, daysInMonth, monthStart, ymdInTz } from "../lib/da
 const clients = new Hono<{ Bindings: Env; Variables: Vars }>();
 clients.use("/:clientId/*", clientAccess);
 clients.route("/:clientId/publish", publish);
+clients.route("/:clientId/plan", planning);
 
 function range(c: any): { from: string; to: string; prevFrom: string; prevTo: string } {
   const today = ymdInTz("Asia/Jakarta");

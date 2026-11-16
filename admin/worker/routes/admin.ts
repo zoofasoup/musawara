@@ -16,6 +16,7 @@ import spend from "./spend";
 import conversions from "./conversions";
 import organic from "./organic";
 import publishSetup from "./publishSetup";
+import planning from "./planning";
 
 const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 admin.use("*", requireAdmin);
@@ -23,6 +24,7 @@ admin.route("/spend", spend);
 admin.route("/conversions", conversions);
 admin.route("/organic", organic);
 admin.route("/publish", publishSetup);
+admin.route("/plan", planning);
 
 // Friendly names for common Meta action types (result-type picker).
 const ACTION_TYPE_LABELS: Record<string, string> = {
