@@ -19,9 +19,9 @@ export class ApiError extends Error {
 
 export async function api<T = any>(
   path: string,
-  opts: { method?: string; body?: unknown } = {}
+  opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {}
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...opts.headers };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (shareToken) headers["X-Share-Token"] = shareToken;
   const res = await fetch("/api" + path, {
@@ -41,7 +41,11 @@ export const ASSET_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Mount point of the routes. On app.* and portal.* the SPA sits at the root of the host (see portal/worker.ts).
 export const BASE = /^(app|portal)\./.test(window.location.hostname) ? "" : ASSET_BASE;
 
-export function useApi<T = any>(path: string | null) {
+export function useApi<T = any>(path: string | null, extra?: { headers?: Record<string, string>; key?: string }) {
+  const headersRef = useRef(extra?.headers);
+  headersRef.current = extra?.headers;
+  const cacheKey = path ? path + "|" + (extra?.key ?? "") : null;
+  const keyRef = useRef(cacheKey);
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(Boolean(path));
@@ -54,10 +58,14 @@ export function useApi<T = any>(path: string | null) {
       setLoading(false);
       return;
     }
+    if (keyRef.current !== cacheKey) {
+      keyRef.current = cacheKey; // a different key (for example another account) must not show the previous answer
+      setData(undefined);
+    }
     let alive = true;
     setLoading(true);
     setError(undefined);
-    api<T>(path)
+    api<T>(path, { headers: headersRef.current })
       .then((d) => {
         if (alive && pathRef.current === path) {
           setData(d);
@@ -73,7 +81,7 @@ export function useApi<T = any>(path: string | null) {
     return () => {
       alive = false;
     };
-  }, [path, tick]);
+  }, [path, cacheKey, tick]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
   return { data, error, loading, reload };

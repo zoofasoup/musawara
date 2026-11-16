@@ -25,6 +25,8 @@ crm.all("/*", async (c) => {
   const type = c.req.header("content-type");
   if (type) headers.set("content-type", type); // keeps the multipart boundary for uploads
   headers.set("authorization", `Bearer ${c.env.WA_GATEWAY_TOKEN}`);
+  const account = c.req.header("x-wa-account");
+  if (account && /^\d+$/.test(account)) headers.set("x-wa-account", account); // which WhatsApp number (multi-account gateway)
   headers.set("x-platform-user", c.get("user").email); // audit trail on the gateway side
 
   const hasBody = !["GET", "HEAD"].includes(c.req.method);
