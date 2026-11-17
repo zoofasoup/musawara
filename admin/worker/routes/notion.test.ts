@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { makeDb } from "../testkit/d1.ts";
-import { formatFromKind, kindFromFormat, progressToPush, stageFromProgress, syncNotion } from "../lib/notion.ts";
+import { sameClient, formatFromKind, kindFromFormat, progressToPush, stageFromProgress, syncNotion } from "../lib/notion.ts";
 
 const T0 = "2026-11-17T10:00:00.000Z";
 const page = (id: string, o: { title: string; client?: string; progress?: string; format?: string; target?: string; pillar?: string; edited?: string }) => ({
@@ -48,6 +48,13 @@ test("stage and format mapping", () => {
   assert.equal(progressToPush("published", "Scheduled"), "Posted");
   assert.equal(kindFromFormat("Long-form Video"), "reel");
   assert.equal(formatFromKind("carousel"), "Carousel");
+});
+
+test("client names match across spellings but not on a shared first letter", () => {
+  assert.ok(sameClient("Musafar Tour & Travel", "Musafar"));
+  assert.ok(sameClient("NurAlive", "Nuralive"));
+  assert.ok(!sameClient("Musa", "Musafar"));
+  assert.ok(!sameClient("", "Musafar"));
 });
 
 test("without a token nothing is called", async () => {

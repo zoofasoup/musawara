@@ -65,6 +65,13 @@ export function parsePage(p: NotionPage): Parsed {
   };
 }
 
+/** Same client under two spellings: equal ignoring case, or one name is the other plus more words ("Musafar" / "Musafar Tour & Travel"). */
+export function sameClient(a: string, b: string): boolean {
+  const x = a.trim().toLowerCase(), y = b.trim().toLowerCase();
+  if (!x || !y) return false;
+  return x === y || x.startsWith(y + " ") || y.startsWith(x + " ");
+}
+
 // ----------------------------------------------------------------- HTTP
 export class NotionError extends Error {
   status: number;
@@ -98,9 +105,9 @@ export async function syncNotion(env: Env, f: typeof fetch = fetch): Promise<Syn
   // Notion's Client options (names are case-sensitive in Notion; ours may differ in case) and our clients.
   const schema = await call(cfg, f, "GET", `/databases/${cfg.databaseId}`);
   const clientOpts: string[] = (schema.properties?.["Client"]?.select?.options ?? []).map((o: any) => o.name);
-  const notionClientFor = (name: string) => clientOpts.find((o) => o.toLowerCase() === name.trim().toLowerCase()) ?? null;
+  const notionClientFor = (name: string) => clientOpts.find((o) => sameClient(o, name)) ?? null;
   const clients = ((await DB.prepare("SELECT id, name FROM clients").all()).results as { id: number; name: string }[]);
-  const appClientFor = (notionName: string | null) => (notionName ? clients.find((c) => c.name.trim().toLowerCase() === notionName.trim().toLowerCase()) ?? null : null);
+  const appClientFor = (notionName: string | null) => (notionName ? clients.find((c) => sameClient(c.name, notionName)) ?? null : null);
 
   const cardsSql = `SELECT cp.id, cp.client_id, cl.name AS client_name, cp.title, cp.brief, cp.kind, cp.stage, cp.planned_date, cp.updated_at,
       cp.notion_page_id, cp.notion_edited_at, cp.notion_synced_at,
