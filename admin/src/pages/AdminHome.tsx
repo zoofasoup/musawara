@@ -7,6 +7,7 @@ import { api, useApi } from "../lib/api";
 import { fmtDateTime, fmtNum, fmtRp, hoursSince } from "../lib/format";
 import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { ClientAvatar } from "../components/Layout";
+import { Nested } from "../components/kit";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle, Sparkline } from "../components/ui";
 
 type Overview = {
@@ -109,36 +110,34 @@ export function AdminHome() {
             {d.clients.map((c) => {
               const empty = c.totals.spend === 0 && c.totals.leads === 0 && c.totals.purchases === 0;
               return (
-                <Link
-                  key={c.id}
-                  to={`/c/${c.id}`}
-                  className="press group rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 transition-colors hover:border-border2 hover:bg-surface2"
-                  style={{ ["--accent" as any]: c.brand_color }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
-                    <span className="mr-auto truncate text-sm font-semibold text-ink">{c.name}</span>
-                    {c.unacknowledged_alerts > 0 && (
-                      <span className="rounded-full bg-crit/15 px-2 py-0.5 text-xs font-bold text-crit">{c.unacknowledged_alerts} ⚠</span>
+                <Link key={c.id} to={`/c/${c.id}`} className="press group block" style={{ ["--accent" as any]: c.brand_color }}>
+                  <Nested
+                    className="transition-colors group-hover:bg-surface3/70"
+                    title={<span className="flex items-center gap-2"><ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} /><span className="truncate text-sm font-semibold text-ink">{c.name}</span></span>}
+                    right={
+                      c.unacknowledged_alerts > 0 ? <span className="rounded-full bg-crit/15 px-2 py-0.5 text-xs font-bold text-crit">{c.unacknowledged_alerts} ⚠</span>
+                      : empty ? <span className="text-xs text-muted">No data yet</span> : undefined
+                    }
+                  >
+                    {!empty ? (
+                      <>
+                        <div className="tnum grid grid-cols-[1.6fr_1fr_1fr] gap-2">
+                          <Stat label="Spend" value={fmtRp(c.totals.spend)} />
+                          <Stat label="Leads" value={fmtNum(c.totals.leads)} />
+                          <Stat label="Purchases" value={fmtNum(c.totals.purchases)} />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <CpaChip cpa={c.totals.cpa} target={c.target_cpa} />
+                          <span className="tnum text-xs text-muted">{c.totals.cpl != null ? `CPL ${fmtRp(c.totals.cpl)}` : ""}</span>
+                        </div>
+                        <div className="mt-2">
+                          <Sparkline points={c.spark.map((p) => p.spend)} color={c.brand_color} />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="py-3 text-center text-xs text-muted">Numbers appear after the first sync.</p>
                     )}
-                    {empty && <span className="text-xs text-muted">No data yet</span>}
-                  </div>
-                  {!empty && (
-                    <>
-                      <div className="tnum mt-3 grid grid-cols-[1.6fr_1fr_1fr] gap-2">
-                        <Stat label="Spend" value={fmtRp(c.totals.spend)} />
-                        <Stat label="Leads" value={fmtNum(c.totals.leads)} />
-                        <Stat label="Purchases" value={fmtNum(c.totals.purchases)} />
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <CpaChip cpa={c.totals.cpa} target={c.target_cpa} />
-                        <span className="tnum text-xs text-muted">{c.totals.cpl != null ? `CPL ${fmtRp(c.totals.cpl)}` : ""}</span>
-                      </div>
-                      <div className="mt-2">
-                        <Sparkline points={c.spark.map((p) => p.spend)} color={c.brand_color} />
-                      </div>
-                    </>
-                  )}
+                  </Nested>
                 </Link>
               );
             })}

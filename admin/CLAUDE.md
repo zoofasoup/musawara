@@ -16,6 +16,8 @@ time, which gave inconsistent and buggy UI. The rules below are enforced by `src
 | Delete or other destructive | `<ConfirmBtn>` (two taps, no `confirm()`) | `components/kit` |
 | Status label | `<Pill tone="good \| warn \| crit \| accent \| neutral">` | `components/kit` |
 | Card or panel | `<Panel>` | `components/kit` |
+| A number or small summary | `<Nested title>` (tinted holder, white card inside) | `components/kit` |
+| A list of items | `<RowList>` (one surface, hairlines between rows) | `components/kit` |
 | Page title | `<PageHeader title subtitle actions>` | `components/PageHeader` |
 | Empty, loading, error | `<Empty>`, `<CardSkeleton>`, `<ErrorState>` | `components/kit`, `components/ui` |
 | Overlay | `<Sheet>` (bottom on phones, right panel on desktop) | `components/kit` |
@@ -61,3 +63,7 @@ Soft, rounded, floating: the team frame is a translucent sidebar card and a cont
 - Section labels in menus are sentence case, not uppercase.
 - Keep text on translucent surfaces at AA contrast (muted text is `text-muted`, never lighter).
 - Team pages are left-aligned under the breadcrumb: cap a narrow page with `max-w-*` but never `mx-auto`, so every title starts at the same edge.
+- No boxes everywhere: never wrap every item in its own bordered card. Group with a tinted surface (`Nested`, `RowList`,
+  kanban columns), keep outlines for the one thing that needs them, and use sentence-case titles (no ALL CAPS headings).
+- Charts: dotted horizontal grid only, light bars with the hovered bar solid, dark tooltip.
+- Tabs are a grey pill track with a white active pill; black is for nothing but the primary action.

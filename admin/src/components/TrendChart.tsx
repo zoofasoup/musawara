@@ -60,23 +60,23 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
   return (
     <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-lg bg-surface2 p-0.5">
+        <div className="flex items-center gap-1 rounded-full bg-surface3 p-0.5">
           {BAR_METRICS.map((m) => (
             <button
               key={m.key}
               onClick={() => setBarKey(m.key)}
-              className={`rounded-md px-2 py-1 text-xs font-medium ${barKey === m.key ? "bg-surface3 text-ink" : "text-muted hover:text-ink2"}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${barKey === m.key ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink2"}`}
             >
               {m.label}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-surface2 p-0.5">
+        <div className="flex items-center gap-1 rounded-full bg-surface3 p-0.5">
           {LINE_METRICS.map((m) => (
             <button
               key={m.key}
               onClick={() => setLineKey(lineKey === m.key ? "none" : m.key)}
-              className={`rounded-md px-2 py-1 text-xs font-medium ${lineKey === m.key ? "bg-surface3 text-ink" : "text-muted hover:text-ink2"}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${lineKey === m.key ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink2"}`}
             >
               {m.label}
             </button>
@@ -84,7 +84,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
         </div>
         <div className="ml-auto flex items-center gap-3 text-xs text-ink2">
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: BAR_COLOR }} />
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "color-mix(in srgb, var(--color-chart-1) 38%, white)" }} />
             {barLabel}
           </span>
           {line && (
@@ -105,7 +105,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
       <div className="h-64 w-full">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
-            <CartesianGrid stroke="var(--color-border)" strokeDasharray="0" vertical={false} />
+            <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 5" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={fmtDay}
@@ -134,31 +134,31 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
               />
             )}
             <Tooltip
-              cursor={{ fill: "var(--color-hair)" }}
+              cursor={{ fill: "transparent" }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 const d = payload[0].payload as (typeof data)[number];
                 return (
-                  <div className="rounded-lg border border-border2 bg-surface px-3 py-2 text-xs shadow-panel">
-                    <p className="mb-1 font-semibold text-ink">{bucket === "week" ? "Week of " : bucket === "month" ? "Month of " : ""}{fmtDayFull(String(label))}</p>
-                    <p className="tnum text-ink2">
-                      {barLabel}: <span className="text-ink">{bar.fmt(d.barValue as any)}</span>
+                  <div className="rounded-xl bg-ink px-3 py-2 text-xs text-white shadow-panel">
+                    <p className="mb-1 font-semibold text-white">{bucket === "week" ? "Week of " : bucket === "month" ? "Month of " : ""}{fmtDayFull(String(label))}</p>
+                    <p className="tnum text-white/70">
+                      {barLabel}: <span className="text-white">{bar.fmt(d.barValue as any)}</span>
                     </p>
                     {d.prevValue != null && (
-                      <p className="tnum text-ink2">
-                        Compared ({d.prevDate ? fmtDayFull(d.prevDate) : "–"}): <span className="text-ink">{bar.fmt(d.prevValue as any)}</span>
+                      <p className="tnum text-white/70">
+                        Compared ({d.prevDate ? fmtDayFull(d.prevDate) : "–"}): <span className="text-white">{bar.fmt(d.prevValue as any)}</span>
                       </p>
                     )}
                     {line && (
-                      <p className="tnum text-ink2">
-                        {lineLabel}: <span className="text-ink">{d.lineValue == null ? "–" : line.fmt(d.lineValue as any)}</span>
+                      <p className="tnum text-white/70">
+                        {lineLabel}: <span className="text-white">{d.lineValue == null ? "–" : line.fmt(d.lineValue as any)}</span>
                       </p>
                     )}
                   </div>
                 );
               }}
             />
-            <Bar yAxisId="bar" dataKey="barValue" fill={BAR_COLOR} radius={[4, 4, 0, 0]} maxBarSize={28} />
+            <Bar yAxisId="bar" dataKey="barValue" fill="color-mix(in srgb, var(--color-chart-1) 38%, white)" activeBar={{ fill: BAR_COLOR }} radius={[8, 8, 0, 0]} maxBarSize={30} />
             {compare && compare.length > 0 && (
               <Line yAxisId="bar" dataKey="prevValue" stroke="var(--color-ink2)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} activeDot={false} connectNulls isAnimationActive={false} />
             )}

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
-import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Sheet, useNotify, type Tone } from "../components/kit";
+import { Btn, ConfirmBtn, CopyBtn, Empty, Nested, Panel, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -129,9 +129,29 @@ export function Styleguide() {
         <EmptyState title="Compact empty state" hint="For inside a card or list." />
       </Section>
 
+      <Section title="Nested card and row list" note="Group with tint, not with outlines. A number or small summary is a Nested card; a list is one RowList with hairlines, never a bordered box per item.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Nested title="Total spend"><p className="tnum text-xl font-semibold text-ink">Rp 12.600.000</p><p className="mt-1 text-xs text-good">+2.1% <span className="text-muted">vs prev.</span></p></Nested>
+          <Nested title="Leads" right={<Pill tone="warn">Low</Pill>}><p className="tnum text-xl font-semibold text-ink">184</p><p className="mt-1 text-xs text-crit">-3.2% <span className="text-muted">vs prev.</span></p></Nested>
+          <Nested title="Cost / lead"><p className="tnum text-xl font-semibold text-ink">Rp 68.400</p><p className="mt-1 text-xs text-muted">Target Rp 70.000</p></Nested>
+        </div>
+        <RowList>
+          {["Brief Desember", "Paket promo 12.12", "Reel teaser Nobar"].map((t) => (
+            <li key={t} className="flex min-h-14 items-center justify-between gap-2 px-4 py-3">
+              <span className="text-sm font-medium text-ink">{t}</span>
+              <Pill tone="accent">Waiting</Pill>
+            </li>
+          ))}
+        </RowList>
+      </Section>
+
       <Section title="Kanban" note="Drag a card to another column with mouse, touch (hold briefly) or keyboard (Space, arrows, Space). A locked card does not move; a column that fills in by itself does not accept drops.">
         <Kanban
-          columns={[{ id: "todo", label: "To do" }, { id: "doing", label: "Doing" }, { id: "done", label: "Done", droppable: false, empty: "Fills in by itself" }]}
+          columns={[
+            { id: "todo", label: "To do", color: "bg-muted", onAdd: () => notify("Add (demo)") },
+            { id: "doing", label: "Doing", color: "bg-chart-2" },
+            { id: "done", label: "Done", color: "bg-chart-3", droppable: false, empty: "Fills in by itself" },
+          ]}
           items={demo}
           getId={(c) => c.id}
           getColumn={(c) => c.col}

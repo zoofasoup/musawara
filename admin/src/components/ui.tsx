@@ -126,7 +126,7 @@ export function Sparkline({ points, color = "var(--accent)" }: { points: number[
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="whitespace-nowrap text-sm font-semibold uppercase tracking-wider text-ink2">{children}</h2>
+      <h2 className="whitespace-nowrap text-sm font-semibold text-ink">{children}</h2>
       {right}
     </div>
   );

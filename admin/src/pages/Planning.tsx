@@ -12,6 +12,7 @@ import { Btn, Empty, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../co
 import { Icon } from "../components/icons";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
+import { Avatar } from "../components/Avatar";
 import { useClientScope } from "../context/ClientScope";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { addDaysYmd, monthGrid, POST_STATUS, STAGES, STAGE_LABEL, MANUAL_STAGES, weekStart, type Stage } from "../../worker/lib/planning";
@@ -36,6 +37,7 @@ const KIND_TINT: Record<string, string> = {
   reel: "border-kind-reel-edge bg-kind-reel",
   story: "border-kind-story-edge bg-kind-story",
 };
+const STAGE_COLOR: Record<Stage, string> = { idea: "bg-muted", drafting: "bg-chart-2", in_review: "bg-chart-1", scheduled: "bg-chart-4", published: "bg-chart-3" };
 const KIND_SWATCH: Record<string, string> = { feed: "bg-kind-feed-edge", carousel: "bg-kind-carousel-edge", reel: "bg-kind-reel-edge", story: "bg-kind-story-edge" };
 const TONE_DOT: Record<Tone, string> = { neutral: "bg-muted", good: "bg-good", warn: "bg-warn", crit: "bg-crit", accent: "bg-[var(--accent)]" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -346,7 +348,14 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
     <>
       <div className="mb-3 flex justify-end"><Btn tone="primary" className="min-h-11" onClick={onAdd} icon="plus">Add idea</Btn></div>
       <Kanban
-        columns={STAGES.map((s) => ({ id: s, label: STAGE_LABEL[s], droppable: MANUAL_STAGES.includes(s), empty: MANUAL_STAGES.includes(s) ? "Empty" : "Fills in from Publish" }))}
+        columns={STAGES.map((s) => ({
+          id: s,
+          label: STAGE_LABEL[s],
+          droppable: MANUAL_STAGES.includes(s),
+          empty: MANUAL_STAGES.includes(s) ? "Empty" : "Fills in from Publish",
+          color: STAGE_COLOR[s],
+          onAdd: s === "idea" ? onAdd : undefined,
+        }))}
         items={cards}
         getId={(c) => c.id}
         getColumn={(c) => c.stage}
@@ -356,18 +365,19 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
           const idx = MANUAL_STAGES.indexOf(c.stage);
           const ps = c.post_status ? POST_STATUS[c.post_status] : null;
           return (
-            <article className={`rounded-xl border p-2.5 shadow-[var(--shadow-soft)] ${KIND_TINT[c.kind] ?? "border-border bg-surface"}`}>
+            <article className="rounded-xl border border-border bg-surface shadow-[var(--shadow-soft)]">
               <button type="button" onClick={() => onOpen(c.id)} className="block w-full text-left">
-                <span className="block text-sm font-medium text-ink">{c.title}</span>
-                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-                  <span>{c.client_name}</span><span>· {KIND_NAME[c.kind]}</span>
-                  {c.planned_date && <span>· {c.planned_date.slice(5)}</span>}
-                  {c.owner_name && <span>· {c.owner_name}</span>}
+                <span className="block border-b border-border px-3 py-1.5 text-[11px] text-muted">Client: <span className="text-ink2">{c.client_name}</span></span>
+                <span className="block px-3 pt-2 text-sm font-medium text-ink">{c.title}</span>
+                <span className="flex flex-wrap items-center gap-1.5 px-3 pb-2.5 pt-1.5">
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] text-ink ${KIND_TINT[c.kind] ?? ""}`}>{KIND_NAME[c.kind]}</span>
+                  {c.owner_name && <span className="inline-flex items-center gap-1 text-[11px] text-ink2"><Avatar name={c.owner_name} size={18} />{c.owner_name}</span>}
+                  {c.planned_date && <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted"><Icon name="clock" className="h-3 w-3" />{c.planned_date.slice(5)}</span>}
                 </span>
-                {ps && <span className="mt-1.5 inline-block"><Pill tone={ps.tone}>Post: {ps.label}</Pill></span>}
+                {ps && <span className="block px-3 pb-2.5"><Pill tone={ps.tone}>Post: {ps.label}</Pill></span>}
               </button>
               {MANUAL_STAGES.includes(c.stage) && !isLocked(c) && (
-                <div className="mt-2 flex gap-1.5">
+                <div className="flex gap-1.5 border-t border-border p-2">
                   {idx > 0 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx - 1]).catch(() => {})} aria-label={`Move ${c.title} back`}>‹ {STAGE_LABEL[MANUAL_STAGES[idx - 1]]}</Btn>}
                   {idx < MANUAL_STAGES.length - 1 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx + 1]).catch(() => {})} aria-label={`Move ${c.title} forward`}>{STAGE_LABEL[MANUAL_STAGES[idx + 1]]} ›</Btn>}
                 </div>

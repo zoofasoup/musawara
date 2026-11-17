@@ -2,6 +2,7 @@
 // It owns only dragging, the optimistic move and the column layout; what a card looks like and what a move
 // does come from the screen. Build every board from this, never with raw HTML5 drag events.
 import { useState, type ReactNode } from "react";
+import { Icon } from "./icons";
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 
 export type KanbanColumn = {
@@ -11,6 +12,10 @@ export type KanbanColumn = {
   droppable?: boolean;
   /** Shown when the column has no cards. */
   empty?: string;
+  /** Tailwind background class for the little colour bar before the title, e.g. "bg-chart-3". */
+  color?: string;
+  /** Adds a "+" in the header and an "Add new" row at the bottom of the column. */
+  onAdd?: () => void;
 };
 
 type Props<T> = {
@@ -42,13 +47,24 @@ function Column({ col, count, children }: { col: KanbanColumn; count: number; ch
     <section
       ref={setNodeRef}
       aria-label={col.label}
-      className={`min-w-0 rounded-xl p-2 transition-colors ${isOver ? "bg-[var(--accent)]/10 ring-2 ring-[var(--accent)]/30" : "bg-surface2"}`}
+      className={`min-w-0 rounded-2xl p-2 transition-colors ${isOver ? "bg-[var(--accent)]/10 ring-2 ring-[var(--accent)]/30" : "bg-surface2/80"}`}
     >
-      <h3 className="flex items-center justify-between px-1 py-1 text-xs font-semibold uppercase tracking-wide text-ink2">
-        {col.label}
-        <span className="text-muted">{count}</span>
+      <h3 className="flex items-center gap-2 px-1 py-1.5 text-sm font-medium text-ink">
+        <span aria-hidden="true" className={`h-4 w-1 rounded-full ${col.color ?? "bg-muted"}`} />
+        <span className="min-w-0 truncate">{col.label}</span>
+        <span className="rounded-full bg-white px-1.5 text-xs font-normal text-ink2">{count}</span>
+        {col.onAdd && (
+          <button type="button" onClick={col.onAdd} aria-label={`Add to ${col.label}`} className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-ink2 hover:bg-white hover:text-ink">
+            <Icon name="plus" className="h-4 w-4" />
+          </button>
+        )}
       </h3>
       <div className="space-y-2">{children}</div>
+      {col.onAdd && (
+        <button type="button" onClick={col.onAdd} className="mt-2 flex min-h-9 w-full items-center gap-1.5 rounded-xl px-2 text-sm text-ink2 hover:bg-white/70 hover:text-ink">
+          <Icon name="plus" className="h-4 w-4" />Add new
+        </button>
+      )}
     </section>
   );
 }

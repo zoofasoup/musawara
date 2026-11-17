@@ -1,4 +1,5 @@
 import { Delta, Skeleton } from "./ui";
+import { Nested } from "./kit";
 
 export function KpiCard({
   label,
@@ -27,23 +28,16 @@ export function KpiCard({
   /** false = comparison switched off: no delta line. */
   compare?: boolean;
 }) {
-  const box = flat
-    ? "border-b border-r border-border bg-surface px-3.5 py-3"
-    : "rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3.5";
-  if (loading) {
-    return (
-      <div className={box}>
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="mt-2 h-6 w-24" />
-        <Skeleton className="mt-2 h-3 w-12" />
-      </div>
-    );
-  }
-  return (
-    <div className={box}>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">{label}</p>
+  const box = "border-b border-r border-border bg-surface px-3.5 py-3";
+  const body = loading ? (
+    <>
+      <Skeleton className="h-6 w-24" />
+      <Skeleton className="mt-2 h-3 w-12" />
+    </>
+  ) : (
+    <>
       {/* never truncate a number: long amounts get a smaller size, and may wrap after "Rp" on narrow cards */}
-      <p className={`tnum mt-1 font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
+      <p className={`tnum font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
       </p>
       {compare && (
@@ -55,6 +49,16 @@ export function KpiCard({
       {note && (
         <p className={`mt-1 text-xs font-medium ${note.tone === "good" ? "text-good" : note.tone === "crit" ? "text-crit" : "text-muted"}`}>{note.text}</p>
       )}
-    </div>
+    </>
   );
+  // The report strip (printed) keeps joined cells; everywhere else a stat is a nested card.
+  if (flat) {
+    return (
+      <div className={box}>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted">{label}</p>
+        <div className="mt-1">{body}</div>
+      </div>
+    );
+  }
+  return <Nested title={label}>{body}</Nested>;
 }

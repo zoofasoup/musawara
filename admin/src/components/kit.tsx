@@ -194,6 +194,30 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
   return <div className={`rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</div>;
 }
 
+/**
+ * A card inside a tinted holder: a quiet title row on top, the content on a white card below.
+ * The default shape for a number, a stat or a small summary. Use it instead of a bordered box
+ * around every item; group with surface tint, not with more outlines.
+ */
+export function Nested({ title, right, children, className = "" }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-2xl border border-border/70 bg-surface2/70 p-1.5 ${className}`}>
+      {(title || right) && (
+        <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink2">
+          <span className="min-w-0 truncate">{title}</span>
+          {right}
+        </div>
+      )}
+      <div className="rounded-xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">{children}</div>
+    </div>
+  );
+}
+
+/** One surface holding rows separated by hairlines: the way to show a list, instead of a box per item. */
+export function RowList({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <ul className={`divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</ul>;
+}
+
 export function Empty({ icon, title, hint, action }: { icon: IconName; title: string; hint: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded-2xl border border-dashed border-border2 bg-surface px-6 py-10 text-center">

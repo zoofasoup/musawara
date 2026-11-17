@@ -263,25 +263,22 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </Link>
       )}
 
-      {/* metrics strip */}
-      <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
-        <div className="-mb-px -mr-px grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-          {kpis.map((k) => (
-            <KpiCard
-              key={k.label}
-              flat
-              label={k.label}
-              value={k.value}
-              current={k.cur}
-              previous={k.prev}
-              direction={k.dir}
-              note={k.note}
-              previousText={k.prevText}
-              compare={compareOn}
-              loading={summary.loading}
-            />
-          ))}
-        </div>
+      {/* key numbers: one nested card each */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+        {kpis.map((k) => (
+          <KpiCard
+            key={k.label}
+            label={k.label}
+            value={k.value}
+            current={k.cur}
+            previous={k.prev}
+            direction={k.dir}
+            note={k.note}
+            previousText={k.prevText}
+            compare={compareOn}
+            loading={summary.loading}
+          />
+        ))}
       </div>
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}
 
