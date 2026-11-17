@@ -1,0 +1,67 @@
+// Guards the UI standard: screens are built from components/ui and components/kit, not from restyled raw HTML.
+// If this fails, use <Input>, <Textarea>, <NativeSelect>, <Checkbox> or <Btn> (see /styleguide and admin/CLAUDE.md).
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+
+const SRC = new URL("../", import.meta.url).pathname;
+
+function files(dir: string): string[] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) return files(p);
+    return p.endsWith(".tsx") ? [p] : [];
+  });
+}
+
+// Shared building blocks and vendored components are allowed to use raw elements.
+const OWN = (p: string) => !/\/components\/(ui|reui)\//.test(p) && !p.endsWith("/pages/AstryxLab.tsx");
+const screens = files(SRC).filter(OWN);
+
+function offenders(re: RegExp, allow: (tag: string) => boolean = () => false): string[] {
+  const out: string[] = [];
+  for (const f of screens) {
+    const src = readFileSync(f, "utf8");
+    for (const m of src.matchAll(re)) {
+      if (allow(m[0])) continue;
+      const line = src.slice(0, m.index).split("\n").length;
+      out.push(`${relative(SRC, f)}:${line}  ${m[0].slice(0, 60).replace(/\s+/g, " ")}`);
+    }
+  }
+  return out;
+}
+
+test("no raw <select> or <textarea>: use NativeSelect and Textarea", () => {
+  assert.deepEqual(offenders(/<(select|textarea)\b/g), []);
+});
+
+test("no raw <input> except hidden file pickers: use Input and Checkbox", () => {
+  const raw = offenders(/<input\b[^>]*>?/g, (tag) => /type="file"/.test(tag));
+  assert.deepEqual(raw, []);
+});
+
+test("the old per-page style constants are gone", () => {
+  assert.deepEqual(offenders(/\b(inputCls|fieldCls|selectCls|selectSmCls|btnCls)\b/g), []);
+});
+
+test("no hardcoded hex colours in screens (use the theme tokens), except a client's own brand colour fallback", () => {
+  const hits = offenders(/#[0-9a-fA-F]{6}\b/g).filter((h) => !/brand_color/.test(h));
+  // The two known fallbacks are for a client without a brand colour; anything new must use a token.
+  const known = ["pages/ClientDashboard.tsx", "components/report/ReportView.tsx"];
+  assert.deepEqual(hits.filter((h) => !known.some((k) => h.startsWith(k))), []);
+});
+
+test("every raw <button> is a deliberate custom control (tabs, chips, icon buttons), kept to a known list", () => {
+  // Buttons should be Btn. Files below hold custom interactive widgets that are not plain buttons.
+  const allowed = new Set([
+    "components/AdminShell.tsx", "components/Layout.tsx", "components/kit.tsx", "components/ui.tsx", "components/TrendChart.tsx",
+    "components/DateRangePicker.tsx", "components/EntityTable.tsx", "components/AlertFeed.tsx",
+    "pages/Planning.tsx", "pages/Approvals.tsx", "pages/Assets.tsx", "pages/Organic.tsx", "pages/BrandKnowledge.tsx", "pages/Conversions.tsx",
+    "pages/SalesGrid.tsx", "pages/Login.tsx", "pages/Invite.tsx", "pages/Shopee.tsx", "pages/settings/MetaSection.tsx", "pages/settings/TeamSection.tsx",
+    "pages/crm/AccountSwitcher.tsx", "pages/crm/CrmCampaigns.tsx", "pages/crm/CrmContacts.tsx", "pages/crm/CrmTemplates.tsx",
+    "pages/crm/inbox/ConversationList.tsx", "pages/crm/inbox/ThreadView.tsx",
+  ]);
+  const extra = offenders(/<button\b/g).filter((h) => !allowed.has(h.split(":")[0]));
+  assert.deepEqual(extra, []);
+});

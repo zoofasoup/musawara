@@ -1,9 +1,11 @@
 // WhatsApp numbers: one card per gateway account with status, QR, rename, brand link, restart, logout and delete.
 // Each card polls /accounts/:id/status every 3 s while its number is not ready, every 15 s otherwise.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState, type FormEvent } from "react";
 import { crm } from "./crmApi";
-import { Btn, ConfirmBtn, Empty, fieldCls, Panel, Pill, useNotify, type Notify } from "../../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Notify } from "../../components/kit";
 import { Skeleton } from "../../components/ui";
 import { classify, fmtPhone, fmtSince, useLive } from "./inbox/util";
 import { clientName, statusInfo, useAccounts, type Account, type AccountStatusDetail, type Client } from "./accounts";
@@ -15,14 +17,14 @@ const isMax = (e: unknown) => (e as any)?.status === 409 && (e as any)?.code ===
 
 function BrandSelect({ id, value, clients, disabled, onChange }: { id: string; value: number | null; clients: Client[]; disabled?: boolean; onChange: (v: number | null) => void }) {
   return (
-    <select id={id} className={`${fieldCls} w-full`} value={value ?? ""} disabled={disabled} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
+    <NativeSelect id={id} className="w-full" value={value ?? ""} disabled={disabled} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
       <option value="">No brand</option>
       {clients.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -120,7 +122,7 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
               <label className="sr-only" htmlFor={`rename-${account.id}`}>
                 Number name
               </label>
-              <input id={`rename-${account.id}`} className={`${fieldCls} w-56 max-w-full`} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus />
+              <Input id={`rename-${account.id}`} className="w-56 max-w-full" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus />
               <Btn tone="primary" type="submit" loading={busy === "rename"}>
                 Save
               </Btn>
@@ -269,7 +271,7 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
           <label htmlFor="new-name" className="text-xs text-muted">
             Name
           </label>
-          <input id="new-name" className={fieldCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="For example: Padel store" autoFocus />
+          <Input className="w-auto" id="new-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="For example: Padel store" autoFocus />
         </div>
         <div className="grid gap-1 sm:max-w-xs">
           <label htmlFor="new-brand" className="text-xs text-muted">

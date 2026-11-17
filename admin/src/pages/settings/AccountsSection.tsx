@@ -1,9 +1,11 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, useApi } from "../../lib/api";
 import { ClientAvatar } from "../../components/Layout";
 import { Icon } from "../../components/icons";
 import { fmtAgo, fmtDateTime, fmtDayFull, fmtNum, hoursSince } from "../../lib/format";
-import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, selectCls, type Notify, type Tone } from "../../components/kit";
+import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Section, type Notify, type Tone } from "../../components/kit";
 
 const ymdAdd = (ymd: string, days: number) => new Date(Date.parse(ymd + "T00:00:00Z") + days * 86_400_000).toISOString().slice(0, 10);
 
@@ -176,11 +178,11 @@ function AccountCard({ a, notify, reload }: { a: any; notify: Notify; reload: ()
               The daily sync only refreshes the last 28 days. Use this once to bring in older months. Ranges already pulled are skipped.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <select value={range} disabled={progress !== null} onChange={(e) => setRange(e.target.value as typeof range)} aria-label="History range" className={selectCls}>
+              <NativeSelect className="w-full sm:w-auto" value={range} disabled={progress !== null} onChange={(e) => setRange(e.target.value as typeof range)} aria-label="History range">
                 <option value="all">All available (up to 37 months)</option>
                 <option value="13m">Last 13 months</option>
                 <option value="3m">Last 3 months</option>
-              </select>
+              </NativeSelect>
               <Btn tone="primary" icon="database" loading={progress !== null} onClick={backfill}>
                 {progress ? "Pulling…" : "Pull history"}
               </Btn>
@@ -292,13 +294,13 @@ export function AccountsSection({
       {adding && (
         <form onSubmit={connect} className="mb-3 space-y-2 rounded-xl border border-[var(--accent)]/30 bg-surface p-3">
           <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="Client" className={inputCls}>
+            <NativeSelect className="w-full" value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="Client">
               <option value="">Which client?</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
-            <input value={metaId} onChange={(e) => setMetaId(e.target.value)} placeholder="act_1234567890" aria-label="Meta ad account ID" spellCheck={false} className={`${inputCls} font-mono`} />
+            </NativeSelect>
+            <Input value={metaId} onChange={(e) => setMetaId(e.target.value)} placeholder="act_1234567890" aria-label="Meta ad account ID" spellCheck={false} className="font-mono" />
             <Btn type="submit" tone="primary" loading={saving} disabled={!clientId || !metaId.trim()}>
               Connect
             </Btn>

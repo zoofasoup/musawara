@@ -1,13 +1,15 @@
 // Saved sales as a data grid: sort, search, filter by month, closer and
 // Meta state, toggle columns, page through, export what is on screen.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useTable, type ColumnDef, type PaginationState, type SortingState, type ColumnVisibilityState } from "@tanstack/react-table";
 import { Columns3, Download, Pencil } from "lucide-react";
 import { csvCell } from "../lib/csv";
 import { fmtDayFull, fmtNum, fmtRp } from "../lib/format";
-import { Btn, ConfirmBtn, inputCls, Panel, Pill, selectCls, Sheet, type Notify, type Tone } from "../components/kit";
+import { Btn, ConfirmBtn, Panel, Pill, Sheet, type Notify, type Tone } from "../components/kit";
 import { DataGrid, DataGridContainer, dataGridFeatures, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
 import { DataGridColumnVisibility } from "@/components/reui/data-grid/data-grid-column-visibility";
@@ -211,7 +213,7 @@ function SaleEditor({ sale, notify, onClose, onChanged }: { sale: SavedSale; not
 
   const field = (label: string, k: keyof typeof f, props: Record<string, unknown> = {}, locked = false) => (
     <label className="block text-xs text-muted">{label}
-      <input value={f[k]} onChange={set(k)} disabled={locked} className={`${inputCls} mt-1 disabled:opacity-60`} {...props} />
+      <Input value={f[k]} onChange={set(k)} disabled={locked} className="mt-1 disabled:opacity-60" {...props} />
     </label>
   );
 
@@ -233,9 +235,9 @@ function SaleEditor({ sale, notify, onClose, onChanged }: { sale: SavedSale; not
         {field("Room", "room_type")}
         {field("DP (Rp)", "down_payment", { type: "number", inputMode: "numeric", min: 0 })}
         <label className="block text-xs text-muted">Status
-          <select value={f.pay_status} onChange={set("pay_status")} className={`${selectCls} mt-1`}>
+          <NativeSelect value={f.pay_status} onChange={set("pay_status")} className="mt-1 w-full sm:w-auto">
             {PAY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </NativeSelect>
         </label>
         <div className="col-span-2">{field("Source", "source")}</div>
       </div>
@@ -305,19 +307,19 @@ export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs text-muted">Month
-          <select value={month} onChange={(e) => { setMonth(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} className={`${selectCls} mt-1 min-w-[9rem]`}>
+          <NativeSelect value={month} onChange={(e) => { setMonth(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} className="mt-1 min-w-[9rem]">
             <option value="">All months</option>
             {months.map((m) => <option key={m.month} value={m.month}>{m.month}</option>)}
-          </select>
+          </NativeSelect>
         </label>
         <label className="text-xs text-muted">Closer
-          <select value={closer} onChange={(e) => { setCloser(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} className={`${selectCls} mt-1 min-w-[9rem]`}>
+          <NativeSelect value={closer} onChange={(e) => { setCloser(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} className="mt-1 min-w-[9rem]">
             <option value="">All closers</option>
             {closers.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          </NativeSelect>
         </label>
         <label className="min-w-[10rem] flex-1 text-xs text-muted">Search
-          <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} placeholder="Name, closer, source, package" className={`${inputCls} mt-1`} />
+          <Input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }} placeholder="Name, closer, source, package" className="mt-1" />
         </label>
       </div>
 

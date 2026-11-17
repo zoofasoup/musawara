@@ -1,6 +1,8 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { useMemo } from "react";
 import { Plus, RefreshCw, Search } from "lucide-react";
-import { Empty, inputCls, selectCls } from "../../../components/kit";
+import { Empty } from "../../../components/kit";
 import { Skeleton } from "../../../components/ui";
 import { convTitle, fmtListTime, fmtPhone, mediaLabel, tagList, type Conv, type SyncState } from "./util";
 
@@ -102,13 +104,13 @@ export function ConversationList({
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search conversations</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
+            <Input
               type="search"
               value={filters.q}
               onChange={(e) => setFilters({ ...filters, q: e.target.value })}
               placeholder="Search name, number or message"
               autoComplete="off"
-              className={`${inputCls} pl-9`}
+              className="pl-9"
             />
           </label>
           <button
@@ -140,24 +142,24 @@ export function ConversationList({
               onNewChat();
             }}
           >
-            <input
+            <Input
               inputMode="tel"
               value={newChat}
               onChange={(e) => setNewChat(e.target.value)}
               placeholder="Phone number, e.g. 0812... or 62812..."
               aria-label="Phone number"
-              className={inputCls}
+             
             />
             <button type="submit" disabled={!newChat.trim()} className="min-h-11 shrink-0 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground disabled:opacity-50">
               Open
             </button>
           </form>
         )}
-        <select
+        <NativeSelect
           value={filters.tag}
           onChange={(e) => setFilters({ ...filters, tag: e.target.value })}
           aria-label="Filter by tag"
-          className={`${selectCls} w-full`}
+          className="w-full"
         >
           <option value="">All tags ({all.length})</option>
           {tagOptions.map(([t, n]) => (
@@ -167,7 +169,7 @@ export function ConversationList({
           ))}
           {noTag > 0 && <option value={NO_TAG}>Contacts without a tag ({noTag})</option>}
           {notContact > 0 && <option value={NOT_CONTACT}>Not in contacts ({notContact})</option>}
-        </select>
+        </NativeSelect>
         <div role="group" aria-label="Status" className="grid grid-cols-3 gap-1 rounded-lg bg-surface2 p-1">
           {STATUS.map((s) => (
             <button

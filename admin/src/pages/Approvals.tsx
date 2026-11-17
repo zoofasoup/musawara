@@ -1,6 +1,10 @@
 // Approvals. One page per client: client users review and decide, the team creates and
 // resubmits. TeamApprovals lists every request across clients with a status filter.
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
@@ -9,7 +13,7 @@ import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { fmtDateTime } from "../lib/format";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Btn, Pill, Sheet, fieldCls, inputCls, useNotify, type Tone } from "../components/kit";
+import { Btn, Pill, Sheet, useNotify, type Tone } from "../components/kit";
 import type { Asset } from "./Assets";
 
 type Status = "pending" | "approved" | "changes_requested";
@@ -95,7 +99,7 @@ function ResubmitSheet({ clientId, req, onClose, onDone }: { clientId: number; r
         <p className="text-xs text-muted">This sends version {req.version + 1} to the client. Update the Drive files first if needed.</p>
         <label className="block text-xs text-ink2">
           Message to the client
-          <textarea rows={4} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className={`${inputCls} mt-1 py-2`} />
+          <Textarea rows={4} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 py-2" />
         </label>
         {error && <p role="alert" className="text-xs text-crit">{error}</p>}
         <div className="flex gap-2">
@@ -135,13 +139,13 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
         <h2 className="text-base font-semibold text-ink">New approval request</h2>
         <label className="block text-xs text-ink2">
           Title
-          <input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} className={`${inputCls} mt-1`} />
+          <Input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
         </label>
         <label className="block text-xs text-ink2">
           Message to the client
-          <textarea rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className={`${inputCls} mt-1 py-2`} />
+          <Textarea rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 py-2" />
         </label>
-        <fieldset>
+        <fieldset className="min-w-0">
           <legend className="text-xs text-ink2">Assets to review</legend>
           {assets.loading && !assets.data ? (
             <CardSkeleton lines={2} />
@@ -154,9 +158,9 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
               {list.map((a) => (
                 <li key={a.id}>
                   <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm text-ink hover:bg-surface2">
-                    <input type="checkbox" checked={picked.includes(a.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, a.id] : picked.filter((x) => x !== a.id))} />
-                    <span className="truncate">{a.title}</span>
-                    <span className="ml-auto text-xs text-muted">{a.kind}</span>
+                    <Checkbox checked={picked.includes(a.id)} onCheckedChange={(on) => setPicked(on ? [...picked, a.id] : picked.filter((x) => x !== a.id))} />
+                    <span className="min-w-0 truncate">{a.title}</span>
+                    <span className="ml-auto shrink-0 text-xs text-muted">{a.kind}</span>
                   </label>
                 </li>
               ))}
@@ -166,10 +170,10 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
         {(posts.data?.posts.length ?? 0) > 0 && (
           <label className="block text-xs text-ink2">
             Publish post (optional)
-            <select value={postId} onChange={(e) => setPostId(e.target.value)} className={`${inputCls} mt-1`}>
+            <NativeSelect value={postId} onChange={(e) => setPostId(e.target.value)} className="mt-1 w-full">
               <option value="">None</option>
               {posts.data!.posts.map((p) => <option key={p.id} value={p.id}>#{p.id} {p.kind} · {(p.caption || "No caption").slice(0, 40)}</option>)}
-            </select>
+            </NativeSelect>
           </label>
         )}
         {error && <p role="alert" className="text-xs text-crit">{error}</p>}
@@ -218,7 +222,7 @@ function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: num
         <div className="mt-3 space-y-2">
           <label className="block text-xs text-ink2">
             Comment (required if you request changes)
-            <textarea rows={2} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} className={`${inputCls} mt-1 py-2`} />
+            <Textarea rows={2} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} className="mt-1 py-2" />
           </label>
           <div className="flex flex-wrap gap-2">
             <Btn tone="primary" icon="check" loading={busy === "approved"} disabled={!!busy} onClick={() => decide("approved")}>Approve</Btn>
@@ -307,9 +311,9 @@ export function TeamApprovals() {
         title="Approvals"
         subtitle="Requests waiting on clients, and what they answered."
         actions={
-          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={fieldCls}>
+          <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
             {FILTERS.map(([k, label]) => <option key={k} value={k}>{k ? label : "All statuses"}</option>)}
-          </select>
+          </NativeSelect>
         }
       />
       {list.loading && !list.data ? (

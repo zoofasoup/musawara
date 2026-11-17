@@ -58,18 +58,6 @@ export function Btn({
   );
 }
 
-export const inputCls =
-  "min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink placeholder:text-muted outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20";
-
-export const selectCls = inputCls.replace("w-full", "w-full sm:w-auto");
-
-/** Inline field and small neutral button for toolbars and rows (not full width). */
-export const fieldCls =
-  "min-h-11 min-w-0 rounded-lg border border-border2 bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20";
-export const selectSmCls = "min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink outline-none focus:border-[var(--accent)]";
-export const btnCls =
-  "inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50";
-
 function useIsPhone() {
   const q = "(max-width: 639px)";
   const [phone, setPhone] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);

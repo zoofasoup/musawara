@@ -1,5 +1,6 @@
 // The team's app frame: a grouped sidebar on desktop, a short tab bar with a "More" sheet on phones, and the
 // client switcher that scopes every page. Clients get a different, simpler frame (see Layout).
+import { NativeSelect } from "@/components/ui/native-select";
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -50,14 +51,14 @@ function ClientSwitcher({ className = "" }: { className?: string }) {
   return (
     <label className={`block ${className}`}>
       <span className="sr-only">Client</span>
-      <select
+      <NativeSelect
         value={clientId ?? ""}
         onChange={(e) => setClientId(e.target.value ? Number(e.target.value) : null)}
-        className="min-h-11 w-full rounded-lg border border-border2 bg-bg px-2.5 text-sm font-medium text-ink outline-none focus:border-[var(--accent)] md:min-h-10"
+        className="w-full"
       >
         <option value="">All clients</option>
         {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      </NativeSelect>
     </label>
   );
 }

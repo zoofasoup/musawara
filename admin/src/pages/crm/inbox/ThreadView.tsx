@@ -1,8 +1,9 @@
+import { Textarea } from "@/components/ui/textarea";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, Download, ExternalLink, Paperclip, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { crmUpload } from "../crmApi";
-import { inputCls } from "../../../components/kit";
+
 import { Skeleton } from "../../../components/ui";
 import { GatewayNotice } from "./GatewayNotice";
 import { classify, convTitle, dayKey, fmtClock, fmtDayLabel, fmtPhone, mediaLabel, useLive, type Msg, type Thread, type WaState } from "./util";
@@ -138,7 +139,7 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
         >
           <Paperclip className="h-4 w-4" />
         </button>
-        <textarea
+        <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -151,7 +152,7 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
           disabled={disabled}
           aria-label="Message"
           placeholder={disabled ? "Sending is off" : "Write a message"}
-          className={`${inputCls} max-h-32 min-h-11 resize-none py-2.5 disabled:cursor-not-allowed disabled:opacity-60`}
+          className="max-h-32 min-h-11 resize-none py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"

@@ -1,5 +1,8 @@
 // Unified spend: Meta (synced) + marketplace/other spend entered by hand.
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useMemo, useState } from "react";
@@ -10,7 +13,7 @@ import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { btnCls as btn, fieldCls as field } from "../components/kit";
+import { Btn } from "../components/kit";
 
 const SOURCES = [
   { key: "meta", label: "Meta Ads", color: "var(--color-chart-1)" },
@@ -102,7 +105,7 @@ export function Spend() {
         subtitle="Ad spend and marketplace costs for the chosen client."
         actions={
           <label className="inline-flex min-h-11 items-center gap-2 text-sm text-ink2">
-            <input type="checkbox" checked={companyWide} onChange={(e) => setCompanyWide(e.target.checked)} className="h-4 w-4" />
+            <Checkbox checked={companyWide} onCheckedChange={(on) => setCompanyWide(on)} />
             Company-wide only
           </label>
         }
@@ -206,21 +209,21 @@ export function Spend() {
       <div>
         <SectionTitle>Marketplace spend</SectionTitle>
         <form onSubmit={add} className="mb-3 flex flex-wrap gap-2">
-          <select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className={field} aria-label="Source">
+          <NativeSelect value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} aria-label="Source">
             {MANUAL_SOURCES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
-          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field} aria-label="Category">
+          </NativeSelect>
+          <NativeSelect value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} aria-label="Category">
             <option value="ads">Ads</option>
             <option value="fee">Fees</option>
-          </select>
-          <select value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} className={field} aria-label="Client">
+          </NativeSelect>
+          <NativeSelect value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} aria-label="Client">
             <option value="">Company-wide</option>
             {clients.data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={field} aria-label="Date" />
-          <input type="text" required inputMode="numeric" value={fmtDigits(form.amount)} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })} placeholder="Amount (Rp)" aria-label="Amount in Rupiah" className={`${field} w-full sm:w-40`} />
-          <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Note" aria-label="Note" maxLength={200} className={`${field} w-full sm:w-auto sm:flex-1`} />
-          <button className={btn}>Add</button>
+          </NativeSelect>
+          <Input className="w-auto" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Date" />
+          <Input type="text" required inputMode="numeric" value={fmtDigits(form.amount)} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })} placeholder="Amount (Rp)" aria-label="Amount in Rupiah" className="w-full sm:w-40" />
+          <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Note" aria-label="Note" maxLength={200} className="w-full sm:w-auto sm:flex-1" />
+          <Btn tone="secondary" type="submit">Add</Btn>
         </form>
         {error && <p role="alert" className="mb-2 text-xs text-crit">{error}</p>}
         {entries.error ? (
@@ -235,7 +238,7 @@ export function Spend() {
                     {fmtDayFull(e.date)} · {e.client_name ?? "Company-wide"}{e.note ? ` · ${e.note}` : ""}
                   </span>
                 </span>
-                <button onClick={() => remove(e.id)} aria-label={`Delete entry ${fmtRp(e.amount)} ${label(e.source)}`} className={btn}>Delete</button>
+                <Btn tone="secondary" onClick={() => remove(e.id)} aria-label={`Delete entry ${fmtRp(e.amount)} ${label(e.source)}`}>Delete</Btn>
               </li>
             ))}
           </ul>

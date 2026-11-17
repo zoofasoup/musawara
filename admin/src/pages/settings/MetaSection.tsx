@@ -1,7 +1,8 @@
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
-import { Btn, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
+import { Btn, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 export type TokenStatus = { configured: boolean; source?: string; ok?: boolean; name?: string; error?: string };
 
@@ -83,7 +84,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
           <form onSubmit={save} className="mt-4 space-y-3">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <input
+                <Input
                   type={show ? "text" : "password"}
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
@@ -91,7 +92,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
                   autoComplete="off"
                   spellCheck={false}
                   aria-label="Meta access token"
-                  className={`${inputCls} pr-11 font-mono`}
+                  className="pr-11 font-mono"
                 />
                 <button
                   type="button"

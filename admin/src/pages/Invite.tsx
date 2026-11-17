@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, useApi } from "../lib/api";
@@ -53,7 +54,7 @@ export function Invite() {
             </p>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-ink2">Your name</span>
-              <input
+              <Input
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -62,7 +63,7 @@ export function Invite() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-ink2">Email</span>
-              <input
+              <Input
                 type="email"
                 required={!data!.invite.email}
                 disabled={Boolean(data!.invite.email)}
@@ -73,7 +74,7 @@ export function Invite() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-ink2">Password (8+ characters)</span>
-              <input
+              <Input
                 type="password"
                 required
                 minLength={8}

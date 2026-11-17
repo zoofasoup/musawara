@@ -1,6 +1,7 @@
 // Creative view: every ad with delivery in the range, with the metrics that matter and a
 // verdict against the client's own ads. Sort by what you are judging.
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { presetByKey, type DateRange } from "../lib/dates";
@@ -30,9 +31,9 @@ export function CreativeView({ clientId }: { clientId: number }) {
       </div>
       <SectionTitle
         right={
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by" className="min-h-11 rounded-lg border border-border2 bg-bg px-2 text-xs text-ink">
+          <NativeSelect size="sm" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
             {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </NativeSelect>
         }
       >
         Ads ({ads.length})

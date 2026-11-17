@@ -1,6 +1,9 @@
 // Contacts: searchable, tag-filterable table of every gateway contact, with add/edit/delete,
 // bulk tag add/remove, CSV/Excel/pasted import (with preview) and CSV export.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTable, type ColumnDef, type PaginationState, type SortingState } from "@tanstack/react-table";
@@ -8,7 +11,7 @@ import { Download, Pencil, Search, Send, Upload } from "lucide-react";
 import { crm, crmUpload } from "./crmApi";
 import { csvCell } from "../../lib/csv";
 import { fmtNum } from "../../lib/format";
-import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, selectCls, Sheet, useNotify, type Notify } from "../../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, Sheet, useNotify, type Notify } from "../../components/kit";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataGrid, DataGridContainer, dataGridFeatures, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
@@ -81,13 +84,13 @@ function ContactEditor({ contact, allTags, notify, onClose, onChanged }: { conta
         }}
       >
         <Field label="Name">
-          <input value={f.name} onChange={set("name")} className={inputCls} autoComplete="off" />
+          <Input value={f.name} onChange={set("name")} autoComplete="off" />
         </Field>
         <Field label="WhatsApp number" hint={f.phone ? (normalized ? `Will be saved as +${normalized}` : "Not a valid number yet. Example: 081234567890 or 6281234567890") : "Example: 081234567890 or 6281234567890"}>
-          <input value={f.phone} onChange={set("phone")} className={inputCls} inputMode="tel" required autoComplete="off" />
+          <Input value={f.phone} onChange={set("phone")} inputMode="tel" required autoComplete="off" />
         </Field>
         <Field label="Tags" hint="Separate with commas. Tags are lowercased.">
-          <input value={f.tags} onChange={set("tags")} className={inputCls} list="crm-tag-options" placeholder="customer, jakarta" autoComplete="off" />
+          <Input value={f.tags} onChange={set("tags")} list="crm-tag-options" placeholder="customer, jakarta" autoComplete="off" />
           <datalist id="crm-tag-options">
             {allTags.map((t) => (
               <option key={t} value={t} />
@@ -95,7 +98,7 @@ function ContactEditor({ contact, allTags, notify, onClose, onChanged }: { conta
           </datalist>
         </Field>
         <Field label="Notes">
-          <textarea value={f.notes} onChange={set("notes")} rows={3} className={`${inputCls} py-2`} />
+          <Textarea value={f.notes} onChange={set("notes")} rows={3} className="py-2" />
         </Field>
         {err && (
           <p role="alert" className="text-xs text-crit">
@@ -212,20 +215,20 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
           </div>
           {!file && (
             <Field label="Or paste CSV text" hint="First line is the header, for example: Nama,Nomor,Tag">
-              <textarea
+              <Textarea
                 value={pasted}
                 onChange={(e) => {
                   setPasted(e.target.value);
                   reset();
                 }}
                 rows={5}
-                className={`${inputCls} py-2 font-mono text-xs`}
+                className="py-2 font-mono text-xs"
                 placeholder={"Nama,Nomor,Tag\nBudi,081234567890,customer"}
               />
             </Field>
           )}
           <Field label="Add these tags to every contact (optional)">
-            <input value={extraTags} onChange={(e) => setExtraTags(e.target.value)} className={inputCls} placeholder="event-padel" autoComplete="off" />
+            <Input value={extraTags} onChange={(e) => setExtraTags(e.target.value)} placeholder="event-padel" autoComplete="off" />
           </Field>
 
           {problem && (
@@ -500,16 +503,16 @@ export function CrmContacts() {
             <label className="relative min-w-[12rem] flex-1 text-xs text-muted">
               <span className="sr-only">Search contacts</span>
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-              <input type="search" value={q} onChange={(e) => { setQ(e.target.value); firstPage(); }} placeholder="Search name or number" className={`${inputCls} pl-9`} />
+              <Input type="search" value={q} onChange={(e) => { setQ(e.target.value); firstPage(); }} placeholder="Search name or number" className="pl-9" />
             </label>
-            <select value={tag} onChange={(e) => { setTag(e.target.value); firstPage(); }} className={`${selectCls} sm:min-w-[11rem]`} aria-label="Filter by tag">
+            <NativeSelect value={tag} onChange={(e) => { setTag(e.target.value); firstPage(); }} className="sm:min-w-[11rem]" aria-label="Filter by tag">
               <option value="">All tags</option>
               {tagCounts.map(([t, n]) => (
                 <option key={t} value={t}>
                   {t} ({n})
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
 
           {chosen.length > 0 && (
@@ -530,7 +533,7 @@ export function CrmContacts() {
                 <ConfirmBtn label="Delete" confirmLabel={`Delete ${chosen.length} contacts`} onConfirm={() => void deleteSelected()} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <input value={bulkTag} onChange={(e) => setBulkTag(e.target.value)} list="crm-bulk-tags" placeholder="Tag to add or remove" aria-label="Tag to add or remove" className={`${inputCls} sm:max-w-[16rem]`} />
+                <Input value={bulkTag} onChange={(e) => setBulkTag(e.target.value)} list="crm-bulk-tags" placeholder="Tag to add or remove" aria-label="Tag to add or remove" className="sm:max-w-[16rem]" />
                 <datalist id="crm-bulk-tags">
                   {tagCounts.map(([t]) => (
                     <option key={t} value={t} />

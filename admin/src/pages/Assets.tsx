@@ -1,12 +1,15 @@
 // Asset library for one client (team only). Files live on Google Drive: we store the link, never the file.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "../components/PageHeader";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { fmtDateTime } from "../lib/format";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Btn, ConfirmBtn, CopyBtn, Pill, Sheet, fieldCls, inputCls, useNotify } from "../components/kit";
+import { Btn, ConfirmBtn, CopyBtn, Pill, Sheet, useNotify } from "../components/kit";
 import { Icon } from "../components/icons";
 
 export type Asset = { id: number; title: string; kind: "image" | "video" | "doc" | "other"; drive_url: string; tags: string[]; notes: string; created_at: string };
@@ -47,26 +50,26 @@ function AssetForm({ clientId, asset, onClose, onSaved }: { clientId: number; as
         <h2 className="text-base font-semibold text-ink">{asset ? "Edit asset" : "Add asset"}</h2>
         <label className="block text-xs text-ink2">
           Title
-          <input required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className={`${inputCls} mt-1`} />
+          <Input required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className="mt-1" />
         </label>
         <label className="block text-xs text-ink2">
           Type
-          <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Asset["kind"] })} className={`${inputCls} mt-1`}>
+          <NativeSelect value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Asset["kind"] })} className="mt-1 w-full">
             {KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
+          </NativeSelect>
         </label>
         <label className="block text-xs text-ink2">
           Google Drive link
-          <input required type="url" inputMode="url" placeholder="https://drive.google.com/file/d/..." value={f.drive_url} onChange={(e) => setF({ ...f, drive_url: e.target.value })} aria-invalid={urlBad} className={`${inputCls} mt-1`} />
+          <Input required type="url" inputMode="url" placeholder="https://drive.google.com/file/d/..." value={f.drive_url} onChange={(e) => setF({ ...f, drive_url: e.target.value })} aria-invalid={urlBad} className="mt-1" />
           <span className={`mt-1 block ${urlBad ? "text-crit" : "text-muted"}`}>{urlBad ? "Only https links on drive.google.com or docs.google.com." : "Set sharing so the client can open it."}</span>
         </label>
         <label className="block text-xs text-ink2">
           Tags (comma separated)
-          <input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="reel, padel, 11.11" className={`${inputCls} mt-1`} />
+          <Input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="reel, padel, 11.11" className="mt-1" />
         </label>
         <label className="block text-xs text-ink2">
           Notes
-          <textarea rows={3} maxLength={2000} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} className={`${inputCls} mt-1 py-2`} />
+          <Textarea rows={3} maxLength={2000} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} className="mt-1 py-2" />
         </label>
         {error && <p role="alert" className="text-xs text-crit">{error}</p>}
         <div className="flex gap-2">
@@ -121,15 +124,15 @@ export function Assets({ clientId }: { clientId: number }) {
       />
 
       <div className="flex flex-wrap gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, notes, tags" aria-label="Search assets" className={`${fieldCls} w-full sm:w-72`} />
-        <select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Filter by tag" className={fieldCls}>
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, notes, tags" aria-label="Search assets" className="w-full sm:w-72" />
+        <NativeSelect value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Filter by tag">
           <option value="">All tags</option>
           {tags.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by type" className={fieldCls}>
+        </NativeSelect>
+        <NativeSelect value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by type">
           <option value="">All types</option>
           {KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-        </select>
+        </NativeSelect>
       </div>
 
       {list.loading && !list.data ? (

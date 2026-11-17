@@ -1,7 +1,9 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, homeOrigin, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
-import { Btn, ConfirmBtn, CopyBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
+import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 type TeamState = ReturnType<typeof useApi<{ users: any[]; invites: any[] }>>;
 
@@ -60,7 +62,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
             <Icon name="checkCircle" className="h-4 w-4" /> Invite ready. Send this link, it works once.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-good/20 bg-surface px-3">
-            <input readOnly value={inviteUrl} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} className="min-h-11 min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none" />
+            <Input readOnly value={inviteUrl} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} className="min-h-11 min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none" />
             <CopyBtn text={inviteUrl} label="Copy link" />
           </div>
         </div>
@@ -84,14 +86,14 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
             ))}
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" aria-label="Email" className={inputCls} />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" aria-label="Email" />
             {role === "client" && (
-              <select value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="Client" className={inputCls}>
+              <NativeSelect className="w-full" value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="Client">
                 <option value="">Which client can they see?</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-              </select>
+              </NativeSelect>
             )}
           </div>
           <Btn type="submit" tone="primary" loading={saving} disabled={role === "client" && !clientId}>

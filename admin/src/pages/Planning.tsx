@@ -1,11 +1,14 @@
 // SMM planning: content calendar (month/week, Asia/Jakarta) and idea kanban, per client or all clients.
 // Team only. Ideas are planning cards, not Publish posts: nothing here schedules or publishes.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { todayJakarta } from "../lib/dates";
 import { CardSkeleton, ErrorState } from "../components/ui";
-import { Btn, Empty, fieldCls, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
+import { Btn, Empty, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
 import { Icon } from "../components/icons";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
@@ -224,18 +227,18 @@ function DaySheet({ day, clients, clientId, owners, items, onPick, onClose, onSa
       )}
       <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); void save(); }}>
         <p className="text-xs font-medium uppercase tracking-wide text-muted">New idea</p>
-        <input className={fieldCls + " w-full"} placeholder="Idea title" value={form.title} maxLength={200} onChange={(e) => setForm({ ...form, title: e.target.value })} aria-label="Title" />
+        <Input className="w-full" placeholder="Idea title" value={form.title} maxLength={200} onChange={(e) => setForm({ ...form, title: e.target.value })} aria-label="Title" />
         <div className="grid grid-cols-2 gap-2">
-          <select className={fieldCls} value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value ? Number(e.target.value) : "" })} aria-label="Client">
+          <NativeSelect value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value ? Number(e.target.value) : "" })} aria-label="Client">
             <option value="">Client…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select className={fieldCls} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} aria-label="Type">
+          </NativeSelect>
+          <NativeSelect value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} aria-label="Type">
             {KINDS.map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}
-          </select>
-          <input type="date" className={fieldCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Planned date" />
-          <select className={fieldCls} value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value ? Number(e.target.value) : "" })} aria-label="Owner">
+          </NativeSelect>
+          <Input className="w-auto" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Planned date" />
+          <NativeSelect value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value ? Number(e.target.value) : "" })} aria-label="Owner">
             <option value="">No owner</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
+          </NativeSelect>
         </div>
         <Btn tone="primary" type="submit" loading={busy} disabled={!form.title.trim() || form.client === ""} className="w-full min-h-11">Add idea</Btn>
         <p className="text-xs text-muted">An idea is a planning card only. It does not create or schedule a post.</p>
@@ -291,19 +294,19 @@ function CardSheet({ card, owners, onClose, onChanged, notify }: { card: Card; o
     <Sheet title="Card" onClose={onClose}>
       <div className="flex flex-wrap items-center gap-2"><Pill tone="accent">{STAGE_LABEL[card.stage]}</Pill><span className="text-xs text-muted">{card.client_name}</span></div>
       <div className="mt-3 space-y-3">
-        <input className={fieldCls + " w-full"} value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Title" />
-        <textarea className={fieldCls + " min-h-24 w-full"} placeholder="Brief" value={f.brief} onChange={(e) => setF({ ...f, brief: e.target.value })} aria-label="Brief" />
+        <Input className="w-full" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Title" />
+        <Textarea className="min-h-24 w-full" placeholder="Brief" value={f.brief} onChange={(e) => setF({ ...f, brief: e.target.value })} aria-label="Brief" />
         <div className="grid grid-cols-2 gap-2">
-          <select className={fieldCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} aria-label="Type">{KINDS.map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select>
-          <input type="date" className={fieldCls} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Planned date" />
-          <select className={fieldCls + " col-span-2"} value={f.owner} onChange={(e) => setF({ ...f, owner: e.target.value ? Number(e.target.value) : "" })} aria-label="Owner">
+          <NativeSelect value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} aria-label="Type">{KINDS.map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</NativeSelect>
+          <Input className="w-auto" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Planned date" />
+          <NativeSelect className="col-span-2" value={f.owner} onChange={(e) => setF({ ...f, owner: e.target.value ? Number(e.target.value) : "" })} aria-label="Owner">
             <option value="">No owner</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
-          <select className={fieldCls + " col-span-2"} value={f.post} onChange={(e) => setF({ ...f, post: e.target.value ? Number(e.target.value) : "" })} aria-label="Linked Publish post">
+          </NativeSelect>
+          <NativeSelect className="col-span-2" value={f.post} onChange={(e) => setF({ ...f, post: e.target.value ? Number(e.target.value) : "" })} aria-label="Linked Publish post">
             <option value="">No linked post</option>
             {card.post_id != null && <option value={card.post_id}>Post #{card.post_id} ({POST_STATUS[card.post_status ?? "draft"]?.label})</option>}
             {(linkable.data?.posts ?? []).map((p) => <option key={p.id} value={p.id}>#{p.id} {POST_STATUS[p.status]?.label}: {p.caption || KIND_NAME[p.kind]}</option>)}
-          </select>
+          </NativeSelect>
         </div>
         {card.post_id != null && <p className="text-xs text-muted">Linked card moves forward by itself when its post is scheduled or published. Moving or deleting the card never changes the post.</p>}
         <div className="flex flex-wrap items-center gap-2">

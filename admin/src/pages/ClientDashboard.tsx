@@ -1,6 +1,7 @@
 // The client dashboard — one component for all three surfaces:
 // admin drill-in, client viewer login, and the read-only share link.
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { onAccent } from "../lib/color";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -231,18 +232,18 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           <DateRangePicker value={range} onChange={setRange} />
           <label className="flex items-center gap-1.5 text-xs text-muted">
             Compare
-            <select
+            <NativeSelect
+              size="sm"
               value={mode}
               onChange={(e) => setMode(e.target.value as CompareMode)}
               aria-label="Compare to"
-              className="min-h-11 rounded-lg border border-border2 bg-surface px-2 text-xs text-ink lg:min-h-9"
             >
               <option value="prev">Previous period</option>
               <option value="month">Previous month</option>
               <option value="year">Previous year</option>
               <option value="custom">Custom range…</option>
               <option value="off">Off</option>
-            </select>
+            </NativeSelect>
           </label>
           {mode === "custom" && <DateRangePicker value={custom} onChange={setCustom} />}
           {compareOn && summary.data && (

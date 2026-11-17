@@ -4,6 +4,9 @@
 // same sales never duplicates anything (see worker/routes/conversions.ts).
 // Identifiers are hashed in the browser; only hashes reach the server and Meta.
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "../components/PageHeader";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { api, useApi } from "../lib/api";
@@ -13,7 +16,7 @@ import {
   buildSales, COLUMN_GUIDE, FIELD_HINT, FIELD_LABEL, guessMapping, parseWorkbook, planMeta, REQUIRED, templateCsv, unitEvent,
   type Field, type Mapping, type MetaUnit, type SaleRow, type Sheet,
 } from "../lib/conversions";
-import { Btn, Empty, inputCls, Panel, Pill, useNotify, type Notify, type Tone } from "../components/kit";
+import { Btn, Empty, Panel, Pill, useNotify, type Notify, type Tone } from "../components/kit";
 import { SalesGrid, type SavedSale } from "./SalesGrid";
 
 const EVENTS = [
@@ -374,10 +377,10 @@ export function Conversions() {
         <Panel className="space-y-3 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs text-muted">Client
-              <select value={clientId} onChange={(e) => pickClient(e.target.value)} className={`${inputCls} mt-1`}>
+              <NativeSelect value={clientId} onChange={(e) => pickClient(e.target.value)} className="mt-1 w-full">
                 <option value="">Choose…</option>
                 {clientList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              </NativeSelect>
             </label>
             <div className="text-xs text-muted">
               <p>What should happen</p>
@@ -403,18 +406,18 @@ export function Conversions() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-xs text-muted">Dataset
                   {datasets.data?.datasets.length ? (
-                    <select value={datasets.data.datasets.some((d) => d.id === datasetId) ? datasetId : ""} onChange={(e) => setDatasetId(e.target.value)} className={`${inputCls} mt-1`}>
+                    <NativeSelect value={datasets.data.datasets.some((d) => d.id === datasetId) ? datasetId : ""} onChange={(e) => setDatasetId(e.target.value)} className="mt-1 w-full">
                       <option value="">Choose from this ad account…</option>
                       {datasets.data.datasets.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.id}</option>)}
-                    </select>
+                    </NativeSelect>
                   ) : null}
-                  <input value={datasetId} onChange={(e) => setDatasetId(e.target.value.replace(/\D/g, ""))} placeholder="Dataset ID (Events Manager)" inputMode="numeric" className={`${inputCls} mt-1 font-mono`} />
+                  <Input value={datasetId} onChange={(e) => setDatasetId(e.target.value.replace(/\D/g, ""))} placeholder="Dataset ID (Events Manager)" inputMode="numeric" className="mt-1 font-mono" />
                 </label>
                 <label className="block text-xs text-muted">Event
-                  <select value={eventName} onChange={(e) => setEventName(e.target.value)} className={`${inputCls} mt-1`}>{EVENTS.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</select>
+                  <NativeSelect value={eventName} onChange={(e) => setEventName(e.target.value)} className="mt-1 w-full">{EVENTS.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
                 </label>
                 <label className="block text-xs text-muted">Where did the sale happen
-                  <select value={actionSource} onChange={(e) => setActionSource(e.target.value)} className={`${inputCls} mt-1`}>{SOURCES.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</select>
+                  <NativeSelect value={actionSource} onChange={(e) => setActionSource(e.target.value)} className="mt-1 w-full">{SOURCES.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
                 </label>
                 <div className="text-xs text-muted">
                   <p>Mode</p>
@@ -427,7 +430,7 @@ export function Conversions() {
                 </div>
               </div>
               {test ? (
-                <input value={testCode} onChange={(e) => setTestCode(e.target.value.trim())} placeholder="Test event code, e.g. TEST12345" aria-label="Test event code" className={`${inputCls} sm:max-w-xs font-mono`} />
+                <Input value={testCode} onChange={(e) => setTestCode(e.target.value.trim())} placeholder="Test event code, e.g. TEST12345" aria-label="Test event code" className="sm:max-w-xs font-mono" />
               ) : (
                 <p className="flex items-center gap-1.5 text-xs text-warn"><Icon name="alert" className="h-4 w-4" /> Live: events count for ads reporting and optimisation.</p>
               )}
@@ -457,7 +460,7 @@ export function Conversions() {
             <p className="px-4 py-2.5 text-xs font-medium text-ink">Sheets to include</p>
             {sheets.map((s) => (
               <label key={s.name} className="flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2 text-xs">
-                <input type="checkbox" checked={selected.has(s.name)} onChange={() => toggleSheet(s.name)} className="h-4 w-4 accent-[var(--accent)]" />
+                <Checkbox checked={selected.has(s.name)} onCheckedChange={() => toggleSheet(s.name)} />
                 <span className="font-medium text-ink">{s.name}</span>
                 <span className="tnum text-muted">{s.body.length} rows</span>
                 {!selected.has(s.name) && sheets.some((o) => o.name !== s.name && o.name.toLowerCase().startsWith(s.name.toLowerCase())) && (
@@ -476,14 +479,14 @@ export function Conversions() {
               {FIELD_ORDER.map((f) => (
                 <label key={f} className="block text-xs text-muted">
                   {FIELD_LABEL[f]}{REQUIRED.includes(f) ? " *" : ""}
-                  <select
+                  <NativeSelect
                     value={map[f] ?? ""}
                     onChange={(e) => { setMap({ ...map, [f]: e.target.value || null }); setRows(null); setUnits([]); }}
-                    className={`${inputCls} mt-1`}
+                    className="mt-1 w-full"
                   >
                     <option value="">Not in my file</option>
                     {headersAll.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
+                  </NativeSelect>
                   {FIELD_HINT[f] && <span className="mt-0.5 block text-xs text-muted">{FIELD_HINT[f]}</span>}
                 </label>
               ))}

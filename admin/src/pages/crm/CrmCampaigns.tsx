@@ -2,12 +2,15 @@
 // with per-recipient status and pause / resume / cancel / retry. Creating a broadcast sends real
 // WhatsApp messages, so the final button states the recipient count and needs a connected WhatsApp.
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, Pause } from "lucide-react";
 import { crm, crmUpload } from "./crmApi";
 import { fmtNum } from "../../lib/format";
-import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, useNotify, type Notify, type Tone } from "../../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Notify, type Tone } from "../../components/kit";
 import { Bubble, ErrorPanel, Field, fmtDuration, fmtPhone, fmtWhen, ListSkeleton, PageHead, PLACEHOLDERS, TagChip, useDebounced, useGateway, useWaStatus, type WaState } from "./data/shared";
 
 type Campaign = {
@@ -303,7 +306,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
         {step === 0 && (
           <>
             <Field label="Broadcast name" hint="Only for you, recipients never see it.">
-              <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Promo 11.11" autoComplete="off" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Promo 11.11" autoComplete="off" />
             </Field>
             <div>
               <p className="mb-1 text-xs font-medium text-ink2">Send to everyone with a tag</p>
@@ -333,7 +336,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
               </div>
             )}
             <Field label="Extra numbers (optional)" hint='One per line, or "number, name". Numbers are cleaned the same way as contacts.'>
-              <textarea value={numbers} onChange={(e) => setNumbers(e.target.value)} rows={4} className={`${inputCls} py-2`} placeholder={"081234567890, Budi\n6285711112222"} />
+              <Textarea value={numbers} onChange={(e) => setNumbers(e.target.value)} rows={4} className="py-2" placeholder={"081234567890, Budi\n6285711112222"} />
             </Field>
             <div aria-live="polite" className="text-sm text-ink">
               {recErr ? <span className="text-crit">{recErr}</span> : !fresh ? <span className="text-muted">Counting recipients...</span> : <><b className="tnum">{fmtNum(count)}</b> {count === 1 ? "person" : "people"} will receive this (duplicates removed).</>}
@@ -348,14 +351,14 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
           <>
             {templates.length > 0 && (
               <Field label="Start from a template">
-                <select value="" onChange={(e) => { const t = templates.find((x: any) => String(x.id) === e.target.value); if (t) setTemplate(t.body); }} className={inputCls}>
+                <NativeSelect className="w-full" value="" onChange={(e) => { const t = templates.find((x: any) => String(x.id) === e.target.value); if (t) setTemplate(t.body); }}>
                   <option value="">Choose a template (replaces the text below)</option>
                   {templates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                </NativeSelect>
               </Field>
             )}
             <Field label="Message">
-              <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={8} className={`${inputCls} py-2`} placeholder="{Halo|Hai} {nama}, ada promo 11.11 diskon 50% hari ini saja." />
+              <Textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={8} className="py-2" placeholder="{Halo|Hai} {nama}, ada promo 11.11 diskon 50% hari ini saja." />
             </Field>
             <ul className="space-y-1 text-xs text-muted">
               {PLACEHOLDERS.map((p) => (
@@ -368,8 +371,8 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
             <div>
               <p className="mb-1 text-xs font-medium text-ink2">Pause between messages (seconds)</p>
               <div className="grid max-w-xs grid-cols-2 gap-3">
-                <Field label="Shortest"><input type="number" min={3} value={delayMin} onChange={(e) => setDelayMin(e.target.value)} className={inputCls} inputMode="numeric" /></Field>
-                <Field label="Longest"><input type="number" min={3} value={delayMax} onChange={(e) => setDelayMax(e.target.value)} className={inputCls} inputMode="numeric" /></Field>
+                <Field label="Shortest"><Input type="number" min={3} value={delayMin} onChange={(e) => setDelayMin(e.target.value)} inputMode="numeric" /></Field>
+                <Field label="Longest"><Input type="number" min={3} value={delayMax} onChange={(e) => setDelayMax(e.target.value)} inputMode="numeric" /></Field>
               </div>
               <p className="mt-2 text-xs text-muted">At least 3 seconds. A random pause in this range looks more natural and lowers the risk of the number being blocked.{eta && ` About ${fmtNum(count)} messages will take ${eta}.`}</p>
             </div>

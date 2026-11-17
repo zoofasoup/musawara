@@ -2,11 +2,13 @@
 // The gateway server at the time of writing has no template endpoints, so this page talks to
 // GET/POST /templates and PUT/DELETE /templates/:id and explains plainly when they are missing.
 
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { crm } from "./crmApi";
 import { fmtNum } from "../../lib/format";
-import { Btn, ConfirmBtn, Empty, inputCls, Panel, Sheet, useNotify, type Notify } from "../../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Sheet, useNotify, type Notify } from "../../components/kit";
 import { Bubble, ErrorPanel, Field, gatewayProblem, ListSkeleton, PageHead, PLACEHOLDERS, renderTemplate, useGateway } from "./data/shared";
 
 type Template = { id: number; name: string; body: string; updated_at?: number };
@@ -72,10 +74,10 @@ function TemplateEditor({ template, notify, onClose, onChanged }: { template: Te
       <h3 className="text-base font-semibold text-ink">{template ? "Edit template" : "New template"}</h3>
       <div className="mt-3 space-y-3">
         <Field label="Name">
-          <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Promo 11.11" autoComplete="off" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Promo 11.11" autoComplete="off" />
         </Field>
         <Field label="Message">
-          <textarea ref={area} value={body} onChange={(e) => setBody(e.target.value)} rows={8} className={`${inputCls} py-2`} placeholder="{Halo|Hai} {nama}, ..." />
+          <Textarea ref={area} value={body} onChange={(e) => setBody(e.target.value)} rows={8} className="py-2" placeholder="{Halo|Hai} {nama}, ..." />
         </Field>
         <div>
           <p className="mb-1 text-xs font-medium text-ink2">Insert placeholder</p>
@@ -104,8 +106,8 @@ function TemplateEditor({ template, notify, onClose, onChanged }: { template: Te
             </Btn>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <input value={sampleName} onChange={(e) => setSampleName(e.target.value)} placeholder="Sample name" aria-label="Sample name" className={inputCls} />
-            <input value={sampleNo} onChange={(e) => setSampleNo(e.target.value)} placeholder="Sample number" aria-label="Sample number" inputMode="tel" className={inputCls} />
+            <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} placeholder="Sample name" aria-label="Sample name" />
+            <Input value={sampleNo} onChange={(e) => setSampleNo(e.target.value)} placeholder="Sample number" aria-label="Sample number" inputMode="tel" />
           </div>
           <div className="mt-3">
             <Bubble text={preview} />

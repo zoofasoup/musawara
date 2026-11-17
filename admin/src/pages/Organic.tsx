@@ -1,13 +1,14 @@
 // Organic content: per client, stories against the daily target and a grid of
 // posts, each carrying a performance label relative to its own account.
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { PageHeader } from "../components/PageHeader";
 import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { btnCls as btn, ConfirmBtn, selectSmCls as sel, Sheet } from "../components/kit";
+import { Btn, ConfirmBtn, Sheet } from "../components/kit";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Day = { day: string; count: number };
@@ -138,7 +139,7 @@ function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null 
           {post.format === "reel" && stat("Avg watch", post.avg_watch_ms != null ? `${(post.avg_watch_ms / 1000).toFixed(1)}s` : "–")}
         </dl>
         {post.caption && <p className="mt-4 whitespace-pre-line text-sm text-ink2">{post.caption}</p>}
-        <button className={`${btn} mt-4 w-full justify-center`} onClick={onClose}>Close</button>
+        <Btn tone="secondary" className="mt-4 w-full justify-center" onClick={onClose}>Close</Btn>
       </div>
     </Sheet>
   );
@@ -222,8 +223,8 @@ export function Organic() {
         subtitle="Which content works, compared with each account's own average."
         actions={
           <>
-            <button className={btn} disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</button>
-            <button className={btn} disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</button>
+            <Btn tone="secondary" disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</Btn>
+            <Btn tone="secondary" disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</Btn>
           </>
         }
       />
@@ -255,12 +256,12 @@ export function Organic() {
             <SectionTitle
               right={
                 <span className="flex gap-2">
-                  <select className={sel} value={fmt} onChange={(e) => setFmt(e.target.value)} aria-label="Format">
+                  <NativeSelect size="sm" value={fmt} onChange={(e) => setFmt(e.target.value)} aria-label="Format">
                     {FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <select className={sel} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
+                  </NativeSelect>
+                  <NativeSelect size="sm" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
                     {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-                  </select>
+                  </NativeSelect>
                 </span>
               }
             >
@@ -310,11 +311,11 @@ export function Organic() {
                   <span className="text-xs text-muted">Tracked</span>
                 ) : (
                   <span className="flex gap-2">
-                    <select className={sel} value={pick[c.ig_user_id] ?? ""} onChange={(e) => setPick({ ...pick, [c.ig_user_id]: e.target.value })} aria-label="Client">
+                    <NativeSelect size="sm" value={pick[c.ig_user_id] ?? ""} onChange={(e) => setPick({ ...pick, [c.ig_user_id]: e.target.value })} aria-label="Client">
                       <option value="">Client…</option>
                       {clients.data?.clients.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
-                    </select>
-                    <button className={btn} disabled={!pick[c.ig_user_id] || !!busy} onClick={() => add(c)}>Track</button>
+                    </NativeSelect>
+                    <Btn tone="secondary" disabled={!pick[c.ig_user_id] || !!busy} onClick={() => add(c)}>Track</Btn>
                   </span>
                 )}
               </div>

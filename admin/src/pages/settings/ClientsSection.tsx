@@ -1,9 +1,10 @@
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, type useApi } from "../../lib/api";
 import { ClientAvatar } from "../../components/Layout";
 import { fmtDigits } from "../../lib/format";
 import { Icon } from "../../components/icons";
-import { Btn, ConfirmBtn, Empty, inputCls, Panel, Pill, Section, type Notify } from "../../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 /** Center-crop to a 192px square JPEG data URL (white behind transparent PNGs). */
 async function photoToDataUrl(file: File): Promise<string> {
@@ -40,13 +41,13 @@ function TargetCpa({ c, reload, notify }: { c: any; reload: () => void; notify: 
         <span className="shrink-0">Target CPA</span>
         <span className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">Rp</span>
-          <input
+          <Input
             value={fmtDigits(v)}
             onChange={(e) => setV(e.target.value.replace(/\D/g, ""))}
             inputMode="numeric"
             placeholder="not set"
             aria-label={`Target CPA for ${c.name}`}
-            className={`${inputCls} pl-9 text-right`}
+            className="pl-9 text-right"
           />
         </span>
       </label>
@@ -157,7 +158,7 @@ export function ClientsSection({ state, notify }: { state: ClientsState; notify:
     >
       {adding && (
         <form onSubmit={add} className="mb-3 flex gap-2 rounded-xl border border-[var(--accent)]/30 bg-surface p-3">
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Client name, e.g. Musafar Tour & Travel" aria-label="Client name" className={inputCls} />
+          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Client name, e.g. Musafar Tour & Travel" aria-label="Client name" />
           <Btn type="submit" tone="primary" loading={saving} disabled={!name.trim()}>
             Add
           </Btn>

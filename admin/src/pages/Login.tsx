@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -35,7 +36,7 @@ export function Login() {
           <h1 className="text-base font-semibold text-ink">Sign in</h1>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-ink2">Email</span>
-            <input
+            <Input
               type="email"
               required
               autoComplete="email"
@@ -46,7 +47,7 @@ export function Login() {
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-ink2">Password</span>
-            <input
+            <Input
               type="password"
               required
               autoComplete="current-password"

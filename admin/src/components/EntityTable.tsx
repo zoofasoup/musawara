@@ -3,6 +3,7 @@
 // Drill down campaigns → ad sets → ads (thumbnails); children load lazily.
 // Collapses to cards on mobile.
 
+import { Input } from "@/components/ui/input";
 import { Fragment, useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtPct, fmtRp } from "../lib/format";
@@ -275,7 +276,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
             </button>
           ))}
         </div>
-        <input
+        <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name"

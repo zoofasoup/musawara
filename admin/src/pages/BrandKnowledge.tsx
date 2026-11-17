@@ -1,11 +1,13 @@
 // Brand knowledge: what the agency knows about a client's brand. Admins edit,
 // clients read. "Copy for AI" gives the filled sections as one markdown prompt.
 
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { btnCls as btn } from "../components/kit";
+import { Btn } from "../components/kit";
 
 type Section = { key: string; label: string; hint: string; body: string; updated_at: string | null; updated_by: string | null };
 type Link = { id: number; label: string; url: string };
@@ -37,20 +39,20 @@ function SectionCard({ clientId, s, canEdit, onSaved }: { clientId: number; s: S
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink">{s.label}</h3>
         {canEdit && !editing && (
-          <button
-            className={btn}
+          <Btn tone="secondary"
+           
             onClick={() => {
               setDraft(s.body);
               setEditing(true);
             }}
           >
             {s.body ? "Edit" : "Add"}
-          </button>
+          </Btn>
         )}
       </div>
       {editing ? (
         <div className="space-y-2">
-          <textarea
+          <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={8}
@@ -59,12 +61,12 @@ function SectionCard({ clientId, s, canEdit, onSaved }: { clientId: number; s: S
           />
           {error && <p className="text-xs text-crit">{error}</p>}
           <div className="flex gap-2">
-            <button className={btn} disabled={saving} onClick={save}>
+            <Btn tone="secondary" disabled={saving} onClick={save}>
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button className={btn} disabled={saving} onClick={() => setEditing(false)}>
+            </Btn>
+            <Btn tone="secondary" disabled={saving} onClick={() => setEditing(false)}>
               Cancel
-            </button>
+            </Btn>
           </div>
         </div>
       ) : s.body ? (
@@ -129,9 +131,9 @@ function LinksPanel({ clientId, links, canEdit, onChanged }: { clientId: number;
         </ul>
         {canEdit && (
           <form onSubmit={add} className="mt-3 flex flex-wrap gap-2">
-            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (e.g. Logo folder)" required className="min-w-0 flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm text-ink" />
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" required className="min-w-0 flex-[2] rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm text-ink" />
-            <button className={btn}>Add link</button>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (e.g. Logo folder)" required className="min-w-0 flex-1 rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm text-ink" />
+            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" required className="min-w-0 flex-[2] rounded-lg border border-border2 bg-bg px-3 py-1.5 text-sm text-ink" />
+            <Btn tone="secondary" type="submit">Add link</Btn>
             {error && <p className="w-full text-xs text-crit">{error}</p>}
           </form>
         )}
@@ -155,8 +157,8 @@ export function BrandKnowledge({ clientId }: { clientId: number }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-ink">Brand knowledge</h1>
-        <button
-          className={btn}
+        <Btn tone="secondary"
+         
           onClick={async () => {
             await navigator.clipboard.writeText(data.markdown);
             setCopied(true);
@@ -164,7 +166,7 @@ export function BrandKnowledge({ clientId }: { clientId: number }) {
           }}
         >
           {copied ? "Copied" : "Copy for AI"}
-        </button>
+        </Btn>
       </div>
       {visible.length === 0 ? (
         <EmptyState title="No brand knowledge yet" hint="The team has not filled this in." />

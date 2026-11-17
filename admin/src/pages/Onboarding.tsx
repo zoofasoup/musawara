@@ -1,11 +1,13 @@
 // Onboarding checklist for one client. Admin only. The team ticks items off as
 // they happen; the brand knowledge line links to where that item is done.
 
+import { buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
-import { btnCls as btn } from "../components/kit";
+import { Btn } from "../components/kit";
 
 type State = {
   items: { id: number; label: string; done: number; done_at: string | null }[];
@@ -40,7 +42,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-ink">Onboarding</h1>
-        <Link to={`/c/${clientId}`} className={btn}>
+        <Link to={`/c/${clientId}`} className={buttonVariants({ variant: "outline", className: "min-h-11 text-xs" })}>
           Back to dashboard
         </Link>
       </div>
@@ -48,9 +50,9 @@ export function Onboarding({ clientId }: { clientId: number }) {
       {data.items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border2 bg-surface p-6 text-center">
           <p className="mb-3 text-sm text-ink2">No onboarding started for this client.</p>
-          <button className={btn} disabled={busy} onClick={() => run(() => api(`/admin/clients/${clientId}/onboarding/start`, { method: "POST", body: {} }))}>
+          <Btn tone="secondary" disabled={busy} onClick={() => run(() => api(`/admin/clients/${clientId}/onboarding/start`, { method: "POST", body: {} }))}>
             Start onboarding
-          </button>
+          </Btn>
         </div>
       ) : (
         <div>
@@ -59,12 +61,10 @@ export function Onboarding({ clientId }: { clientId: number }) {
             {data.items.map((i) => (
               <li key={i.id}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2.5">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={!!i.done}
                     disabled={busy}
-                    onChange={(e) => run(() => api(`/admin/onboarding/${i.id}`, { method: "PUT", body: { done: e.target.checked } }))}
-                    className="h-4 w-4"
+                    onCheckedChange={(on) => run(() => api(`/admin/onboarding/${i.id}`, { method: "PUT", body: { done: on } }))}
                   />
                   <span className={`text-sm ${i.done ? "text-muted line-through" : "text-ink"}`}>{i.label}</span>
                 </label>

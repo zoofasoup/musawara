@@ -1,12 +1,14 @@
 // Project board across all clients. Admin only. Four status panels; a task moves
 // by changing its status select (no drag and drop).
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { btnCls as btn, ConfirmBtn, fieldCls as field } from "../components/kit";
+import { Btn, ConfirmBtn } from "../components/kit";
 
 type Task = { id: number; client_id: number; client_name: string; title: string; status: string; assignee: string | null; due_date: string | null };
 
@@ -65,16 +67,16 @@ export function Board() {
       <PageHeader title="Board" subtitle="Tasks across clients, in four columns." />
 
       <form onSubmit={add} className="flex flex-wrap gap-2">
-        <select required value={form.client_id || clientFilter} onChange={(e) => setForm({ ...form, client_id: e.target.value })} className={field} aria-label="Client">
+        <NativeSelect required value={form.client_id || clientFilter} onChange={(e) => setForm({ ...form, client_id: e.target.value })} aria-label="Client">
           <option value="">Client</option>
           {clients.data?.clients.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-        </select>
-        <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="New task" aria-label="Task title" className={`${field} w-full sm:w-auto sm:flex-[2]`} />
-        <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee" aria-label="Assignee" className={`${field} w-full sm:w-auto sm:flex-1`} />
-        <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className={field} aria-label="Due date" />
-        <button className={btn}>Add task</button>
+        </NativeSelect>
+        <Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="New task" aria-label="Task title" className="w-full sm:w-auto sm:flex-[2]" />
+        <Input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee" aria-label="Assignee" className="w-full sm:w-auto sm:flex-1" />
+        <Input className="w-auto" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} aria-label="Due date" />
+        <Btn tone="secondary" type="submit">Add task</Btn>
       </form>
       {error && <p role="alert" className="text-xs text-crit">{error}</p>}
 
@@ -103,16 +105,16 @@ export function Board() {
                         </p>
                       )}
                       <div className="mt-2 flex items-center gap-2">
-                        <select
+                        <NativeSelect
                           value={t.status}
                           onChange={(e) => act(() => api(`/admin/tasks/${t.id}`, { method: "PUT", body: { status: e.target.value } }))}
-                          className={`${field} flex-1 text-xs`}
+                          className="flex-1 text-xs"
                           aria-label={`Status of ${t.title}`}
                         >
                           {COLUMNS.map((c) => (
                             <option key={c.key} value={c.key}>{c.label}</option>
                           ))}
-                        </select>
+                        </NativeSelect>
                         <ConfirmBtn
                           label="Delete"
                           confirmLabel="Delete task"
