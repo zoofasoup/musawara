@@ -48,3 +48,16 @@ there first, then use it.
 
 Change it once in `components/ui` or `components/kit`, then check `/styleguide` and two real screens at 375px and
 desktop width. Never fix a look by overriding it in one page.
+
+## Look (reskin, Nov 2026)
+
+Soft, rounded, floating: the team frame is a translucent sidebar card and a content card on a lavender wash
+(tablet and up; phones stay full screen with the bottom tab bar). Rules that keep it consistent:
+
+- Radii: pills (`rounded-full`) for buttons, tabs, chips and the active menu item; `rounded-xl` for inputs;
+  `rounded-2xl` for panels; `rounded-3xl` for the shell cards. Set them in the shared components, not per page.
+- Panels use `shadow-[var(--shadow-soft)]` and the hairline border. No heavier shadows.
+- Active menu item is a white pill; the active tab is an ink (black) pill; the accent purple is for the one primary button.
+- Section labels in menus are sentence case, not uppercase.
+- Keep text on translucent surfaces at AA contrast (muted text is `text-muted`, never lighter).
+

@@ -79,7 +79,8 @@
   --color-invert-foreground: #ffffff;
   --color-input: var(--color-border2);
   --color-ring: var(--accent);
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  --shadow-soft: 0 1px 2px rgba(30, 20, 60, 0.04), 0 6px 20px -8px rgba(30, 20, 60, 0.10);
   --shadow-panel: 0 12px 28px -14px rgba(30, 20, 60, 0.28), 0 2px 5px -2px rgba(30, 20, 60, 0.12);
 }
 
@@ -89,7 +90,8 @@
 }
 
 html {
-  background: var(--color-bg);
+  /* A soft lavender wash behind the floating app frame; the flat colour is the fallback. */
+  background: var(--color-bg) linear-gradient(145deg in oklch, oklch(0.93 0.025 295), oklch(0.925 0.018 255)) fixed;
   color-scheme: light;
   font-synthesis: none;
 }

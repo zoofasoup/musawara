@@ -51,7 +51,7 @@ export function Btn({
   ...rest
 }: Omit<React.ComponentProps<typeof Button>, "variant"> & { tone?: keyof typeof BTN_VARIANT; icon?: IconName; loading?: boolean }) {
   return (
-    <Button {...rest} variant={BTN_VARIANT[tone]} disabled={rest.disabled || loading} className={cn("text-xs", className)}>
+    <Button {...rest} variant={BTN_VARIANT[tone]} disabled={rest.disabled || loading} className={cn("rounded-full text-xs", className)}>
       {icon && <Icon name={icon} className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />}
       {children}
     </Button>
@@ -191,12 +191,12 @@ export function Section({
 }
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-border bg-surface ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</div>;
 }
 
 export function Empty({ icon, title, hint, action }: { icon: IconName; title: string; hint: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-border2 bg-surface px-6 py-10 text-center">
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border2 bg-surface px-6 py-10 text-center">
       <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface3 text-ink2">
         <Icon name={icon} className="h-5 w-5" />
       </span>

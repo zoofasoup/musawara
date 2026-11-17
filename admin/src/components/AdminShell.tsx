@@ -42,8 +42,8 @@ const SETTINGS: Item = { to: "/settings", label: "Settings", icon: "sliders" };
 const PHONE_TABS: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[2].items[1]];
 
 const linkCls = (active: boolean) =>
-  `flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium md:min-h-9 ${
-    active ? "bg-surface2 text-ink" : "text-ink2 hover:bg-surface2/60 hover:text-ink"
+  `flex min-h-11 items-center gap-2.5 rounded-full px-3 text-[13px] font-medium md:min-h-9 ${
+    active ? "bg-white text-ink shadow-[var(--shadow-soft)]" : "text-ink2 hover:bg-white/60 hover:text-ink"
   }`;
 
 function ClientSwitcher({ className = "" }: { className?: string }) {
@@ -68,7 +68,7 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
     <>
       {GROUPS.map((g) => (
         <div key={g.label}>
-          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted">{g.label}</p>}
+          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-3 pb-1 text-xs font-medium text-muted">{g.label}</p>}
           <div className="space-y-0.5">
             {g.items.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} title={collapsed ? i.label : undefined} aria-label={collapsed ? i.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
@@ -80,6 +80,25 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
         </div>
       ))}
     </>
+  );
+}
+
+/** "Work › Planning": where you are, in a pill above the page (tablet and up). */
+function Crumb({ pathname }: { pathname: string }) {
+  const hit = GROUPS.flatMap((g) => g.items.map((i) => ({ group: g.label, item: i }))).find(({ item }) => (item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(item.to + "/")));
+  const crumbs = hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : [];
+  if (!crumbs.length) return null;
+  return (
+    <nav aria-label="Breadcrumb" className="hidden px-6 pt-4 md:block">
+      <ol className="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/70 px-4 py-1.5 text-xs text-muted shadow-[var(--shadow-soft)]">
+        {crumbs.map((c, i) => (
+          <li key={c} className="flex items-center gap-1.5">
+            {i > 0 && <span aria-hidden="true">›</span>}
+            <span className={i === crumbs.length - 1 ? "font-medium text-ink" : ""}>{c}</span>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -112,9 +131,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const moreActive = !PHONE_TABS.some((t) => onTab(t.to));
 
   return (
-    <div className={`min-h-screen transition-[padding] duration-200 ${collapsed ? "md:pl-16" : "md:pl-60"}`}>
+    <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
       {/* Desktop and tablet: sidebar */}
-      <aside aria-label="Main" className={`fixed inset-y-0 left-0 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden border-r border-border bg-surface py-4 transition-[width] duration-200 md:flex ${collapsed ? "w-16 px-2" : "w-60 px-3"}`}>
+      <aside aria-label="Main" className={`fixed inset-y-3 left-3 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/70 bg-white/55 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-[width] duration-200 md:flex ${collapsed ? "w-16 px-2" : "w-60 px-3"}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
           {!collapsed && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>}
           <button
@@ -152,7 +171,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <ClientSwitcher className="min-w-0 flex-1" />
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:pb-8">{children}</main>
+      <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">
+        <Crumb pathname={pathname} />
+        <main className="mx-auto max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:pb-8 md:pt-4">{children}</main>
+      </div>
 
       {/* Phone: four daily tabs plus More */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
