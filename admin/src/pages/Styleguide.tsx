@@ -2,6 +2,7 @@
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useState, type ReactNode } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { Kanban } from "../components/Kanban";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Sheet, useNotify, type Tone } from "../components/kit";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +38,11 @@ export function Styleguide() {
   const [sheet, setSheet] = useState(false);
   const [checked, setChecked] = useState(true);
   const [text, setText] = useState("");
+  const [demo, setDemo] = useState([
+    { id: 1, title: "Reel launch", col: "todo" },
+    { id: 2, title: "Carousel tips", col: "doing" },
+    { id: 3, title: "Locked: already live", col: "done" },
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-10">
@@ -121,6 +127,19 @@ export function Styleguide() {
           <ErrorState message="Request failed (500)" onRetry={() => notify("Retrying (demo)")} />
         </div>
         <EmptyState title="Compact empty state" hint="For inside a card or list." />
+      </Section>
+
+      <Section title="Kanban" note="Drag a card to another column with mouse, touch (hold briefly) or keyboard (Space, arrows, Space). A locked card does not move; a column that fills in by itself does not accept drops.">
+        <Kanban
+          columns={[{ id: "todo", label: "To do" }, { id: "doing", label: "Doing" }, { id: "done", label: "Done", droppable: false, empty: "Fills in by itself" }]}
+          items={demo}
+          getId={(c) => c.id}
+          getColumn={(c) => c.col}
+          canDrag={(c) => c.col !== "done"}
+          onMove={async (c, to) => setDemo((d) => d.map((x) => (x.id === c.id ? { ...x, col: to } : x)))}
+          renderCard={(c) => <div className="rounded-lg border border-border bg-surface p-2.5 text-sm font-medium text-ink">{c.title}</div>}
+          className="lg:grid-cols-3"
+        />
       </Section>
 
       <Section title="Overlays and feedback">

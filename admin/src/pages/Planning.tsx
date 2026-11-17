@@ -11,6 +11,7 @@ import { CardSkeleton, ErrorState } from "../components/ui";
 import { Btn, Empty, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
 import { Icon } from "../components/icons";
 import { PageHeader } from "../components/PageHeader";
+import { Kanban } from "../components/Kanban";
 import { useClientScope } from "../context/ClientScope";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { addDaysYmd, monthGrid, POST_STATUS, STAGES, STAGE_LABEL, MANUAL_STAGES, weekStart, type Stage } from "../../worker/lib/planning";
@@ -319,62 +320,51 @@ function CardSheet({ card, owners, onClose, onChanged, notify }: { card: Card; o
 }
 
 function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[]; onChanged: () => void; onOpen: (id: number) => void; notify: (t: string, k?: "ok" | "err") => void; onAdd: () => void }) {
-  const [dragId, setDragId] = useState<number | null>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
   const move = async (card: Card, stage: Stage) => {
-    setBusyId(card.id);
     try {
       await api(`/admin/plan/cards/${card.id}/move`, { body: { stage } });
       onChanged();
     } catch (e: any) {
       notify(e.message, "err");
+      throw e; // tells the board to put the card back
     }
-    setBusyId(null);
   };
+  const isLocked = (c: Card) => c.post_status != null && ["scheduled", "publishing", "published"].includes(c.post_status);
   if (!cards.length) return <Empty icon="board" title="No ideas yet" hint="Add an idea and move it from Idea to Drafting to In review. Scheduled and Published fill in by themselves from Publish." action={<Btn tone="primary" className="min-h-11" onClick={onAdd}>Add idea</Btn>} />;
   return (
     <>
       <div className="mb-3 flex justify-end"><Btn tone="primary" className="min-h-11" onClick={onAdd} icon="plus">Add idea</Btn></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {STAGES.map((stage) => {
-          const col = cards.filter((c) => c.stage === stage);
-          const manual = MANUAL_STAGES.includes(stage);
+      <Kanban
+        columns={STAGES.map((s) => ({ id: s, label: STAGE_LABEL[s], droppable: MANUAL_STAGES.includes(s), empty: MANUAL_STAGES.includes(s) ? "Empty" : "Fills in from Publish" }))}
+        items={cards}
+        getId={(c) => c.id}
+        getColumn={(c) => c.stage}
+        canDrag={(c) => MANUAL_STAGES.includes(c.stage) && !isLocked(c)}
+        onMove={(c, to) => move(c, to as Stage)}
+        renderCard={(c) => {
+          const idx = MANUAL_STAGES.indexOf(c.stage);
+          const ps = c.post_status ? POST_STATUS[c.post_status] : null;
           return (
-            <section key={stage} aria-label={STAGE_LABEL[stage]} className="min-w-0 rounded-xl bg-surface2 p-2"
-              onDragOver={(e) => manual && dragId != null && e.preventDefault()}
-              onDrop={() => { const c = cards.find((x) => x.id === dragId); setDragId(null); if (c && manual && c.stage !== stage) void move(c, stage); }}>
-              <h3 className="flex items-center justify-between px-1 py-1 text-xs font-semibold uppercase tracking-wide text-ink2">{STAGE_LABEL[stage]}<span className="text-muted">{col.length}</span></h3>
-              <div className="space-y-2">
-                {col.map((c) => {
-                  const idx = MANUAL_STAGES.indexOf(c.stage);
-                  const locked = c.post_status != null && ["scheduled", "publishing", "published"].includes(c.post_status);
-                  const ps = c.post_status ? POST_STATUS[c.post_status] : null;
-                  return (
-                    <article key={c.id} draggable={!locked && manual} onDragStart={() => setDragId(c.id)} onDragEnd={() => setDragId(null)} className="rounded-lg border border-border bg-surface p-2.5">
-                      <button type="button" onClick={() => onOpen(c.id)} className="block w-full text-left">
-                        <span className="block text-sm font-medium text-ink">{c.title}</span>
-                        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-                          <span>{c.client_name}</span><span>· {KIND_NAME[c.kind]}</span>
-                          {c.planned_date && <span>· {c.planned_date.slice(5)}</span>}
-                          {c.owner_name && <span>· {c.owner_name}</span>}
-                        </span>
-                        {ps && <span className="mt-1.5 inline-block"><Pill tone={ps.tone}>Post: {ps.label}</Pill></span>}
-                      </button>
-                      {manual && !locked && (
-                        <div className="mt-2 flex gap-1.5">
-                          {idx > 0 && <Btn className="min-h-11 flex-1" disabled={busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx - 1])} aria-label={`Move ${c.title} back`}>‹ {STAGE_LABEL[MANUAL_STAGES[idx - 1]]}</Btn>}
-                          {idx < MANUAL_STAGES.length - 1 && <Btn className="min-h-11 flex-1" disabled={busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx + 1])} aria-label={`Move ${c.title} forward`}>{STAGE_LABEL[MANUAL_STAGES[idx + 1]]} ›</Btn>}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-                {!col.length && <p className="px-1 py-3 text-center text-xs text-muted">{manual ? "Empty" : "Fills in from Publish"}</p>}
-              </div>
-            </section>
+            <article className="rounded-lg border border-border bg-surface p-2.5">
+              <button type="button" onClick={() => onOpen(c.id)} className="block w-full text-left">
+                <span className="block text-sm font-medium text-ink">{c.title}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                  <span>{c.client_name}</span><span>· {KIND_NAME[c.kind]}</span>
+                  {c.planned_date && <span>· {c.planned_date.slice(5)}</span>}
+                  {c.owner_name && <span>· {c.owner_name}</span>}
+                </span>
+                {ps && <span className="mt-1.5 inline-block"><Pill tone={ps.tone}>Post: {ps.label}</Pill></span>}
+              </button>
+              {MANUAL_STAGES.includes(c.stage) && !isLocked(c) && (
+                <div className="mt-2 flex gap-1.5">
+                  {idx > 0 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx - 1]).catch(() => {})} aria-label={`Move ${c.title} back`}>‹ {STAGE_LABEL[MANUAL_STAGES[idx - 1]]}</Btn>}
+                  {idx < MANUAL_STAGES.length - 1 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx + 1]).catch(() => {})} aria-label={`Move ${c.title} forward`}>{STAGE_LABEL[MANUAL_STAGES[idx + 1]]} ›</Btn>}
+                </div>
+              )}
+            </article>
           );
-        })}
-      </div>
+        }}
+      />
     </>
   );
 }

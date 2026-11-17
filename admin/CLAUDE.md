@@ -20,6 +20,8 @@ time, which gave inconsistent and buggy UI. The rules below are enforced by `src
 | Empty, loading, error | `<Empty>`, `<CardSkeleton>`, `<ErrorState>` | `components/kit`, `components/ui` |
 | Overlay | `<Sheet>` (bottom on phones, right panel on desktop) | `components/kit` |
 | Toast | `useNotify()` | `components/kit` |
+| Kanban board (drag between columns) | `<Kanban>` (dnd-kit inside; never raw HTML5 drag) | `components/Kanban` |
+| Table | TanStack Table with `components/reui/data-grid` | `components/reui` |
 
 `/styleguide` (team only) shows every component in every state. If a state you need is missing there, add it
 there first, then use it.
