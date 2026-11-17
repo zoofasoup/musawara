@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useClientScope } from "../context/ClientScope";
 import { Icon, type IconName } from "./icons";
 import { Wordmark } from "./Layout";
+import { Avatar } from "./Avatar";
 import { Sheet } from "./kit";
 
 type Item = { to: string; label: string; icon: IconName; end?: boolean };
@@ -86,7 +87,7 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
 /** "Work › Planning": where you are, in a pill above the page (tablet and up). */
 function Crumb({ pathname }: { pathname: string }) {
   const hit = GROUPS.flatMap((g) => g.items.map((i) => ({ group: g.label, item: i }))).find(({ item }) => (item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(item.to + "/")));
-  const crumbs = hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : [];
+  const crumbs = hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : pathname.startsWith("/profile") ? ["Account", "Profile"] : [];
   if (!crumbs.length) return null;
   return (
     <nav aria-label="Breadcrumb" className="hidden px-6 pt-4 md:block">
@@ -156,12 +157,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
             {!collapsed && SETTINGS.label}
           </NavLink>
-          {!collapsed && (
-            <div className="flex items-center justify-between gap-2 px-2.5 pt-2">
-              <span className="min-w-0 truncate text-xs text-muted" title={user?.email}>{user?.name}</span>
-              <button onClick={signOut} className="shrink-0 rounded-md px-1.5 py-1 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">Sign out</button>
-            </div>
-          )}
+          <NavLink
+            to="/profile"
+            title={collapsed ? "Profile" : undefined}
+            aria-label={collapsed ? "Profile" : undefined}
+            className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}
+          >
+            <Avatar name={user?.name ?? ""} size={22} />
+            {!collapsed && <span className="min-w-0 truncate">{user?.name}</span>}
+          </NavLink>
         </div>
       </aside>
 
@@ -210,6 +214,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <NavLink to={SETTINGS.to} onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
                 <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
                 {SETTINGS.label}
+              </NavLink>
+              <NavLink to="/profile" onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
+                <Avatar name={user?.name ?? ""} size={22} />
+                <span className="min-w-0 truncate">Profile · {user?.name}</span>
               </NavLink>
               <button onClick={signOut} className={`${linkCls(false)} w-full`}>Sign out</button>
             </div>

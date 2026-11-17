@@ -22,6 +22,7 @@ const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ defa
 const Planning = lazy(() => import("./pages/Planning").then((m) => ({ default: m.Planning })));
 const AssetsEntry = lazy(() => import("./pages/AssetsEntry").then((m) => ({ default: m.AssetsEntry })));
 const Styleguide = lazy(() => import("./pages/Styleguide").then((m) => ({ default: m.Styleguide })));
+const Profile = lazy(() => import("./pages/Profile").then((m) => ({ default: m.Profile })));
 const Shopee = lazy(() => import("./pages/Shopee").then((m) => ({ default: m.Shopee })));
 const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
 const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
@@ -92,6 +93,7 @@ export function App() {
             {/* Signed in: one persistent frame */}
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<RootRedirect />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/c/:id" element={<ClientRoute page={ClientDashboard} />} />
               <Route path="/c/:id/creatives" element={<ClientRoute page={CreativeView} />} />
               <Route path="/c/:id/brand" element={<ClientRoute page={BrandKnowledge} />} />

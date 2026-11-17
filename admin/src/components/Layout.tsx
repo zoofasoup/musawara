@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { ASSET_BASE } from "../lib/api";
 import { Icon, type IconName } from "./icons";
 import { AdminShell } from "./AdminShell";
+import { Avatar } from "./Avatar";
 
 export function Wordmark({ compact = false, tagline = true }: { compact?: boolean; tagline?: boolean }) {
   return (
@@ -72,10 +73,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <span className="hidden text-xs text-muted sm:inline">
-              {user?.name}
-              {client ? ` · ${client.name}` : ""}
-            </span>
+            <NavLink to="/profile" aria-label="Profile" className="inline-flex min-h-11 items-center gap-2 rounded-full px-1.5 text-xs text-muted hover:text-ink">
+              <Avatar name={user?.name ?? ""} size={28} />
+              <span className="hidden sm:inline">
+                {user?.name}
+                {client ? ` · ${client.name}` : ""}
+              </span>
+            </NavLink>
             <button
               onClick={async () => {
                 await logout();

@@ -64,6 +64,31 @@ auth.get("/me", requireAuth, async (c) => {
   return c.json({ user, client });
 });
 
+/** Your own display name. Email and role are not editable here. The session is re-issued so the new name shows at once. */
+auth.patch("/profile", requireAuth, async (c) => {
+  const { name } = await c.req.json().catch(() => ({}));
+  const clean = typeof name === "string" ? name.trim() : "";
+  if (!clean || clean.length > 80) return c.json({ error: "Enter a name of 1 to 80 characters." }, 400);
+  const id = c.get("user").id;
+  const user = await c.env.DB.prepare("UPDATE users SET name=? WHERE id=? RETURNING *").bind(clean, id).first<any>();
+  if (!user) return c.json({ error: "Account not found" }, 404);
+  await startSession(c, user);
+  return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, client_id: user.client_id } });
+});
+
+/** Change your own password. Needs the current one, so a borrowed open session cannot take over the account. */
+auth.post("/password", requireAuth, async (c) => {
+  const { current, next } = await c.req.json().catch(() => ({}));
+  if (typeof current !== "string" || typeof next !== "string" || !current) return c.json({ error: "Enter your current and new password." }, 400);
+  if (next.length < 8 || next.length > 200) return c.json({ error: "The new password needs 8 or more characters." }, 400);
+  if (next === current) return c.json({ error: "Pick a password different from the current one." }, 400);
+  const id = c.get("user").id;
+  const user = await c.env.DB.prepare("SELECT * FROM users WHERE id=?").bind(id).first<any>();
+  if (!user || !(await verifyPassword(current, user.password_hash))) return c.json({ error: "Your current password is not right." }, 403);
+  await c.env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(next), id).run();
+  return c.json({ ok: true });
+});
+
 // First-run bootstrap: create the initial admin only while the users table is empty.
 auth.post("/bootstrap", async (c) => {
   const count = await c.env.DB.prepare("SELECT COUNT(*) n FROM users").first<{ n: number }>();
