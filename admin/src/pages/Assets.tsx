@@ -1,5 +1,6 @@
 // Asset library for one client (team only). Files live on Google Drive: we store the link, never the file.
 
+import { PageHeader } from "../components/PageHeader";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
@@ -108,16 +109,16 @@ export function Assets({ clientId }: { clientId: number }) {
   return (
     <div className="space-y-4">
       {node}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link to={`/c/${clientId}`} className="text-xs text-muted hover:text-ink">{meta.data?.client.name ?? "Client"}</Link>
-          <h1 className="text-lg font-semibold text-ink">Asset library</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Approvals</Link>
-          <Btn tone="primary" icon="plus" onClick={() => setEditing("new")}>Add asset</Btn>
-        </div>
-      </div>
+      <PageHeader
+        title="Asset library"
+        subtitle={<Link to={`/c/${clientId}`} className="hover:text-ink hover:underline">{meta.data?.client.name ?? "Client"}</Link>}
+        actions={
+          <>
+            <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Approvals</Link>
+            <Btn tone="primary" icon="plus" onClick={() => setEditing("new")}>Add asset</Btn>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, notes, tags" aria-label="Search assets" className={`${fieldCls} w-full sm:w-72`} />

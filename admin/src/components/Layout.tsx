@@ -2,8 +2,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ASSET_BASE } from "../lib/api";
 import { Icon, type IconName } from "./icons";
+import { AdminShell } from "./AdminShell";
 
-export function Wordmark({ compact = false }: { compact?: boolean }) {
+export function Wordmark({ compact = false, tagline = true }: { compact?: boolean; tagline?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <img
@@ -11,7 +12,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
         alt="musawara"
         className="h-7 w-auto"
       />
-      {!compact && <span className="text-xs font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
+      {!compact && tagline && <span className="text-xs font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
     </span>
   );
 }
@@ -36,20 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   const links: Array<{ to: string; label: string; short?: string; icon: IconName }> =
-    user?.role === "admin"
-      ? [
-          { to: "/", label: "Overview", short: "Home", icon: "home" },
-          { to: "/board", label: "Board", icon: "board" },
-          { to: "/spend", label: "Spend", icon: "spend" },
-          { to: "/conversions", label: "Sales", icon: "tag" },
-          { to: "/shopee", label: "Shopee", icon: "chart" },
-          { to: "/organic", label: "Organic", icon: "image" },
-          { to: "/approvals", label: "Approvals", short: "Approve", icon: "checkCircle" },
-          { to: "/planning", label: "Planning", short: "Plan", icon: "clock" },
-          { to: "/crm", label: "CRM", icon: "users" },
-          { to: "/settings", label: "Settings", short: "Setup", icon: "sliders" },
-        ]
-      : user?.client_id
+    user?.client_id
         ? [
             { to: `/c/${user.client_id}`, label: "Dashboard", icon: "chart" },
             { to: `/c/${user.client_id}/creatives`, label: "Creatives", icon: "image" },
@@ -58,13 +46,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             { to: `/c/${user.client_id}/brand`, label: "Brand", icon: "building" },
           ]
         : [];
-  const isEnd = (to: string) => to === "/" || to === `/c/${user?.client_id}`;
+  const isEnd = (to: string) => to === `/c/${user?.client_id}`;
+
+  if (user?.role === "admin") return <AdminShell>{children}</AdminShell>;
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-1 px-4 sm:gap-4">
-          <NavLink to={user?.role === "admin" ? "/" : `/c/${user?.client_id}`} className="inline-flex min-h-11 min-w-11 shrink-0 items-center">
+          <NavLink to={`/c/${user?.client_id}`} className="inline-flex min-h-11 min-w-11 shrink-0 items-center">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
           </NavLink>
           <nav className="hidden items-center gap-1 sm:flex">
@@ -108,7 +98,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={l.to}
               to={l.to}
               end={isEnd(l.to)}
-              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
+              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
             >
               <Icon name={l.icon} className="h-5 w-5" />
               <span className="leading-none">{l.short ?? l.label}</span>

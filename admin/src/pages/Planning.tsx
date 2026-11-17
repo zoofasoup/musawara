@@ -7,6 +7,8 @@ import { todayJakarta } from "../lib/dates";
 import { CardSkeleton, ErrorState } from "../components/ui";
 import { Btn, Empty, fieldCls, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
 import { Icon } from "../components/icons";
+import { PageHeader } from "../components/PageHeader";
+import { useClientScope } from "../context/ClientScope";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { addDaysYmd, monthGrid, POST_STATUS, STAGES, STAGE_LABEL, MANUAL_STAGES, weekStart, type Stage } from "../../worker/lib/planning";
 
@@ -37,11 +39,11 @@ const addMonths = (ymd: string, n: number) => {
 
 export function Planning() {
   const { notify, node } = useNotify();
-  const clients = useApi<{ clients: ClientRow[] }>("/admin/clients");
+  const { clients: scopeClients, clientId: scopeId } = useClientScope();
   const [tab, setTab] = useState<"calendar" | "board">("calendar");
   const [view, setView] = useState<"month" | "week">("month");
   const [cursor, setCursor] = useState(todayJakarta());
-  const [clientId, setClientId] = useState<number | "">("");
+  const clientId: number | "" = scopeId ?? "";
   const [picked, setPicked] = useState<Picked>(null);
 
   const q = clientId === "" ? "" : `client_id=${clientId}`;
@@ -70,16 +72,7 @@ export function Planning() {
   return (
     <div className="mx-auto max-w-7xl">
       {node}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Planning</h1>
-          <p className="mt-1 text-sm text-ink2">Content calendar and idea board. Times are Asia/Jakarta (WIB).</p>
-        </div>
-        <select className={fieldCls} value={clientId} onChange={(e) => setClientId(e.target.value ? Number(e.target.value) : "")} aria-label="Client">
-          <option value="">All clients</option>
-          {(clients.data?.clients ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
+      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
         <TabsList variant="line" className="h-auto w-full justify-start border-b border-border">
@@ -118,7 +111,7 @@ export function Planning() {
       )}
 
       {picked?.type === "day" && (
-        <DaySheet day={picked.day} clients={clients.data?.clients ?? []} clientId={selectedClient} owners={board.data?.owners ?? []}
+        <DaySheet day={picked.day} clients={scopeClients} clientId={selectedClient} owners={board.data?.owners ?? []}
           items={picked.day ? { posts: cal.data?.posts.filter((p) => p.day === picked.day) ?? [], cards: cal.data?.cards.filter((c) => c.planned_date === picked.day) ?? [] } : null}
           onPick={setPicked} onClose={() => setPicked(null)} onSaved={() => { setPicked(null); reload(); notify("Idea added"); }} notify={notify} />
       )}

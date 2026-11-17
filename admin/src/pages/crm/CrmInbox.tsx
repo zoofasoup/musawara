@@ -60,7 +60,7 @@ export function CrmInbox() {
     return <GatewayNotice error={convs.error} onRetry={convs.reload} />;
   }
 
-  const height = "h-[calc(100dvh-17rem)] min-h-[26rem] sm:h-[calc(100dvh-12.5rem)]";
+  const height = "h-[calc(100dvh-17rem)] min-h-[26rem] md:h-[calc(100dvh-9rem)]";
   return (
     <div className="space-y-3">
       {convs.error != null && (

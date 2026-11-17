@@ -1,6 +1,8 @@
 // Approvals. One page per client: client users review and decide, the team creates and
 // resubmits. TeamApprovals lists every request across clients with a status filter.
 
+import { PageHeader } from "../components/PageHeader";
+import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
@@ -254,18 +256,16 @@ export function Approvals({ clientId }: { clientId: number }) {
   return (
     <div className="space-y-4">
       {node}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          {team && <Link to={`/c/${clientId}`} className="text-xs text-muted hover:text-ink">{meta.data?.client.name ?? "Client"}</Link>}
-          <h1 className="text-lg font-semibold text-ink">{team ? "Approvals" : "Waiting for your approval"}</h1>
-        </div>
-        {team && (
-          <div className="flex items-center gap-2">
+      <PageHeader
+        title={team ? "Approvals" : "Waiting for your approval"}
+        subtitle={team ? <Link to={`/c/${clientId}`} className="hover:text-ink hover:underline">{meta.data?.client.name ?? "Client"}</Link> : undefined}
+        actions={team && (
+          <>
             <Link to={`/c/${clientId}/assets`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Asset library</Link>
             <Btn tone="primary" icon="plus" onClick={() => setCreating(true)}>New request</Btn>
-          </div>
+          </>
         )}
-      </div>
+      />
 
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
         {FILTERS.map(([k, label]) => (
@@ -299,15 +299,19 @@ export function TeamApprovals() {
   const [status, setStatus] = useState("");
   const list = useApi<{ requests: TeamRow[] }>(`/approvals${status ? `?status=${status}` : ""}`);
   if (denied(list.error)) return <Denied />;
-  const rows = list.data?.requests ?? [];
+  const { clientId: scopeId } = useClientScope();
+  const rows = (list.data?.requests ?? []).filter((r) => !scopeId || r.client_id === scopeId);
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-ink">Approvals</h1>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={fieldCls}>
-          {FILTERS.map(([k, label]) => <option key={k} value={k}>{k ? label : "All statuses"}</option>)}
-        </select>
-      </div>
+      <PageHeader
+        title="Approvals"
+        subtitle="Requests waiting on clients, and what they answered."
+        actions={
+          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={fieldCls}>
+            {FILTERS.map(([k, label]) => <option key={k} value={k}>{k ? label : "All statuses"}</option>)}
+          </select>
+        }
+      />
       {list.loading && !list.data ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : list.error ? (

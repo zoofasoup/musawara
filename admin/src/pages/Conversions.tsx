@@ -4,6 +4,7 @@
 // same sales never duplicates anything (see worker/routes/conversions.ts).
 // Identifiers are hashed in the browser; only hashes reach the server and Meta.
 
+import { PageHeader } from "../components/PageHeader";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { Icon } from "../components/icons";
@@ -367,10 +368,7 @@ export function Conversions() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-9 pb-24">
-      <div>
-        <h1 className="text-2xl font-bold text-ink">Sales</h1>
-        <p className="text-sm text-muted">Upload real closings from a CSV or Excel file. They feed Purchases, CPA and ROAS on the dashboard, and can also be sent to Meta as offline conversions. Re-uploading never duplicates anything.</p>
-      </div>
+      <PageHeader title="Sales" subtitle="Upload real closings from a CSV or Excel file. They feed Purchases, CPA and ROAS on the dashboard, and can also be sent to Meta as offline conversions. Re-uploading never duplicates anything." />
 
       <Step n={1} title="Client and what to do" hint="Dashboard only is the default. Sending to Meta is optional." done={ready}>
         <Panel className="space-y-3 p-4">

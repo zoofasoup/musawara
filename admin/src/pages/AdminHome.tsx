@@ -1,6 +1,7 @@
 // Agency overview: client cards (this month's performance + sparkline + alert count),
 // global alert feed, sync health strip.
 
+import { PageHeader } from "../components/PageHeader";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { fmtDateTime, fmtNum, fmtRp, hoursSince } from "../lib/format";
@@ -71,6 +72,7 @@ export function AdminHome() {
 
   return (
     <div className="space-y-8">
+      <PageHeader title="Overview" subtitle="How each client's ads are doing this month, and what needs attention." />
       {/* sync health strip */}
       <div className="flex flex-wrap items-center gap-2">
         {d.syncHealth.map((s) => {

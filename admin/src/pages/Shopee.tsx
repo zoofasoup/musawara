@@ -7,7 +7,10 @@ import { api, useApi } from "../lib/api";
 import { addDays, todayJakarta } from "../lib/dates";
 import { fmtDay, fmtNum, fmtRp } from "../lib/format";
 import { CardSkeleton, ErrorState } from "../components/ui";
-import { Btn, ConfirmBtn, Empty, fieldCls, Panel, Pill, useNotify, type Tone } from "../components/kit";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Tone } from "../components/kit";
+import { PageHeader } from "../components/PageHeader";
+import { NeedsClient } from "../components/NeedsClient";
+import { useClientScope } from "../context/ClientScope";
 
 type Status = {
   configured: boolean;
@@ -20,7 +23,6 @@ type Summary = {
   top_products: { item_id: number; name: string; units: number; revenue: number }[];
   statuses: { status: string; orders: number }[];
 };
-type ClientRow = { id: number; name: string };
 
 const RANGES = [
   { key: "7", label: "7 days" },
@@ -70,8 +72,8 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
 export function Shopee() {
   const { notify, node } = useNotify();
   const [params, setParams] = useSearchParams();
-  const clients = useApi<{ clients: ClientRow[] }>("/admin/clients");
-  const [clientId, setClientId] = useState<number | "">("");
+  const { clientId: scopeId } = useClientScope();
+  const clientId: number | "" = scopeId ?? "";
   const [range, setRange] = useState<RangeKey>("30");
   const [busy, setBusy] = useState<"sync" | "connect" | null>(null);
 
@@ -84,11 +86,6 @@ export function Shopee() {
     params.delete("shopee");
     setParams(params, { replace: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const list = clients.data?.clients ?? [];
-  useEffect(() => {
-    if (clientId === "" && list.length) setClientId(list[0].id);
-  }, [list, clientId]);
 
   const [from, to] = useMemo(() => rangeDates(range), [range]);
   const status = useApi<Status>(clientId === "" ? null : `/shopee/status?client_id=${clientId}`);
@@ -144,18 +141,12 @@ export function Shopee() {
   return (
     <div className="mx-auto max-w-7xl">
       {node}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Shopee</h1>
-          <p className="mt-1 text-sm text-ink2">Sales from the client's Shopee shop. Buyer details are never stored. Days are Asia/Jakarta.</p>
-        </div>
-        <select className={fieldCls} value={clientId} onChange={(e) => setClientId(Number(e.target.value))} aria-label="Client">
-          {list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
+      <PageHeader title="Shopee" subtitle="Sales from the client's Shopee shop. Buyer details are never stored. Days are Asia/Jakarta." />
 
-      <div className="mt-5 space-y-4">
-        {status.loading || clientId === "" ? (
+      <div className="space-y-4">
+        {clientId === "" ? (
+          <NeedsClient what="Shopee" />
+        ) : status.loading ? (
           <CardSkeleton lines={2} />
         ) : status.error ? (
           <ErrorState message={status.error} onRetry={status.reload} />

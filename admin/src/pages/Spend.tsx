@@ -1,5 +1,7 @@
 // Unified spend: Meta (synced) + marketplace/other spend entered by hand.
 
+import { PageHeader } from "../components/PageHeader";
+import { useClientScope } from "../context/ClientScope";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, useApi } from "../lib/api";
@@ -40,12 +42,14 @@ type Entry = {
 
 export function Spend() {
   const [range, setRange] = useState<DateRange>(presetByKey("month"));
-  const [clientId, setClientId] = useState("");
+  const { clientId: scopeId, clients: scopeClients } = useClientScope();
+  const [companyWide, setCompanyWide] = useState(false);
+  const clientId = companyWide ? "none" : scopeId ? String(scopeId) : "";
   const [error, setError] = useState("");
   const [form, setForm] = useState({ source: "shopee", category: "ads", client_id: "", date: todayJakarta(), amount: "", note: "" });
 
   const qs = `from=${range.from}&to=${range.to}${clientId ? `&client_id=${clientId}` : ""}`;
-  const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
+  const clients = { data: { clients: scopeClients } };
   const summary = useApi<Summary>(`/admin/spend?${qs}`);
   const entries = useApi<{ entries: Entry[] }>(`/admin/spend/entries?${qs}`);
 
@@ -93,16 +97,16 @@ export function Spend() {
   const d = summary.data;
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-ink">Spend</h1>
-        <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={field} aria-label="Filter by client">
-          <option value="">All clients</option>
-          <option value="none">Company-wide</option>
-          {clients.data?.clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
+      <PageHeader
+        title="Spend"
+        subtitle="Ad spend and marketplace costs for the chosen client."
+        actions={
+          <label className="inline-flex min-h-11 items-center gap-2 text-sm text-ink2">
+            <input type="checkbox" checked={companyWide} onChange={(e) => setCompanyWide(e.target.checked)} className="h-4 w-4" />
+            Company-wide only
+          </label>
+        }
+      />
       <DateRangePicker value={range} onChange={setRange} />
 
       {summary.error ? (

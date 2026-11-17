@@ -1,6 +1,8 @@
 // Project board across all clients. Admin only. Four status panels; a task moves
 // by changing its status select (no drag and drop).
 
+import { PageHeader } from "../components/PageHeader";
+import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
@@ -21,8 +23,9 @@ function today() {
 }
 
 export function Board() {
-  const [clientFilter, setClientFilter] = useState("");
-  const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
+  const { clientId: scopeId, clients: scopeClients } = useClientScope();
+  const clientFilter = scopeId ? String(scopeId) : "";
+  const clients = { data: { clients: scopeClients } };
   const tasks = useApi<{ tasks: Task[] }>(`/admin/tasks${clientFilter ? `?client_id=${clientFilter}` : ""}`);
   const [form, setForm] = useState({ client_id: "", title: "", assignee: "", due_date: "" });
   const [error, setError] = useState<string>();
@@ -59,18 +62,10 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-ink">Board</h1>
-        <select value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className={field} aria-label="Filter by client">
-          <option value="">All clients</option>
-          {clients.data?.clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
+      <PageHeader title="Board" subtitle="Tasks across clients, in four columns." />
 
       <form onSubmit={add} className="flex flex-wrap gap-2">
-        <select required value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} className={field} aria-label="Client">
+        <select required value={form.client_id || clientFilter} onChange={(e) => setForm({ ...form, client_id: e.target.value })} className={field} aria-label="Client">
           <option value="">Client</option>
           {clients.data?.clients.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>

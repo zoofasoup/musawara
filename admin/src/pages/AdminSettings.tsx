@@ -1,6 +1,7 @@
 // Admin settings: a setup checklist in dependency order (Meta token, clients,
 // ad accounts, team) with a status strip on top that doubles as navigation.
 
+import { PageHeader } from "../components/PageHeader";
 import { useApi } from "../lib/api";
 import { Icon, type IconName } from "../components/icons";
 import { AccountsSection, accountHealth } from "./settings/AccountsSection";
@@ -53,10 +54,7 @@ export function AdminSettings() {
 
   return (
     <div className="mx-auto max-w-4xl pb-24">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-ink">Settings</h1>
-        <p className="text-sm text-muted">Set up in order: connect Meta, add clients, link their ad accounts, then invite people.</p>
-      </div>
+      <PageHeader title="Settings" subtitle="Set up in order: connect Meta, add clients, link their ad accounts, then invite people." />
 
       <div className="mb-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <Tile

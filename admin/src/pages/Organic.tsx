@@ -1,6 +1,7 @@
 // Organic content: per client, stories against the daily target and a grid of
 // posts, each carrying a performance label relative to its own account.
 
+import { PageHeader } from "../components/PageHeader";
 import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
@@ -216,16 +217,16 @@ export function Organic() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Organic</h1>
-          <p className="mt-1 text-sm text-ink2">Which content works, compared with each account's own average.</p>
-        </div>
-        <span className="flex gap-2">
-          <button className={btn} disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</button>
-          <button className={btn} disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</button>
-        </span>
-      </div>
+      <PageHeader
+        title="Organic"
+        subtitle="Which content works, compared with each account's own average."
+        actions={
+          <>
+            <button className={btn} disabled={!!busy} onClick={discover}>{busy === "discover" ? "Looking…" : "Find accounts"}</button>
+            <button className={btn} disabled={!!busy} onClick={poll}>{busy === "poll" ? "Checking…" : "Check now"}</button>
+          </>
+        }
+      />
       {msg && <p className="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink2">{msg}</p>}
 
       {list.loading ? (
