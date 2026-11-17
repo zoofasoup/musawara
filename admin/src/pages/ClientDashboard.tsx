@@ -18,7 +18,7 @@ import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, useNotify } from "../components/kit";
+import { Btn, Nested, useNotify } from "../components/kit";
 
 type Meta = {
   client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
@@ -263,23 +263,26 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </Link>
       )}
 
-      {/* key numbers: one nested card each */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-        {kpis.map((k) => (
-          <KpiCard
-            key={k.label}
-            label={k.label}
-            value={k.value}
-            current={k.cur}
-            previous={k.prev}
-            direction={k.dir}
-            note={k.note}
-            previousText={k.prevText}
-            compare={compareOn}
-            loading={summary.loading}
-          />
-        ))}
-      </div>
+      {/* key numbers: one card, one grid */}
+      <Nested title="Key numbers" className="mb-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+          {kpis.map((k) => (
+            <KpiCard
+              key={k.label}
+              bare
+              label={k.label}
+              value={k.value}
+              current={k.cur}
+              previous={k.prev}
+              direction={k.dir}
+              note={k.note}
+              previousText={k.prevText}
+              compare={compareOn}
+              loading={summary.loading}
+            />
+          ))}
+        </div>
+      </Nested>
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}
 
       {/* trend */}

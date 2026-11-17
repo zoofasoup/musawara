@@ -9,6 +9,7 @@ export function KpiCard({
   direction,
   loading,
   flat,
+  bare,
   note,
   previousText,
   compare = true,
@@ -21,6 +22,8 @@ export function KpiCard({
   loading?: boolean;
   /** Cell inside a metrics strip: no own border/radius, the strip draws the dividers. */
   flat?: boolean;
+  /** One of several stats inside a shared card: just label and number, no box of its own. */
+  bare?: boolean;
   /** One short line under the delta, e.g. "Target Rp 1 jt", coloured by `tone`. */
   note?: { text: string; tone?: "good" | "crit" | "muted" };
   /** The comparison period's value, formatted, shown as "vs Rp 24.103.000". */
@@ -51,6 +54,14 @@ export function KpiCard({
       )}
     </>
   );
+  if (bare) {
+    return (
+      <div className="min-w-0">
+        <p className="mb-1 text-xs font-medium text-muted">{label}</p>
+        {body}
+      </div>
+    );
+  }
   // The report strip (printed) keeps joined cells; everywhere else a stat is a nested card.
   if (flat) {
     return (
