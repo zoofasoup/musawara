@@ -140,7 +140,7 @@ export function Assets({ clientId }: { clientId: number }) {
       ) : shown.length === 0 ? (
         <EmptyState title="No assets match" hint="Try another search or clear the filters." />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shown.map((a) => (
             <li key={a.id} className="rounded-xl border border-border bg-surface p-4">
               <div className="flex items-start gap-3">

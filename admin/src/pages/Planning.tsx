@@ -366,8 +366,8 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
                       </button>
                       {manual && !locked && (
                         <div className="mt-2 flex gap-1.5">
-                          <Btn className="min-h-11 flex-1" disabled={idx <= 0 || busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx - 1])} aria-label={`Move ${c.title} back`}>‹ {idx > 0 ? STAGE_LABEL[MANUAL_STAGES[idx - 1]] : ""}</Btn>
-                          <Btn className="min-h-11 flex-1" disabled={idx >= MANUAL_STAGES.length - 1 || busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx + 1])} aria-label={`Move ${c.title} forward`}>{idx < MANUAL_STAGES.length - 1 ? STAGE_LABEL[MANUAL_STAGES[idx + 1]] : ""} ›</Btn>
+                          {idx > 0 && <Btn className="min-h-11 flex-1" disabled={busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx - 1])} aria-label={`Move ${c.title} back`}>‹ {STAGE_LABEL[MANUAL_STAGES[idx - 1]]}</Btn>}
+                          {idx < MANUAL_STAGES.length - 1 && <Btn className="min-h-11 flex-1" disabled={busyId === c.id} onClick={() => move(c, MANUAL_STAGES[idx + 1])} aria-label={`Move ${c.title} forward`}>{STAGE_LABEL[MANUAL_STAGES[idx + 1]]} ›</Btn>}
                         </div>
                       )}
                     </article>

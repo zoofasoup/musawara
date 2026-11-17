@@ -45,9 +45,9 @@ function AssetLinks({ assets }: { assets: LinkedAsset[] }) {
     <ul className="mt-2 space-y-1">
       {assets.map((a) => (
         <li key={a.id}>
-          <a href={a.drive_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 text-[13px] font-medium text-musawara-ink hover:underline">
-            {a.title}
-            <span className="text-xs font-normal text-muted">({a.kind}) · opens in Google Drive</span>
+          <a href={a.drive_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 max-w-full flex-wrap items-center gap-x-1.5 text-[13px] font-medium text-musawara-ink hover:underline">
+            <span className="min-w-0 break-words">{a.title}</span>
+            <span className="whitespace-nowrap text-xs font-normal text-muted">({a.kind}) · opens in Google Drive</span>
           </a>
         </li>
       ))}
