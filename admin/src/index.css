@@ -53,6 +53,15 @@
   --color-chart-2: #b5700a;
   --color-chart-3: #0f7a4d;
   --color-chart-4: #2563a8;
+  /* Pastel per content type (Planning): fill and a slightly stronger edge. Text on them stays ink. */
+  --color-kind-feed: oklch(0.95 0.05 85);
+  --color-kind-feed-edge: oklch(0.86 0.08 85);
+  --color-kind-carousel: oklch(0.94 0.04 285);
+  --color-kind-carousel-edge: oklch(0.85 0.07 285);
+  --color-kind-reel: oklch(0.94 0.045 15);
+  --color-kind-reel-edge: oklch(0.85 0.08 15);
+  --color-kind-story: oklch(0.945 0.045 165);
+  --color-kind-story-edge: oklch(0.85 0.07 165);
   /* shadcn / ReUI semantic tokens, mapped onto the Musawara palette. */
   --color-background: var(--color-bg);
   --color-foreground: var(--color-ink);

@@ -29,6 +29,14 @@ type Picked = { type: "day"; day: string } | { type: "post"; post: CalPost } | {
 
 const KINDS = ["feed", "carousel", "reel", "story"];
 const KIND_NAME: Record<string, string> = { feed: "Photo", carousel: "Carousel", reel: "Reel", story: "Story" };
+/** Pastel fill and edge per content type, so the calendar and board read at a glance. */
+const KIND_TINT: Record<string, string> = {
+  feed: "border-kind-feed-edge bg-kind-feed",
+  carousel: "border-kind-carousel-edge bg-kind-carousel",
+  reel: "border-kind-reel-edge bg-kind-reel",
+  story: "border-kind-story-edge bg-kind-story",
+};
+const KIND_SWATCH: Record<string, string> = { feed: "bg-kind-feed-edge", carousel: "bg-kind-carousel-edge", reel: "bg-kind-reel-edge", story: "bg-kind-story-edge" };
 const TONE_DOT: Record<Tone, string> = { neutral: "bg-muted", good: "bg-good", warn: "bg-warn", crit: "bg-crit", accent: "bg-[var(--accent)]" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -131,6 +139,9 @@ function Legend() {
     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
       {Object.values(POST_STATUS).map((s) => <span key={s.label} className="inline-flex items-center gap-1.5"><i className={`h-2 w-2 rounded-full ${TONE_DOT[s.tone]}`} />{s.label}</span>)}
       <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full border border-dashed border-ink2" />Idea (no post yet)</span>
+      <span className="inline-flex items-center gap-3 border-l border-border pl-4">
+        {Object.keys(KIND_NAME).map((k) => <span key={k} className="inline-flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-sm ${KIND_SWATCH[k]}`} />{KIND_NAME[k]}</span>)}
+      </span>
     </div>
   );
 }
@@ -168,7 +179,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                     const s = POST_STATUS[p.status] ?? POST_STATUS.draft;
                     return (
                       <button key={"p" + p.id} type="button" onClick={() => onPick({ type: "post", post: p })}
-                        className="flex w-full items-center gap-1.5 rounded border border-border bg-bg px-1.5 py-1 text-left text-[11px] leading-tight hover:border-border2">
+                        className={`flex w-full items-center gap-1.5 rounded-lg border px-1.5 py-1 text-left text-[11px] leading-tight hover:brightness-95 ${KIND_TINT[p.kind] ?? "border-border bg-bg"}`}>
                         <i className={`h-2 w-2 shrink-0 rounded-full ${TONE_DOT[s.tone]}`} aria-label={s.label} />
                         <span className="shrink-0 tabular-nums text-muted">{fmtTime(p.scheduled_at)}</span>
                         <span className="truncate text-ink">{showClient ? `${p.client_name}: ` : ""}{p.caption || KIND_NAME[p.kind]}</span>
@@ -177,7 +188,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                   })}
                   {cards.slice(0, Math.max(0, max - posts.length)).map((c) => (
                     <button key={"c" + c.id} type="button" onClick={() => onPick({ type: "card", id: c.id })}
-                      className="flex w-full items-center gap-1.5 rounded border border-dashed border-border2 px-1.5 py-1 text-left text-[11px] leading-tight text-ink2 hover:bg-surface2">
+                      className={`flex w-full items-center gap-1.5 rounded-lg border border-dashed px-1.5 py-1 text-left text-[11px] leading-tight text-ink2 hover:brightness-95 ${KIND_TINT[c.kind] ?? "border-border2"}`}>
                       <span className="truncate">{showClient ? `${c.client_name}: ` : ""}{c.title}</span>
                     </button>
                   ))}
@@ -345,7 +356,7 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
           const idx = MANUAL_STAGES.indexOf(c.stage);
           const ps = c.post_status ? POST_STATUS[c.post_status] : null;
           return (
-            <article className="rounded-lg border border-border bg-surface p-2.5">
+            <article className={`rounded-xl border p-2.5 shadow-[var(--shadow-soft)] ${KIND_TINT[c.kind] ?? "border-border bg-surface"}`}>
               <button type="button" onClick={() => onOpen(c.id)} className="block w-full text-left">
                 <span className="block text-sm font-medium text-ink">{c.title}</span>
                 <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
