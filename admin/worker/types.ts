@@ -19,6 +19,9 @@ export type Env = {
   SHOPEE_PARTNER_KEY?: string;
   /** Override of https://partner.shopeemobile.com (the sandbox host while testing). */
   SHOPEE_API_HOST?: string;
+  /** Notion internal integration token (wrangler secret) and an optional override of the board's database id. */
+  NOTION_TOKEN?: string;
+  NOTION_DATABASE_ID?: string;
   /** Test-only override of https://graph.facebook.com for the Conversions API. */
   GRAPH_BASE?: string;
 };

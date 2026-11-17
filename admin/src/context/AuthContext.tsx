@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api } from "../lib/api";
+import { api, clearApiCache } from "../lib/api";
 
 export type User = { id: number; email: string; name: string; role: "admin" | "client"; client_id: number | null };
 export type ClientInfo = { id: number; name: string; slug: string; logo_url: string | null; brand_color: string };
@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const d = await api<{ user: User }>("/auth/login", { body: { email, password } });
+    clearApiCache();
     setUser(d.user);
     if (d.user.client_id) {
       const me = await api<{ client: ClientInfo | null }>("/auth/me");
@@ -42,11 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST", body: {} });
+    clearApiCache();
     setUser(null);
     setClient(null);
   }, []);
 
   const setSession = useCallback((u: User, c?: ClientInfo | null) => {
+    clearApiCache();
     setUser(u);
     setClient(c ?? null);
   }, []);

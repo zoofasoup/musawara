@@ -14,6 +14,8 @@ import crmRoutes from "./routes/crm";
 import reportRoutes from "./routes/report";
 import approvalRoutes from "./routes/approvals";
 import shopeeRoutes from "./routes/shopee";
+import notionRoutes from "./routes/notion";
+import { notionCfg, runNotionSync } from "./lib/notion";
 import { syncAllAccounts } from "./lib/sync";
 import { pollAllOrganic } from "./lib/organic";
 
@@ -28,6 +30,7 @@ app.route("/api/crm", crmRoutes);
 app.route("/api/report", reportRoutes);
 app.route("/api/approvals", approvalRoutes);
 app.route("/api/shopee", shopeeRoutes);
+app.route("/api/notion", notionRoutes);
 
 app.get("/api/health", (c) => c.json({ ok: true, app: c.env.APP_NAME }));
 
@@ -45,6 +48,7 @@ export function scheduled(controller: ScheduledController, env: Env, ctx: Execut
   const deep = new Date(controller.scheduledTime).getUTCHours() === 20;
   ctx.waitUntil(pollAllOrganic(env, deep));
   ctx.waitUntil(syncAllAccounts(env, !deep));
+  if (notionCfg(env)) ctx.waitUntil(runNotionSync(env));
 }
 
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>;

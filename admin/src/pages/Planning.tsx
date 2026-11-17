@@ -75,7 +75,7 @@ export function Planning() {
   return (
     <div className="mx-auto max-w-7xl">
       {node}
-      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." />
+      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<NotionSync onDone={reload} notify={notify} />} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
         <TabsList variant="line" className="h-auto w-full justify-start border-b border-border">
@@ -376,5 +376,35 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
         })}
       </div>
     </>
+  );
+}
+
+type NotionStatus = { configured: boolean; last_run: string | null; last_error: string | null };
+
+/** Two-way sync with the team's Notion content board. Runs hourly by itself; this is the "now" button. */
+function NotionSync({ onDone, notify }: { onDone: () => void; notify: (m: string, k?: "ok" | "err") => void }) {
+  const status = useApi<NotionStatus>("/notion/status");
+  const [busy, setBusy] = useState(false);
+  const s = status.data;
+  if (!s) return null;
+  if (!s.configured) return <Pill tone="neutral">Notion not connected</Pill>;
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ pulled_new: number; pulled_updated: number; pushed_new: number; pushed_updated: number }>("/notion/sync", { method: "POST", body: {} });
+      notify(`Notion synced: ${r.pushed_new + r.pushed_updated} sent, ${r.pulled_new + r.pulled_updated} received.`);
+      onDone();
+      status.reload();
+    } catch (e: any) {
+      notify(e.message || "Notion sync failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {s.last_error && <span className="max-w-48 truncate text-xs text-crit" title={s.last_error}>{s.last_error}</span>}
+      <Btn tone="secondary" icon="refresh" loading={busy} onClick={run}>Sync Notion</Btn>
+    </div>
   );
 }

@@ -48,14 +48,19 @@ export function homeOrigin(role: "admin" | "client"): string {
   return window.location.origin + ASSET_BASE;
 }
 
+// Last answer per request, so going back to a page shows what it had at once and refreshes underneath
+// instead of blanking to a skeleton. Cleared on sign-out so one user's data never reaches the next.
+const answers = new Map<string, unknown>();
+export const clearApiCache = () => answers.clear();
+
 export function useApi<T = any>(path: string | null, extra?: { headers?: Record<string, string>; key?: string }) {
   const headersRef = useRef(extra?.headers);
   headersRef.current = extra?.headers;
   const cacheKey = path ? path + "|" + (extra?.key ?? "") : null;
   const keyRef = useRef(cacheKey);
-  const [data, setData] = useState<T | undefined>(undefined);
+  const [data, setData] = useState<T | undefined>(() => (cacheKey ? (answers.get(cacheKey) as T | undefined) : undefined));
   const [error, setError] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(Boolean(path));
+  const [loading, setLoading] = useState(Boolean(path) && data === undefined);
   const [tick, setTick] = useState(0);
   const pathRef = useRef(path);
   pathRef.current = path;
@@ -67,13 +72,14 @@ export function useApi<T = any>(path: string | null, extra?: { headers?: Record<
     }
     if (keyRef.current !== cacheKey) {
       keyRef.current = cacheKey; // a different key (for example another account) must not show the previous answer
-      setData(undefined);
+      setData(cacheKey ? (answers.get(cacheKey) as T | undefined) : undefined);
     }
     let alive = true;
-    setLoading(true);
+    if (!(cacheKey && answers.has(cacheKey))) setLoading(true);
     setError(undefined);
     api<T>(path, { headers: headersRef.current })
       .then((d) => {
+        if (cacheKey) answers.set(cacheKey, d);
         if (alive && pathRef.current === path) {
           setData(d);
           setLoading(false);

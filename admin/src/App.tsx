@@ -1,9 +1,10 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { ClientScopeProvider } from "./context/ClientScope";
+import { CardSkeleton } from "./components/ui";
 
 // Pages
 const AdminHome = lazy(() => import("./pages/AdminHome").then((m) => ({ default: m.AdminHome })));
@@ -35,12 +36,32 @@ const CrmCampaigns = lazy(() => import("./pages/crm/CrmCampaigns").then((m) => (
 const CrmConnection = lazy(() => import("./pages/crm/CrmConnection").then((m) => ({ default: m.CrmConnection })));
 import { CrmLayout } from "./pages/crm/CrmLayout";
 
-function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
+/** Signed-in frame. It stays mounted while the page inside it changes, so moving between menus never redraws the sidebar. */
+function ProtectedLayout() {
   const { user, ready } = useAuth();
   if (!ready) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (requireAdmin && user.role !== "admin") return <Navigate to="/" replace />;
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <Suspense fallback={<div className="space-y-4"><CardSkeleton lines={2} /><CardSkeleton lines={4} /></div>}>
+        <Outlet />
+      </Suspense>
+    </Layout>
+  );
+}
+
+function AdminOnly() {
+  const { user } = useAuth();
+  return user?.role === "admin" ? <Outlet /> : <Navigate to="/" replace />;
+}
+
+/** The CRM tab bar and number switcher stay put while the section underneath changes. */
+function CrmFrame() {
+  return (
+    <CrmLayout>
+      <Outlet />
+    </CrmLayout>
+  );
 }
 
 /** Reads :id from the path so each client page receives a numeric clientId. */
@@ -51,231 +72,60 @@ function ClientRoute({ page: Page }: { page: React.ComponentType<{ clientId: num
 }
 
 function RootRedirect() {
-  const { user, ready } = useAuth();
-  if (!ready) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role === "admin") return <AdminHome />;
-  return <Navigate to={`/c/${user.client_id}`} replace />;
+  const { user } = useAuth();
+  if (user?.role === "admin") return <AdminHome />;
+  return <Navigate to={`/c/${user?.client_id}`} replace />;
 }
 
 export function App() {
   return (
     <BrowserRouter basename={BASE}>
       <ClientScopeProvider>
-      <Suspense fallback={null}>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/invite/:token" element={<Invite />} />
-        <Route path="/share/:token" element={<ShareView />} />
-        <Route path="/share/:token/report" element={<ShareReport />} />
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/invite/:token" element={<Invite />} />
+            <Route path="/share/:token" element={<ShareView />} />
+            <Route path="/share/:token/report" element={<ShareReport />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <RootRedirect />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute requireAdmin>
-              <AdminSettings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/c/:id"
-          element={
-            <ProtectedRoute>
-              <ClientRoute page={ClientDashboard} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/c/:id/creatives"
-          element={
-            <ProtectedRoute>
-              <ClientRoute page={CreativeView} />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/c/:id/brand"
-          element={
-            <ProtectedRoute>
-              <ClientRoute page={BrandKnowledge} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/c/:id/onboarding"
-          element={
-            <ProtectedRoute requireAdmin>
-              <ClientRoute page={Onboarding} />
-            </ProtectedRoute>
-          }
-        />
+            {/* Signed in: one persistent frame */}
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/c/:id" element={<ClientRoute page={ClientDashboard} />} />
+              <Route path="/c/:id/creatives" element={<ClientRoute page={CreativeView} />} />
+              <Route path="/c/:id/brand" element={<ClientRoute page={BrandKnowledge} />} />
+              <Route path="/c/:id/report" element={<ClientRoute page={ClientReport} />} />
+              <Route path="/c/:id/approvals" element={<ClientRoute page={Approvals} />} />
 
-        <Route
-          path="/organic"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Organic />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/assets"
-          element={
-            <ProtectedRoute requireAdmin>
-              <AssetsEntry />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/styleguide"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Styleguide />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/shopee"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Shopee />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/planning"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Planning />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/board"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Board />
-            </ProtectedRoute>
-          }
-        />
+              {/* Team only */}
+              <Route element={<AdminOnly />}>
+                <Route path="/c/:id/onboarding" element={<ClientRoute page={Onboarding} />} />
+                <Route path="/c/:id/assets" element={<ClientRoute page={Assets} />} />
+                <Route path="/settings" element={<AdminSettings />} />
+                <Route path="/assets" element={<AssetsEntry />} />
+                <Route path="/styleguide" element={<Styleguide />} />
+                <Route path="/shopee" element={<Shopee />} />
+                <Route path="/planning" element={<Planning />} />
+                <Route path="/board" element={<Board />} />
+                <Route path="/spend" element={<Spend />} />
+                <Route path="/conversions" element={<Conversions />} />
+                <Route path="/organic" element={<Organic />} />
+                <Route path="/approvals" element={<TeamApprovals />} />
+                <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
+                <Route element={<CrmFrame />}>
+                  <Route path="/crm/inbox" element={<CrmInbox />} />
+                  <Route path="/crm/contacts" element={<CrmContacts />} />
+                  <Route path="/crm/templates" element={<CrmTemplates />} />
+                  <Route path="/crm/broadcasts" element={<CrmCampaigns />} />
+                  <Route path="/crm/connection" element={<CrmConnection />} />
+                </Route>
+              </Route>
+            </Route>
 
-        <Route
-          path="/spend"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Spend />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/conversions"
-          element={
-            <ProtectedRoute requireAdmin>
-              <Conversions />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/c/:id/report"
-          element={
-            <ProtectedRoute>
-              <ClientRoute page={ClientReport} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/c/:id/approvals"
-          element={
-            <ProtectedRoute>
-              <ClientRoute page={Approvals} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/c/:id/assets"
-          element={
-            <ProtectedRoute requireAdmin>
-              <ClientRoute page={Assets} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/approvals"
-          element={
-            <ProtectedRoute requireAdmin>
-              <TeamApprovals />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
-        <Route
-          path="/crm/inbox"
-          element={
-            <ProtectedRoute requireAdmin>
-              <CrmLayout>
-                <CrmInbox />
-              </CrmLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/crm/contacts"
-          element={
-            <ProtectedRoute requireAdmin>
-              <CrmLayout>
-                <CrmContacts />
-              </CrmLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/crm/templates"
-          element={
-            <ProtectedRoute requireAdmin>
-              <CrmLayout>
-                <CrmTemplates />
-              </CrmLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/crm/broadcasts"
-          element={
-            <ProtectedRoute requireAdmin>
-              <CrmLayout>
-                <CrmCampaigns />
-              </CrmLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/crm/connection"
-          element={
-            <ProtectedRoute requireAdmin>
-              <CrmLayout>
-                <CrmConnection />
-              </CrmLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      </Suspense>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </ClientScopeProvider>
     </BrowserRouter>
   );

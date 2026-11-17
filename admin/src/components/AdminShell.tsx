@@ -63,17 +63,17 @@ function ClientSwitcher({ className = "" }: { className?: string }) {
   );
 }
 
-function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
+function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   return (
     <>
       {GROUPS.map((g) => (
         <div key={g.label}>
-          <p className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted">{g.label}</p>
+          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted">{g.label}</p>}
           <div className="space-y-0.5">
             {g.items.map((i) => (
-              <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} className={({ isActive }) => linkCls(isActive)}>
+              <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} title={collapsed ? i.label : undefined} aria-label={collapsed ? i.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
                 <Icon name={i.icon} className="h-4 w-4 shrink-0" />
-                {i.label}
+                {!collapsed && i.label}
               </NavLink>
             ))}
           </div>
@@ -89,6 +89,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("ma_sidebar") === "1"; } catch { return false; }
+  });
+  const toggle = () =>
+    setCollapsed((c) => {
+      try { localStorage.setItem("ma_sidebar", c ? "0" : "1"); } catch { /* storage unavailable: the choice just won't persist */ }
+      return !c;
+    });
 
   // Opening a client's own page (for example /c/3/approvals) makes that client the chosen one.
   useEffect(() => {
@@ -104,23 +112,37 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const moreActive = !PHONE_TABS.some((t) => onTab(t.to));
 
   return (
-    <div className="min-h-screen md:pl-60">
+    <div className={`min-h-screen transition-[padding] duration-200 ${collapsed ? "md:pl-16" : "md:pl-60"}`}>
       {/* Desktop and tablet: sidebar */}
-      <aside aria-label="Main" className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 overflow-y-auto border-r border-border bg-surface px-3 py-4 md:flex">
-        <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>
-        <ClientSwitcher />
+      <aside aria-label="Main" className={`fixed inset-y-0 left-0 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden border-r border-border bg-surface py-4 transition-[width] duration-200 md:flex ${collapsed ? "w-16 px-2" : "w-60 px-3"}`}>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink2 hover:bg-surface2 hover:text-ink"
+          >
+            <Icon name="menu" className="h-4 w-4" />
+          </button>
+        </div>
+        {!collapsed && <ClientSwitcher />}
         <nav className="flex flex-1 flex-col gap-4">
-          <NavGroups />
+          <NavGroups collapsed={collapsed} />
         </nav>
         <div className="space-y-0.5 border-t border-border pt-3">
-          <NavLink to={SETTINGS.to} className={({ isActive }) => linkCls(isActive)}>
+          <NavLink to={SETTINGS.to} title={collapsed ? SETTINGS.label : undefined} aria-label={collapsed ? SETTINGS.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
             <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
-            {SETTINGS.label}
+            {!collapsed && SETTINGS.label}
           </NavLink>
-          <div className="flex items-center justify-between gap-2 px-2.5 pt-2">
-            <span className="min-w-0 truncate text-xs text-muted" title={user?.email}>{user?.name}</span>
-            <button onClick={signOut} className="shrink-0 rounded-md px-1.5 py-1 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">Sign out</button>
-          </div>
+          {!collapsed && (
+            <div className="flex items-center justify-between gap-2 px-2.5 pt-2">
+              <span className="min-w-0 truncate text-xs text-muted" title={user?.email}>{user?.name}</span>
+              <button onClick={signOut} className="shrink-0 rounded-md px-1.5 py-1 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink">Sign out</button>
+            </div>
+          )}
         </div>
       </aside>
 
