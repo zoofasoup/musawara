@@ -171,8 +171,8 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                 </button>
                 {/* phones: dots only, tap the day for the list */}
                 <div className="flex flex-wrap gap-1 px-1 sm:hidden">
-                  {posts.slice(0, 6).map((p) => <i key={"p" + p.id} className={`h-2 w-2 rounded-full ${TONE_DOT[POST_STATUS[p.status]?.tone ?? "neutral"]}`} />)}
-                  {cards.slice(0, 6).map((c) => <i key={"c" + c.id} className="h-2 w-2 rounded-full border border-dashed border-ink2" />)}
+                  {posts.slice(0, 6).map((p) => <i key={"p" + p.id} className={`h-2.5 w-2.5 rounded-full ${KIND_SWATCH[p.kind] ?? "bg-muted"}`} />)}
+                  {cards.slice(0, 6).map((c) => <i key={"c" + c.id} className={`h-2.5 w-2.5 rounded-full border border-dashed border-ink2 ${KIND_SWATCH[c.kind] ?? ""}`} />)}
                 </div>
                 <div className="hidden space-y-1 sm:block">
                   {posts.slice(0, max).map((p) => {
