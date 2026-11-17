@@ -93,7 +93,7 @@ export function Board() {
                 <SectionTitle right={<span className="tnum text-xs text-muted">{items.length}</span>}>{col.label}</SectionTitle>
                 <div className="space-y-2">
                   {items.map((t) => (
-                    <div key={t.id} className="rounded-xl border border-border bg-surface p-3">
+                    <div key={t.id} className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">
                       <p className="text-sm font-medium text-ink">{t.title}</p>
                       <p className="mt-0.5 text-xs text-ink2">
                         {t.client_name}

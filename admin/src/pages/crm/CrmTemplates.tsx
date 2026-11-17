@@ -98,7 +98,7 @@ function TemplateEditor({ template, notify, onClose, onChanged }: { template: Te
           </ul>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface2 p-3">
+        <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]2 p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-ink2">Preview with a sample contact</p>
             <Btn tone="ghost" icon="refresh" onClick={() => setSeed((s) => s + 1)}>

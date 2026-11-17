@@ -238,7 +238,7 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
           )}
 
           {preview && (
-            <div className="space-y-2 rounded-xl border border-border bg-surface2 p-3 text-xs">
+            <div className="space-y-2 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]2 p-3 text-xs">
               <p className="text-ink">
                 <b>{fmtNum(preview.total)}</b> rows read: <b className="text-good">{fmtNum(count)}</b> valid
                 {preview.invalid.length > 0 && (

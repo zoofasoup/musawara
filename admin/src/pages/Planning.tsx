@@ -74,7 +74,7 @@ export function Planning() {
   const selectedClient = clientId === "" ? null : clientId;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="max-w-7xl">
       {node}
       <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<NotionSync onDone={reload} notify={notify} />} />
 
@@ -141,7 +141,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
   const byDay = (d: string) => ({ posts: data.posts.filter((p) => p.day === d), cards: data.cards.filter((c) => c.planned_date === d) });
   const max = view === "week" ? 20 : 3;
   return (
-    <div className="mt-4 overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       <div className="grid grid-cols-7 border-b border-border bg-surface2 text-center text-[11px] font-medium uppercase tracking-wide text-muted">
         {DOW.map((d) => <div key={d} className="py-1.5">{d}</div>)}
       </div>

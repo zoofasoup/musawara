@@ -112,7 +112,7 @@ export function AdminHome() {
                 <Link
                   key={c.id}
                   to={`/c/${c.id}`}
-                  className="press group rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border2 hover:bg-surface2"
+                  className="press group rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 transition-colors hover:border-border2 hover:bg-surface2"
                   style={{ ["--accent" as any]: c.brand_color }}
                 >
                   <div className="flex items-center gap-2.5">

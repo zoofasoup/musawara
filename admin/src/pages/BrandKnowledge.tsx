@@ -35,7 +35,7 @@ function SectionCard({ clientId, s, canEdit, onSaved }: { clientId: number; s: S
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-4">
+    <section className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink">{s.label}</h3>
         {canEdit && !editing && (
@@ -108,7 +108,7 @@ function LinksPanel({ clientId, links, canEdit, onChanged }: { clientId: number;
   return (
     <div>
       <SectionTitle>References</SectionTitle>
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
         <ul className="space-y-1.5">
           {links.map((l) => (
             <li key={l.id} className="flex items-center justify-between gap-2 text-sm">

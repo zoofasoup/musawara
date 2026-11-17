@@ -57,7 +57,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
       ) : (
         <div>
           <SectionTitle right={<span className="tnum text-xs text-muted">{done} of {data.items.length} done</span>}>Checklist</SectionTitle>
-          <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
             {data.items.map((i) => (
               <li key={i.id}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2.5">

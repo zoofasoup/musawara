@@ -36,7 +36,7 @@ export function AlertFeed({
     return <EmptyState title="No alerts" hint="Anomaly detection runs after every sync." />;
   }
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       {alerts.map((a) => (
         <li key={a.id} className={`flex items-start gap-2.5 px-3.5 py-3 ${a.acknowledged ? "opacity-45" : ""}`}>
           <SeverityDot severity={a.severity} />

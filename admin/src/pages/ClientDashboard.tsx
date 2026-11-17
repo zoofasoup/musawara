@@ -264,7 +264,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       )}
 
       {/* metrics strip */}
-      <div className="mb-5 overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
         <div className="-mb-px -mr-px grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
           {kpis.map((k) => (
             <KpiCard

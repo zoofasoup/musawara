@@ -45,7 +45,7 @@ export function Styleguide() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-10">
+    <div className="max-w-4xl space-y-8 pb-10">
       {node}
       <PageHeader title="Style guide" subtitle="Every shared component and each state. Build from these; do not restyle raw HTML controls." />
 

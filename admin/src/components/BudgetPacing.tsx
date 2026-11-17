@@ -16,7 +16,7 @@ export type Pacing = {
 export function BudgetPacing({ pacing }: { pacing: Pacing[] }) {
   if (pacing.length === 0) return null;
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+    <div className="space-y-4 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
       {pacing.map((p) => {
         const spentPct = Math.min((p.spent / p.budget) * 100, 100);
         const idealPct = Math.min((p.ideal / p.budget) * 100, 100);

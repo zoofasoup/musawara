@@ -67,7 +67,7 @@ function downloadTemplate() {
 
 function FileGuide() {
   return (
-    <details className="group mb-3 rounded-xl border border-border bg-surface">
+    <details className="group mb-3 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-ink">
         <Icon name="info" className="h-4 w-4 text-ink2" />
         Isi file yang dibutuhkan
@@ -370,7 +370,7 @@ export function Conversions() {
     ) : null;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-9 pb-24">
+    <div className="max-w-4xl space-y-9 pb-24">
       <PageHeader title="Sales" subtitle="Upload real closings from a CSV or Excel file. They feed Purchases, CPA and ROAS on the dashboard, and can also be sent to Meta as offline conversions. Re-uploading never duplicates anything." />
 
       <Step n={1} title="Client and what to do" hint="Dashboard only is the default. Sending to Meta is optional." done={ready}>

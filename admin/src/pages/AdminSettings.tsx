@@ -26,7 +26,7 @@ function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: Ico
         e.preventDefault();
         document.querySelector(href)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
       }}
-      className="group flex min-h-11 items-center gap-3 rounded-xl border border-border bg-surface p-3 hover:border-border2 hover:bg-surface2"
+      className="group flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3 hover:border-border2 hover:bg-surface2"
     >
       <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TILE_TONE[tone]}`}>
         <Icon name={icon} className="h-5 w-5" />
@@ -53,7 +53,7 @@ export function AdminSettings() {
   const needAttention = accountList.filter((a) => accountHealth(a).key !== "ok").length;
 
   return (
-    <div className="mx-auto max-w-4xl pb-24">
+    <div className="max-w-4xl pb-24">
       <PageHeader title="Settings" subtitle="Set up in order: connect Meta, add clients, link their ad accounts, then invite people." />
 
       <div className="mb-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">

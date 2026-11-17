@@ -261,7 +261,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
   );
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       {/* filters, like the Ads Manager tabs + search */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
         <div role="group" aria-label="Delivery filter" className="inline-flex rounded-lg bg-surface3 p-0.5">

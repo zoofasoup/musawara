@@ -267,7 +267,7 @@ export function ReportView({ clientId }: { clientId: number; share?: boolean }) 
       ) : (
         <>
           {left.length > 0 && (
-            <p className="report-card mb-6 rounded-xl border border-border bg-surface2 px-3.5 py-2.5 text-xs text-ink2">
+            <p className="report-card mb-6 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]2 px-3.5 py-2.5 text-xs text-ink2">
               Left out because there is no data for this period: {left.join(", ")}.
             </p>
           )}

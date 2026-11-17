@@ -29,7 +29,7 @@ export function KpiCard({
 }) {
   const box = flat
     ? "border-b border-r border-border bg-surface px-3.5 py-3"
-    : "rounded-xl border border-border bg-surface p-3.5";
+    : "rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3.5";
   if (loading) {
     return (
       <div className={box}>

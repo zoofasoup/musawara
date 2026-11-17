@@ -458,7 +458,7 @@ export function CrmCampaigns() {
           ) : (
             <div className="space-y-3">
               {list.data!.map((c) => (
-                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block w-full min-h-11 rounded-xl border border-border bg-surface p-4 text-left hover:bg-surface2">
+                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block w-full min-h-11 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 text-left hover:bg-surface2">
                   <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="min-w-0 break-words text-sm font-semibold text-ink">{c.name}</span>
                     <StatusPill status={c.status} />

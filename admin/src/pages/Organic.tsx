@@ -87,7 +87,7 @@ function StoryRow({ a }: { a: Account }) {
   const today = a.days[a.days.length - 1]?.count ?? 0;
   const met = today >= a.story_target;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] px-4 py-3">
       <div className="min-w-0">
         <p className="text-xs text-muted">Stories today · @{a.ig_username ?? a.ig_user_id}</p>
         <p className={`tnum text-lg font-semibold ${met ? "text-good" : "text-ink"}`}>
@@ -217,7 +217,7 @@ export function Organic() {
   const tracked = new Set(accounts.map((a) => a.ig_user_id));
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <PageHeader
         title="Organic"
         subtitle="Which content works, compared with each account's own average."
@@ -302,7 +302,7 @@ export function Organic() {
           <SectionTitle>Accounts the token can see</SectionTitle>
           <div className="grid gap-2">
             {found.map((c) => (
-              <div key={c.ig_user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-3">
+              <div key={c.ig_user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">
                 <div>
                   <p className="text-sm font-medium text-ink">@{c.ig_username ?? c.ig_user_id}</p>
                   <p className="text-xs text-muted">Page: {c.page_name}</p>

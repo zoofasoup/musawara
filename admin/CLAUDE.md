@@ -60,4 +60,4 @@ Soft, rounded, floating: the team frame is a translucent sidebar card and a cont
 - Active menu item is a white pill; the active tab is an ink (black) pill; the accent purple is for the one primary button.
 - Section labels in menus are sentence case, not uppercase.
 - Keep text on translucent surfaces at AA contrast (muted text is `text-muted`, never lighter).
-
+- Team pages are left-aligned under the breadcrumb: cap a narrow page with `max-w-*` but never `mx-auto`, so every title starts at the same edge.

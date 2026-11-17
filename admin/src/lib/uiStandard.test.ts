@@ -65,3 +65,7 @@ test("every raw <button> is a deliberate custom control (tabs, chips, icon butto
   const extra = offenders(/<button\b/g).filter((h) => !allowed.has(h.split(":")[0]));
   assert.deepEqual(extra, []);
 });
+
+test("cards use the soft panel look (rounded-2xl with the soft shadow), not the old flat rounded-xl card", () => {
+  assert.deepEqual(offenders(/rounded-xl border border-border bg-surface(?! shadow)/g), []);
+});

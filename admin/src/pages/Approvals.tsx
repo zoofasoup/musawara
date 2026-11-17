@@ -207,7 +207,7 @@ function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: num
   }
 
   return (
-    <li className="rounded-xl border border-border bg-surface p-4">
+    <li className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-ink">{req.title}</h3>
@@ -323,7 +323,7 @@ export function TeamApprovals() {
       ) : rows.length === 0 ? (
         <EmptyState title={status ? "No requests with this status" : "No approval requests yet"} hint="Open a client and choose Approvals to create one." />
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+        <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
           {rows.map((r) => (
             <li key={r.id}>
               <Link to={`/c/${r.client_id}/approvals`} className="flex min-h-14 flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-surface2">

@@ -10,7 +10,7 @@ export function AssetsEntry() {
   if (clientId !== null) return <Navigate to={`/c/${clientId}/assets`} replace />;
   if (loading) return <CardSkeleton lines={3} />;
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h1 className="text-2xl font-semibold text-ink">Asset library</h1>
       <p className="mt-1 text-sm text-ink2">Pick a client to open their library of Google Drive links.</p>
       <div className="mt-5">

@@ -146,7 +146,7 @@ export function Assets({ clientId }: { clientId: number }) {
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shown.map((a) => (
-            <li key={a.id} className="rounded-xl border border-border bg-surface p-4">
+            <li key={a.id} className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 text-ink2"><Icon name={KIND_ICON[a.kind]} className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1">

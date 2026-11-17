@@ -61,7 +61,7 @@ const fmtSynced = (utc: string | null) =>
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-3.5">
+    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3.5">
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-1 whitespace-nowrap text-lg font-semibold text-ink tabular-nums sm:text-xl">{value}</p>
       {note && <p className="mt-0.5 text-xs text-ink2">{note}</p>}
@@ -139,7 +139,7 @@ export function Shopee() {
   const reauthSoon = status.data?.shop && status.data.shop.refresh_expires_at - Date.now() / 1000 < 5 * 24 * 3600;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="max-w-7xl">
       {node}
       <PageHeader title="Shopee" subtitle="Sales from the client's Shopee shop. Buyer details are never stored. Days are Asia/Jakarta." />
 

@@ -58,7 +58,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-lg bg-surface2 p-0.5">
           {BAR_METRICS.map((m) => (

@@ -8,7 +8,7 @@ export { Skeleton };
 
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 space-y-3">
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton key={i} className={`h-4 ${i === 0 ? "w-1/3" : "w-full"}`} />
       ))}

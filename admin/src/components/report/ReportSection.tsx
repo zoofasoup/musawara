@@ -21,14 +21,14 @@ export function SubTitle({ children }: { children: ReactNode }) {
 /** Cells that KpiCard draws with `flat`: the strip supplies the outer border and radius. */
 export function MetricStrip({ children, cols = "grid-cols-2 sm:grid-cols-4" }: { children: ReactNode; cols?: string }) {
   return (
-    <div className="report-card overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="report-card overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       <div className={`-mb-px -mr-px grid ${cols}`}>{children}</div>
     </div>
   );
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`report-card rounded-xl border border-border bg-surface ${className}`}>{children}</div>;
+  return <div className={`report-card rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</div>;
 }
 
 /** Horizontal bars sized by count, with the count and the revenue written out (no colour-only meaning). */
