@@ -38,7 +38,7 @@ async function clientExists(c: Ctx, id: number) {
 
 // The callback is a plain browser redirect, so it answers with a redirect rather than JSON.
 shopee.get("/callback", requireAdmin, async (c) => {
-  const done = (result: string) => c.redirect(`/settings?shopee=${result}`);
+  const done = (result: string) => c.redirect(`/shopee?shopee=${result}`);
   const cfg = shopeeCfg(c.env);
   if (!cfg) return done("unconfigured");
   const code = c.req.query("code");

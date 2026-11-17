@@ -198,7 +198,9 @@ export async function syncShop(env: Pick<Env, "DB" | "JWT_SECRET">, cfg: ShopeeC
     await env.DB.prepare(`UPDATE shopee_shops SET synced_to=?, last_sync_at=datetime('now'), last_error=NULL WHERE client_id=?`).bind(to, clientId).run();
     return { orders: saved, from, to, caughtUp: to >= now };
   } catch (e: any) {
-    await env.DB.prepare(`UPDATE shopee_shops SET last_error=? WHERE client_id=?`).bind(String(e?.message ?? e).slice(0, 300), clientId).run();
+    // Only Shopee's own error text is shown to the team; anything else is logged and summarised.
+    if (!(e instanceof ShopeeError)) console.error("shopee sync failed", e);
+    await env.DB.prepare(`UPDATE shopee_shops SET last_error=? WHERE client_id=?`).bind(e instanceof ShopeeError ? e.message.slice(0, 300) : "Unexpected error while syncing", clientId).run();
     throw e;
   }
 }

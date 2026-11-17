@@ -42,11 +42,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { to: "/board", label: "Board", icon: "board" },
           { to: "/spend", label: "Spend", icon: "spend" },
           { to: "/conversions", label: "Sales", icon: "tag" },
+          { to: "/shopee", label: "Shopee", icon: "chart" },
           { to: "/organic", label: "Organic", icon: "image" },
-          { to: "/approvals", label: "Approvals", icon: "checkCircle" },
+          { to: "/approvals", label: "Approvals", short: "Approve", icon: "checkCircle" },
           { to: "/planning", label: "Planning", short: "Plan", icon: "clock" },
           { to: "/crm", label: "CRM", icon: "users" },
-          { to: "/settings", label: "Settings", icon: "sliders" },
+          { to: "/settings", label: "Settings", short: "Setup", icon: "sliders" },
         ]
       : user?.client_id
         ? [
@@ -107,7 +108,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={l.to}
               to={l.to}
               end={isEnd(l.to)}
-              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
+              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
             >
               <Icon name={l.icon} className="h-5 w-5" />
               <span className="leading-none">{l.short ?? l.label}</span>

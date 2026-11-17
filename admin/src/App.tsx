@@ -18,6 +18,7 @@ const Spend = lazy(() => import("./pages/Spend").then((m) => ({ default: m.Spend
 const Board = lazy(() => import("./pages/Board").then((m) => ({ default: m.Board })));
 const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ default: m.Conversions })));
 const Planning = lazy(() => import("./pages/Planning").then((m) => ({ default: m.Planning })));
+const Shopee = lazy(() => import("./pages/Shopee").then((m) => ({ default: m.Shopee })));
 const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
 const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
 const ShareReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ShareReport })));
@@ -121,6 +122,14 @@ export function App() {
           element={
             <ProtectedRoute requireAdmin>
               <Organic />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/shopee"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Shopee />
             </ProtectedRoute>
           }
         />

@@ -149,12 +149,12 @@ test("auth-url carries a signed state, and the callback connects only with a val
   globalThis.fetch = fakeShopee([]);
   try {
     const bad = await call("GET", "/api/shopee/callback?code=C&shop_id=55&state=forged", admin);
-    assert.equal(bad.headers.get("location"), "/settings?shopee=expired");
+    assert.equal(bad.headers.get("location"), "/shopee?shopee=expired");
     assert.equal((await DB.prepare(`SELECT COUNT(*) AS n FROM shopee_shops`).first<any>()).n, 0);
     const noAdmin = await call("GET", `/api/shopee/callback?code=C&shop_id=55&state=${state}`);
     assert.equal(noAdmin.status, 401);
     const ok = await call("GET", `/api/shopee/callback?code=C&shop_id=55&state=${state}`, admin);
-    assert.equal(ok.headers.get("location"), "/settings?shopee=connected");
+    assert.equal(ok.headers.get("location"), "/shopee?shopee=connected");
     assert.equal((await DB.prepare(`SELECT shop_id FROM shopee_shops WHERE client_id=1`).first<any>()).shop_id, 55);
   } finally {
     globalThis.fetch = realFetch;
