@@ -179,6 +179,9 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
     ];
   }, [summary.data, meta.data]);
 
+  // One size for every number in the block: smaller and wider cells when any value is long.
+  const longNumbers = kpis.some((x) => x.value.length > 13);
+
   if (meta.error) return <ErrorState message={meta.error} onRetry={meta.reload} />;
 
   return (
@@ -265,11 +268,12 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
       {/* key numbers: one card, one grid */}
       <Nested title="Key numbers" className="mb-5">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+        <div className={`grid grid-cols-2 gap-x-6 gap-y-5 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
           {kpis.map((k) => (
             <KpiCard
               key={k.label}
               bare
+              dense={longNumbers}
               label={k.label}
               value={k.value}
               current={k.cur}

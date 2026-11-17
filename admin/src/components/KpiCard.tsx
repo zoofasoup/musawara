@@ -10,6 +10,7 @@ export function KpiCard({
   loading,
   flat,
   bare,
+  dense,
   note,
   previousText,
   compare = true,
@@ -24,6 +25,8 @@ export function KpiCard({
   flat?: boolean;
   /** One of several stats inside a shared card: just label and number, no box of its own. */
   bare?: boolean;
+  /** Smaller numbers for every stat in the block, chosen by the caller when any value is long, so sizes stay uniform. */
+  dense?: boolean;
   /** One short line under the delta, e.g. "Target Rp 1 jt", coloured by `tone`. */
   note?: { text: string; tone?: "good" | "crit" | "muted" };
   /** The comparison period's value, formatted, shown as "vs Rp 24.103.000". */
@@ -40,7 +43,7 @@ export function KpiCard({
   ) : (
     <>
       {/* never truncate a number: long amounts get a smaller size, and may wrap after "Rp" on narrow cards */}
-      <p className={`tnum font-semibold leading-tight text-ink ${value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
+      <p className={`tnum font-semibold leading-tight text-ink ${dense ? "text-base" : value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
       </p>
       {compare && (
