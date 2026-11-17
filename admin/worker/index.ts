@@ -13,6 +13,7 @@ import sheetSyncRoutes from "./routes/sheetSync";
 import crmRoutes from "./routes/crm";
 import reportRoutes from "./routes/report";
 import approvalRoutes from "./routes/approvals";
+import shopeeRoutes from "./routes/shopee";
 import { syncAllAccounts } from "./lib/sync";
 import { pollAllOrganic } from "./lib/organic";
 
@@ -26,6 +27,7 @@ app.route("/api/sheet-sync", sheetSyncRoutes);
 app.route("/api/crm", crmRoutes);
 app.route("/api/report", reportRoutes);
 app.route("/api/approvals", approvalRoutes);
+app.route("/api/shopee", shopeeRoutes);
 
 app.get("/api/health", (c) => c.json({ ok: true, app: c.env.APP_NAME }));
 

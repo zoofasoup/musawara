@@ -14,6 +14,11 @@ export type Env = {
   WA_GATEWAY_URL?: string;
   /** Bearer token the gateway accepts (wrangler secret). */
   WA_GATEWAY_TOKEN?: string;
+  /** Shopee Open Platform app (wrangler secrets). Unset = the Shopee card shows "not configured". */
+  SHOPEE_PARTNER_ID?: string;
+  SHOPEE_PARTNER_KEY?: string;
+  /** Override of https://partner.shopeemobile.com (the sandbox host while testing). */
+  SHOPEE_API_HOST?: string;
   /** Test-only override of https://graph.facebook.com for the Conversions API. */
   GRAPH_BASE?: string;
 };
