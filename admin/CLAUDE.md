@@ -67,3 +67,9 @@ Soft, rounded, floating: the team frame is a translucent sidebar card and a cont
   kanban columns), keep outlines for the one thing that needs them, and use sentence-case titles (no ALL CAPS headings).
 - Charts: dotted horizontal grid only, light bars with the hovered bar solid, dark tooltip.
 - Tabs are a grey pill track with a white active pill; black is for nothing but the primary action.
+
+## Local dummy data
+`dev/make-seed.py` writes `dev/seed-dummy.sql`: a made-up client (id 900, "Musafar Dummy") with 75 days of ad data, sales, creatives and alerts. Apply it to the **local** D1 only, from the repo root: `npx wrangler d1 execute musawara-ads --local -c wrangler.noR2.jsonc --file admin/dev/seed-dummy.sql`. Then open `/admin/c/900`.
+
+## Client pages
+Every page under `/c/:id` renders inside `ClientFrame`: client name plus the menu bar (Overview, Creatives, Alerts, Approvals, Report, Brand knowledge, and for the team Assets and Onboarding). New client pages become a route there and a tab in `ClientFrame`. The trend (`MetricTrend`) shows one metric at a time (spend, leads, purchases); do not add ratios or a second axis to it.

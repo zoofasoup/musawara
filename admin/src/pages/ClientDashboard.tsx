@@ -12,9 +12,9 @@ import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
 import { KpiCard } from "../components/KpiCard";
-import { TrendChart, type TrendDay } from "../components/TrendChart";
+import { MetricTrend, type TrendDay } from "../components/MetricTrend";
 import { EntityTable } from "../components/EntityTable";
-import { AlertFeed, type Alert } from "../components/AlertFeed";
+import type { Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
@@ -187,48 +187,34 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   return (
     <div style={{ ["--accent" as any]: accent, ["--on-accent" as any]: onAccent(accent) }}>
       {node}
-      {/* header */}
-      <div className="mb-3 flex items-center gap-3">
-        {meta.data ? (
-          <>
-            <ClientAvatar name={meta.data.client.name} logoUrl={meta.data.client.logo_url} color={accent} size={10} />
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold leading-tight text-ink">{meta.data.client.name}</h1>
-              <p className="tnum text-xs text-muted">
-                {lastSync ? `Updated ${fmtDateTime(lastSync)}` : "Not synced yet"}
-                {" · "}
-                {meta.data.accounts.length} {meta.data.accounts.length === 1 ? "account" : "accounts"}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className="h-10 w-48 skeleton" />
-        )}
-        {!share && user?.role === "admin" && (
-          <Btn icon="refresh" loading={syncing} onClick={syncNow} className="ml-auto shrink-0">
-            {syncing ? "Syncing…" : "Sync now"}
-          </Btn>
-        )}
-      </div>
+      {/* header: the signed-in pages get it from ClientFrame; the public share link has no frame */}
+      {share && (
+        <div className="mb-3 flex items-center gap-3">
+          {meta.data ? (
+            <>
+              <ClientAvatar name={meta.data.client.name} logoUrl={meta.data.client.logo_url} color={accent} size={10} />
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-semibold leading-tight text-ink">{meta.data.client.name}</h1>
+                <p className="tnum text-xs text-muted">
+                  {lastSync ? `Updated ${fmtDateTime(lastSync)}` : "Not synced yet"}
+                  {" · "}
+                  {meta.data.accounts.length} {meta.data.accounts.length === 1 ? "account" : "accounts"}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="h-10 w-48 skeleton" />
+          )}
+        </div>
+      )}
 
       {/* toolbar: secondary pages on the left, date range on the right */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
           {!share && user?.role === "admin" && (
-            <>
-              <Link to={`/c/${clientId}/brand`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
-                Brand knowledge
-              </Link>
-              <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
-                Approvals
-              </Link>
-              <Link to={`/c/${clientId}/assets`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
-                Assets
-              </Link>
-              <Link to={`/c/${clientId}/onboarding`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">
-                Onboarding
-              </Link>
-            </>
+            <Btn icon="refresh" loading={syncing} onClick={syncNow}>
+              {syncing ? "Syncing…" : "Sync now"}
+            </Btn>
           )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
@@ -258,6 +244,16 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       </div>
 
       {meta.data && <StaleBanner accounts={meta.data.accounts} />}
+
+      {!share && (() => {
+        const open = alerts.data?.alerts.filter((a) => !a.acknowledged).length ?? 0;
+        return open > 0 ? (
+          <Link to={`/c/${clientId}/alerts`} className="mb-4 flex min-h-11 items-center justify-between gap-2 rounded-2xl bg-crit/8 px-4 py-2.5 text-[13px] text-crit hover:bg-crit/12">
+            <span>{open === 1 ? "1 open alert" : `${open} open alerts`}</span>
+            <span className="font-medium">Review</span>
+          </Link>
+        ) : null;
+      })()}
 
       {(pendingApprovals.data?.requests.length ?? 0) > 0 && (
         <Link to={`/c/${clientId}/approvals`} className="mb-4 flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--accent)]/40 bg-surface px-3.5 py-2.5 text-[13px] text-ink hover:bg-surface2">
@@ -293,13 +289,13 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </Bento>
 
         {/* trend */}
-        <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} className="xl:col-span-12">
+        <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} subtitle="Spend, leads and purchases" className="xl:col-span-12">
           {trend.loading ? (
             <CardSkeleton lines={5} />
           ) : trend.error ? (
             <ErrorState message={trend.error} onRetry={trend.reload} />
           ) : (
-            <TrendChart bare days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} bucket={trend.data?.bucket} />
+            <MetricTrend days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} />
           )}
         </Bento>
 
@@ -330,26 +326,6 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
               <BudgetPacing pacing={pacing.data!.pacing} />
             </Bento>
           )}
-          <Bento title="Alerts">
-            {alerts.loading ? (
-              <CardSkeleton lines={4} />
-            ) : alerts.error ? (
-              <ErrorState message={alerts.error} onRetry={alerts.reload} />
-            ) : (
-              <AlertFeed
-                inCard
-                alerts={alerts.data?.alerts ?? []}
-                onAck={
-                  !share && user?.role === "admin"
-                    ? async (id) => {
-                        await api(`/admin/alerts/${id}/ack`, { method: "POST", body: {} });
-                        alerts.reload();
-                      }
-                    : undefined
-                }
-              />
-            )}
-          </Bento>
         </div>
       </div>
     </div>

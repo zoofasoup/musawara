@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from "react
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
+import { ClientFrame } from "./components/ClientFrame";
 import { ClientScopeProvider } from "./context/ClientScope";
 import { CardSkeleton } from "./components/ui";
 
@@ -28,6 +29,7 @@ const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.O
 const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
 const ShareReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ShareReport })));
 const Assets = lazy(() => import("./pages/Assets").then((m) => ({ default: m.Assets })));
+const ClientAlerts = lazy(() => import("./pages/ClientAlerts").then((m) => ({ default: m.ClientAlerts })));
 const Approvals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.Approvals })));
 const TeamApprovals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.TeamApprovals })));
 const CrmInbox = lazy(() => import("./pages/crm/CrmInbox").then((m) => ({ default: m.CrmInbox })));
@@ -94,16 +96,22 @@ export function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/c/:id" element={<ClientRoute page={ClientDashboard} />} />
-              <Route path="/c/:id/creatives" element={<ClientRoute page={CreativeView} />} />
-              <Route path="/c/:id/brand" element={<ClientRoute page={BrandKnowledge} />} />
-              <Route path="/c/:id/report" element={<ClientRoute page={ClientReport} />} />
-              <Route path="/c/:id/approvals" element={<ClientRoute page={Approvals} />} />
+              <Route path="/c/:id" element={<ClientFrame />}>
+                <Route index element={<ClientRoute page={ClientDashboard} />} />
+                <Route path="creatives" element={<ClientRoute page={CreativeView} />} />
+                <Route path="alerts" element={<ClientRoute page={ClientAlerts} />} />
+                <Route path="brand" element={<ClientRoute page={BrandKnowledge} />} />
+                <Route path="report" element={<ClientRoute page={ClientReport} />} />
+                <Route path="approvals" element={<ClientRoute page={Approvals} />} />
+                {/* Team only */}
+                <Route element={<AdminOnly />}>
+                  <Route path="onboarding" element={<ClientRoute page={Onboarding} />} />
+                  <Route path="assets" element={<ClientRoute page={Assets} />} />
+                </Route>
+              </Route>
 
               {/* Team only */}
               <Route element={<AdminOnly />}>
-                <Route path="/c/:id/onboarding" element={<ClientRoute page={Onboarding} />} />
-                <Route path="/c/:id/assets" element={<ClientRoute page={Assets} />} />
                 <Route path="/settings" element={<AdminSettings />} />
                 <Route path="/assets" element={<AssetsEntry />} />
                 <Route path="/styleguide" element={<Styleguide />} />

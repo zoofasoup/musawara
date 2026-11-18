@@ -118,19 +118,42 @@ export function trendBucket(from: string, to: string): TrendBucket {
   return days > 400 ? "month" : days > 120 ? "week" : "day";
 }
 
+/** Start of the bucket a date falls in. Weeks start on Monday: date(d, '-6 days', 'weekday 1'). */
+const bucketKey = (col: string, bucket: TrendBucket) =>
+  bucket === "day" ? col : bucket === "week" ? `date(${col}, '-6 days', 'weekday 1')` : `substr(${col}, 1, 7) || '-01'`;
+
+/**
+ * Per day (or week, month) series for the trend chart. Spend and leads come from the ad insights;
+ * purchases and their value come from the sales table, the same source as the totals, so the chart
+ * adds up to the Key numbers.
+ */
 export async function clientTrend(env: Env, clientId: number, from: string, to: string, forceBucket?: TrendBucket) {
   const bucket = forceBucket ?? trendBucket(from, to);
-  // Monday on or before the date: date(d, '-6 days', 'weekday 1')
-  const key = bucket === "day" ? "i.date" : bucket === "week" ? "date(i.date, '-6 days', 'weekday 1')" : "substr(i.date, 1, 7) || '-01'";
-  const rows = await env.DB.prepare(
-    `SELECT ${key} AS date, ${SUM_COLS}
-     FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
-     WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?
-     GROUP BY 1 ORDER BY 1`
-  )
-    .bind(clientId, from, to)
-    .all<RawSums & { date: string }>();
-  return { bucket, days: rows.results.map((r) => ({ date: r.date, ...finalize(r) })) };
+  const [rows, sales] = await Promise.all([
+    env.DB.prepare(
+      `SELECT ${bucketKey("i.date", bucket)} AS date, ${SUM_COLS}
+       FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
+       WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?
+       GROUP BY 1 ORDER BY 1`
+    )
+      .bind(clientId, from, to)
+      .all<RawSums & { date: string }>(),
+    env.DB.prepare(
+      `SELECT ${bucketKey("sale_date", bucket)} AS date, COUNT(*) purchases, COALESCE(SUM(value), 0) purchase_value
+       FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled'
+       GROUP BY 1`
+    )
+      .bind(clientId, from, to)
+      .all<{ date: string; purchases: number; purchase_value: number }>(),
+  ]);
+  const byDate = new Map<string, RawSums & { date: string }>();
+  for (const r of rows.results) byDate.set(r.date, { ...r, purchases: 0, purchase_value: 0 });
+  for (const s of sales.results) {
+    const r = byDate.get(s.date) ?? { date: s.date, spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, leads: 0, purchases: 0, purchase_value: 0 };
+    byDate.set(s.date, { ...r, purchases: s.purchases, purchase_value: s.purchase_value });
+  }
+  const days = [...byDate.values()].sort((x, y) => (x.date < y.date ? -1 : 1)).map((r) => ({ date: r.date, ...finalize(r) }));
+  return { bucket, days };
 }
 
 export type EntityRow = Totals & {
