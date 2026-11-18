@@ -14,6 +14,7 @@ import { ClientAvatar } from "./Layout";
 import type { Alert } from "./AlertFeed";
 import { CardSkeleton } from "./ui";
 import { Icon } from "./icons";
+import { useT } from "../context/LangContext";
 import { PillNav, pillTabCls } from "./PillNav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -29,6 +30,7 @@ function Badge({ tab }: { tab: Tab }) {
 }
 
 export function ClientFrame() {
+  const tr = useT();
   const clientId = Number(useParams().id);
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -92,7 +94,7 @@ export function ClientFrame() {
               <div className="min-w-0">
                 <h1 className="truncate text-lg font-semibold leading-tight text-ink">{meta.data.client.name}</h1>
                 <p className="tnum text-xs text-muted">
-                  {lastSync ? `Updated ${fmtDateTime(lastSync)}` : "Not synced yet"} · {meta.data.accounts.length} {meta.data.accounts.length === 1 ? "account" : "accounts"}
+                  {lastSync ? `${tr("Updated")} ${fmtDateTime(lastSync)}` : tr("Not synced yet")} · {meta.data.accounts.length} {tr(meta.data.accounts.length === 1 ? "account" : "accounts")}
                 </p>
               </div>
             </>
@@ -104,20 +106,20 @@ export function ClientFrame() {
         <PillNav label="Client menu" className="mb-2">
             {tabs.map((t) => (
               <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => pillTabCls(isActive)}>
-                {t.label}
+                {tr(t.label)}
                 <Badge tab={t} />
               </NavLink>
             ))}
             {more.length > 0 && (
               <DropdownMenu>
-                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} data-active={!!moreOn} aria-label="More client pages">
-                  {moreOn ? moreOn.label : "More"}
+                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} data-active={!!moreOn} aria-label={tr("More")}>
+                  {tr(moreOn ? moreOn.label : "More")}
                   <Icon name="chevronDown" className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {more.map((t) => (
                     <DropdownMenuItem key={t.to} onClick={() => navigate(t.to)} className={pathname === t.to ? "font-medium" : ""}>
-                      {t.label}
+                      {tr(t.label)}
                       <span className="ml-auto"><Badge tab={t} /></span>
                     </DropdownMenuItem>
                   ))}

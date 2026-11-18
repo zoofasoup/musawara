@@ -2,6 +2,7 @@
 // their CPA target, a client table, spend share, then alerts and sync health.
 
 import { useMemo, useState } from "react";
+import { useT } from "../context/LangContext";
 import { Segmented } from "../components/Segmented";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
@@ -56,6 +57,7 @@ const onTarget = (c: Row) => c.target_cpa != null && c.target_cpa > 0 && c.total
 const hasTarget = (c: Row) => c.target_cpa != null && c.target_cpa > 0 && c.totals.cpa != null;
 
 export function AdminHome() {
+  const t = useT();
   const { data, error, loading, reload } = useApi<Overview>("/admin/overview");
   const nav = useNavigate();
   const [search, setSearch] = useState("");
@@ -155,7 +157,7 @@ export function AdminHome() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search"
+                  placeholder={t("Search")}
                   aria-label="Search clients"
                   className="min-h-11 w-36 rounded-full px-4 text-xs lg:min-h-9"
                 />

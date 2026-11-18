@@ -3,6 +3,7 @@
 // columns on narrow screens. EntityTable (expandable, sortable) and the sales data-grid will move onto this look next.
 
 import type { ReactNode } from "react";
+import { useT } from "../context/LangContext";
 import { cn } from "@/lib/utils";
 
 export type Column<T> = {
@@ -19,6 +20,7 @@ export type Column<T> = {
 const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell" } as const;
 
 export function DataTable<T>({ columns, rows, getKey, onRowClick, empty = "Nothing to show.", footer, className }: { columns: Column<T>[]; rows: T[]; getKey: (row: T) => string | number; onRowClick?: (row: T) => void; empty?: ReactNode; footer?: ReactNode; className?: string }) {
+  const t = useT();
   const cellCls = (c: Column<T>) => cn("px-4 py-3", c.numeric && "tnum whitespace-nowrap text-right", c.hideBelow && HIDE[c.hideBelow], c.className);
   return (
     <div className={cn("overflow-x-auto rounded-2xl border border-border/70 bg-surface shadow-[var(--shadow-soft)]", className)}>
@@ -26,7 +28,7 @@ export function DataTable<T>({ columns, rows, getKey, onRowClick, empty = "Nothi
         <thead className="bg-surface2 text-xs text-muted">
           <tr>
             {columns.map((c) => (
-              <th key={c.key} scope="col" className={cn("px-4 py-2.5 font-medium", c.numeric && "text-right", c.hideBelow && HIDE[c.hideBelow])}>{c.header}</th>
+              <th key={c.key} scope="col" className={cn("px-4 py-2.5 font-medium", c.numeric && "text-right", c.hideBelow && HIDE[c.hideBelow])}>{typeof c.header === "string" ? t(c.header) : c.header}</th>
             ))}
           </tr>
         </thead>
@@ -37,7 +39,7 @@ export function DataTable<T>({ columns, rows, getKey, onRowClick, empty = "Nothi
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-xs text-muted">{empty}</td></tr>
+            <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-xs text-muted">{typeof empty === "string" ? t(empty) : empty}</td></tr>
           )}
         </tbody>
         {footer && <tfoot className="border-t border-border/70 bg-surface2/50 text-sm font-medium text-ink"><tr>{footer}</tr></tfoot>}

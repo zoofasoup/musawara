@@ -1,5 +1,6 @@
 // All clients: pick one to open its dashboard. This is where you go to work on a single client.
 import { Link } from "react-router-dom";
+import { T } from "../context/LangContext";
 import { PageHeader } from "../components/PageHeader";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtRp } from "../lib/format";
@@ -15,7 +16,7 @@ export function Clients() {
   if (error || !data) return <ErrorState message={error ?? "No data"} onRetry={reload} />;
   return (
     <div>
-      <PageHeader title="Clients" subtitle="Open a client to see its ads, sales, content and files in one place." actions={<Link to="/settings" className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">Add a client in Settings</Link>} />
+      <PageHeader title="Clients" subtitle="Open a client to see its ads, sales, content and files in one place." actions={<Link to="/settings" className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline"><T>Add a client in Settings</T></Link>} />
       {data.clients.length === 0 ? (
         <Empty title="No clients yet" hint="Add your first client in Settings." />
       ) : (
@@ -29,11 +30,11 @@ export function Clients() {
                   {c.unacknowledged_alerts > 0 && <span title="Open alerts"><Pill tone="crit" size="sm" dot={false}>{c.unacknowledged_alerts}</Pill></span>}
                 </div>
                 <dl className="tnum mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div className="min-w-0"><dt className="text-xs text-muted">Spend</dt><dd className="truncate font-semibold text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</dd></div>
-                  <div><dt className="text-xs text-muted">Leads</dt><dd className="font-semibold text-ink">{c.totals.leads ? fmtNum(c.totals.leads) : "–"}</dd></div>
-                  <div><dt className="text-xs text-muted">Purchases</dt><dd className="font-semibold text-ink">{c.totals.purchases ? fmtNum(c.totals.purchases) : "–"}</dd></div>
+                  <div className="min-w-0"><dt className="text-xs text-muted"><T>Spend</T></dt><dd className="truncate font-semibold text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</dd></div>
+                  <div><dt className="text-xs text-muted"><T>Leads</T></dt><dd className="font-semibold text-ink">{c.totals.leads ? fmtNum(c.totals.leads) : "–"}</dd></div>
+                  <div><dt className="text-xs text-muted"><T>Purchases</T></dt><dd className="font-semibold text-ink">{c.totals.purchases ? fmtNum(c.totals.purchases) : "–"}</dd></div>
                 </dl>
-                <p className="mt-3 text-xs text-muted">This month</p>
+                <p className="mt-3 text-xs text-muted"><T>This month</T></p>
               </Bento>
             </Link>
           ))}

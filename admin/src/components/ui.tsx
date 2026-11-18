@@ -1,6 +1,7 @@
 // Small shared primitives: skeletons, empty/error states, badges, deltas, sparkline.
 
 import type { ReactNode } from "react";
+import { useT } from "../context/LangContext";
 import { fmtNum } from "../lib/format";
 import { statusTone } from "../lib/tone";
 import { Pill } from "./kit";
@@ -19,6 +20,7 @@ export function CardSkeleton({ lines = 3 }: { lines?: number }) {
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-8 text-center shadow-[var(--shadow-soft)]">
       <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-crit/8 text-crit">
@@ -26,14 +28,14 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
           <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-1-5a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0v-1zm0-4a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0V9z" clipRule="evenodd" />
         </svg>
       </div>
-      <p className="text-sm font-semibold text-crit">Something went wrong</p>
+      <p className="text-sm font-semibold text-crit">{t("Something went wrong")}</p>
       <p className="mt-1 text-xs text-ink2">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
           className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-surface3 px-4 text-xs font-medium text-ink transition-colors hover:bg-surface3/70"
         >
-          Try again
+          {t("Try again")}
         </button>
       )}
     </div>
@@ -111,9 +113,10 @@ export function Sparkline({ points, color = "var(--accent)" }: { points: number[
 }
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  const t = useT();
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="whitespace-nowrap text-sm font-semibold text-ink">{children}</h2>
+      <h2 className="whitespace-nowrap text-sm font-semibold text-ink">{typeof children === "string" ? t(children) : children}</h2>
       {right}
     </div>
   );

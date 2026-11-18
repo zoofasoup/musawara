@@ -3,6 +3,7 @@
 // only changes the draft; "Update" applies it. Bottom sheet on phones.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "../context/LangContext";
 import { presets, todayJakarta, type DateRange } from "../lib/dates";
 import { fmtDay, fmtDayFull } from "../lib/format";
 
@@ -119,6 +120,7 @@ export function DateRangePicker({
   value: DateRange;
   onChange: (r: DateRange) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState<string | null>(value.from);
   const [to, setTo] = useState<string | null>(value.to);
@@ -179,7 +181,7 @@ export function DateRangePicker({
         className="inline-flex min-h-11 w-full items-center gap-2 rounded-xl border border-border2 bg-surface px-3 text-left text-xs text-ink hover:bg-surface2 sm:w-auto"
       >
         <span aria-hidden className="text-muted">▦</span>
-        <span className="font-medium">{value.key === "custom" ? "Custom" : value.label}</span>
+        <span className="font-medium">{t(value.key === "custom" ? "Custom" : value.label)}</span>
         <span className="tnum text-muted">{rangeText(value.from, value.to)}</span>
         <span aria-hidden className="ml-auto text-muted sm:ml-0">▾</span>
       </button>
@@ -210,7 +212,7 @@ export function DateRangePicker({
                           : "text-ink2 hover:bg-surface2 hover:text-ink"
                       }`}
                     >
-                      {p.label}
+                      {t(p.label)}
                     </button>
                   </li>
                 ))}
@@ -260,7 +262,7 @@ export function DateRangePicker({
                   onClick={() => setOpen(false)}
                   className="inline-flex min-h-11 items-center rounded-lg border border-border2 bg-surface px-4 text-xs font-medium text-ink2 hover:bg-surface2"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   disabled={!ready}
@@ -271,7 +273,7 @@ export function DateRangePicker({
                   }}
                   className="inline-flex min-h-11 items-center rounded-lg bg-[var(--accent)] px-4 text-xs font-semibold text-[var(--on-accent)] disabled:opacity-40"
                 >
-                  Update
+                  {t("Update")}
                 </button>
               </div>
             </div>

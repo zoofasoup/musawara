@@ -5,6 +5,8 @@ import { Icon, type IconName } from "./icons";
 import { AdminShell } from "./AdminShell";
 import { Avatar } from "./Avatar";
 import { glassCls } from "../lib/glass";
+import { useT } from "../context/LangContext";
+import { LangSwitch } from "./LangSwitch";
 
 export function Wordmark({ compact = false, tagline = true }: { compact?: boolean; tagline?: boolean }) {
   return (
@@ -35,6 +37,7 @@ export function ClientAvatar({ name, logoUrl, color, size = 8 }: { name: string;
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const { user, client, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -42,7 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const links: Array<{ to: string; label: string; short?: string; icon: IconName }> =
     user?.client_id
         ? [
-            { to: `/c/${user.client_id}`, label: "Dashboard", icon: "chart" },
+            { to: `/c/${user.client_id}`, label: "Overview", icon: "chart" },
             { to: `/c/${user.client_id}/creatives`, label: "Creatives", icon: "image" },
             { to: `/c/${user.client_id}/alerts`, label: "Alerts", icon: "alert" },
             { to: `/c/${user.client_id}/report`, label: "Report", icon: "chart" },
@@ -72,12 +75,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   `inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-2.5 text-[13px] font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
                 }
               >
-                {l.label}
+                {t(l.label)}
               </NavLink>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <NavLink to="/profile" aria-label="Profile" className="inline-flex min-h-11 items-center gap-2 rounded-full px-1.5 text-xs text-muted hover:text-ink">
+            <LangSwitch compact className="!min-h-11 w-11 !rounded-full px-0" />
+            <NavLink to="/profile" aria-label={t("Profile")} className="inline-flex min-h-11 items-center gap-2 rounded-full px-1.5 text-xs text-muted hover:text-ink">
               <Avatar name={user?.name ?? ""} size={28} />
               <span className="hidden sm:inline">
                 {user?.name}
@@ -91,7 +95,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               }}
               className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-xs font-medium text-ink2 hover:bg-surface2 hover:text-ink"
             >
-              Sign out
+              {t("Sign out")}
             </button>
           </div>
         </div>
@@ -114,7 +118,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === i ? "text-musawara-ink" : "text-ink2"}`}
             >
               <Icon name={l.icon} className="h-5 w-5" />
-              <span className="leading-none">{l.short ?? l.label}</span>
+              <span className="leading-none">{t(l.short ?? l.label)}</span>
             </NavLink>
           ))}
         </div>

@@ -6,6 +6,8 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Wordmark } from "../components/Layout";
+import { LangSwitch } from "../components/LangSwitch";
+import { T } from "../context/LangContext";
 
 export function Login() {
   const { login } = useAuth();
@@ -35,8 +37,9 @@ export function Login() {
         <div className="mb-6 text-center">
           <Wordmark />
         </div>
+        <div className="mb-4 flex justify-center"><LangSwitch /></div>
         <form onSubmit={submit} className="space-y-4 rounded-3xl bg-surface p-6 shadow-[var(--shadow-soft)]">
-          <h1 className="text-base font-semibold text-ink">Sign in</h1>
+          <h1 className="text-base font-semibold text-ink"><T>Sign in</T></h1>
           <FormField label="Email">
               <Input
               type="email"
@@ -61,7 +64,7 @@ export function Login() {
             </Btn>
         </form>
         <p className="mt-4 text-center text-xs text-muted">
-          Access is by invitation from Musawara Creative.
+          <T>Access is by invitation from Musawara Creative.</T>
         </p>
       </div>
     </div>

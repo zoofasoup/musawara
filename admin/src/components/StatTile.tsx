@@ -2,15 +2,17 @@
 // Used on the agency Overview and on each client's dashboard.
 
 import type { ReactNode } from "react";
+import { useT } from "../context/LangContext";
 import { Icon, type IconName } from "./icons";
 import { Bento } from "./kit";
 import { Skeleton } from "./ui";
 
 export function StatTile({ label, icon, value, dense, loading, children }: { label: string; icon: IconName; value: string; dense?: boolean; loading?: boolean; children?: ReactNode }) {
+  const t = useT();
   return (
     <Bento className="flex flex-col">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-ink2">{label}</p>
+        <p className="text-sm text-ink2">{t(label)}</p>
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-ink2">
           <Icon name={icon} className="h-4 w-4" />
         </span>

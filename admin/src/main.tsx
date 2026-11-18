@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { App } from "./App.tsx";
 import { AuthProvider } from "./context/AuthContext.tsx";
+import { LangProvider } from "./context/LangContext.tsx";
 
 // The team's tool lives on app.musawara.id; the public site's /admin path only forwards there.
 const host = window.location.hostname;
@@ -12,9 +13,11 @@ if (host === "musawara.id" || host === "www.musawara.id") {
 } else {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <LangProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </LangProvider>
     </StrictMode>
   );
 }

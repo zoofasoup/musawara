@@ -1,5 +1,6 @@
 // The one choice control: pick one value you hold in state (a range, a filter, a role). Route tabs use PillNav; panels use Tabs.
 import type { ReactNode } from "react";
+import { useT } from "../context/LangContext";
 import { cn } from "@/lib/utils";
 import { SlidingTrack } from "./SlidingTrack";
 
@@ -11,6 +12,7 @@ const recessedCls = "bg-surface3";
  * to the full width with equal columns. Route tabs use PillNav instead; in-page panels use Tabs.
  */
 export function Segmented<T extends string>({ value, onChange, options, label, fill }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: string; icon?: ReactNode; iconOnly?: boolean; badge?: ReactNode }>; label: string; fill?: boolean }) {
+  const t = useT();
   return (
     <SlidingTrack role="radiogroup" aria-label={label} className={cn("gap-1 rounded-2xl p-1", recessedCls, fill ? "grid w-full" : "inline-flex")} style={fill ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}>
       {options.map((o) => {
@@ -26,7 +28,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, f
             className={cn("press relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium md:min-h-9", on ? "text-ink" : "text-ink2 hover:text-ink")}
           >
             {o.icon}
-            {!o.iconOnly && o.label}
+            {!o.iconOnly && t(o.label)}
             {o.badge !== undefined && <span key={String(o.badge)} className="tnum swap-in text-muted">{o.badge}</span>}
           </button>
         );

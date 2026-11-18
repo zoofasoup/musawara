@@ -9,6 +9,8 @@ import { Wordmark } from "./Layout";
 import { Avatar } from "./Avatar";
 import { Sheet } from "./kit";
 import { glassCls } from "../lib/glass";
+import { useT } from "../context/LangContext";
+import { LangSwitch } from "./LangSwitch";
 
 type Item = { to: string; label: string; icon: IconName; end?: boolean };
 const GROUPS: { label: string; items: Item[] }[] = [
@@ -47,16 +49,17 @@ const PAGE_TITLE = (pathname: string) => {
 };
 
 function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
+  const t = useT();
   return (
     <>
       {GROUPS.map((g) => (
         <div key={g.label}>
-          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-3 pb-1 text-xs font-medium text-muted">{g.label}</p>}
+          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-3 pb-1 text-xs font-medium text-muted">{t(g.label)}</p>}
           <div className="space-y-0.5">
             {g.items.map((i) => (
-              <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} title={collapsed ? i.label : undefined} aria-label={collapsed ? i.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
+              <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} title={collapsed ? t(i.label) : undefined} aria-label={collapsed ? t(i.label) : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
                 <Icon name={i.icon} className="h-4 w-4 shrink-0" />
-                {!collapsed && i.label}
+                {!collapsed && t(i.label)}
               </NavLink>
             ))}
           </div>
@@ -68,6 +71,7 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
 
 /** "Work › Planning": where you are, in a pill above the page (tablet and up). */
 function Crumb({ pathname }: { pathname: string }) {
+  const t = useT();
   const hit = GROUPS.flatMap((g) => g.items.map((i) => ({ group: g.label, item: i }))).find(({ item }) => (item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(item.to + "/")));
   const crumbs = pathname.startsWith("/c/") ? ["Work", "Clients"] : hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : pathname.startsWith("/profile") ? ["Account", "Profile"] : [];
   if (!crumbs.length) return null;
@@ -77,7 +81,7 @@ function Crumb({ pathname }: { pathname: string }) {
         {crumbs.map((c, i) => (
           <li key={c} className="flex items-center gap-1.5">
             {i > 0 && <span aria-hidden="true">›</span>}
-            <span className={i === crumbs.length - 1 ? "font-medium text-ink" : ""}>{c}</span>
+            <span className={i === crumbs.length - 1 ? "font-medium text-ink" : ""}>{t(c)}</span>
           </li>
         ))}
       </ol>
@@ -86,6 +90,7 @@ function Crumb({ pathname }: { pathname: string }) {
 }
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const t = useT();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -113,7 +118,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
   const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/") || (to === "/clients" && pathname.startsWith("/c/")));
-  const activeIdx = PHONE_TABS.findIndex((t) => onTab(t.to)); // -1 (Planning, Board, Spend, Settings...) hides the pill; those live in the menu at the top right
+  const activeIdx = PHONE_TABS.findIndex((tab) => onTab(tab.to)); // -1 (Planning, Board, Spend, Settings...) hides the pill; those live in the menu at the top right
 
   return (
     <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
@@ -141,9 +146,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <NavGroups collapsed={narrow} />
         </nav>
         <div className="space-y-0.5 border-t border-border pt-3">
-          <NavLink to={SETTINGS.to} title={narrow ? SETTINGS.label : undefined} aria-label={narrow ? SETTINGS.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}>
+          <div className={narrow ? "flex justify-center pb-1" : "px-1 pb-1"}><LangSwitch compact={narrow} className={narrow ? "w-11" : "w-full"} /></div>
+          <NavLink to={SETTINGS.to} title={narrow ? t(SETTINGS.label) : undefined} aria-label={narrow ? t(SETTINGS.label) : undefined} className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}>
             <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
-            {!narrow && SETTINGS.label}
+            {!narrow && t(SETTINGS.label)}
           </NavLink>
           <NavLink
             to="/profile"
@@ -159,13 +165,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Phone: slim top bar with the page name */}
       <header data-glass className={`sticky top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 md:hidden ${glassCls}`}>
-        <NavLink to="/" aria-label="Overview" className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{title}</span>
+        <NavLink to="/" aria-label={t("Overview")} className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{t(title)}</span>
+        <LangSwitch compact className="min-h-11 w-11 shrink-0 !rounded-full px-0" />
         <button
           type="button"
           onClick={() => setMore(true)}
           aria-haspopup="dialog"
-          aria-label="Menu"
+          aria-label={t("Menu")}
           className="press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-white/70"
         >
           <Icon name="menu" className="h-5 w-5" />
@@ -186,34 +193,35 @@ export function AdminShell({ children }: { children: ReactNode }) {
             className="pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
             style={{ transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
           />
-          {PHONE_TABS.map((t, i) => (
+          {PHONE_TABS.map((tab, i) => (
             <NavLink
-              key={t.to}
-              to={t.to}
-              end={t.end}
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
               className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === i ? "text-musawara-ink" : "text-ink2"}`}
             >
-              <Icon name={t.icon} className="h-5 w-5" />
-              <span className="leading-none">{t.label}</span>
+              <Icon name={tab.icon} className="h-5 w-5" />
+              <span className="leading-none">{t(tab.label)}</span>
             </NavLink>
           ))}
         </div>
       </nav>
 
       {more && (
-        <Sheet title="Menu" onClose={() => setMore(false)}>
+        <Sheet title={t("Menu")} onClose={() => setMore(false)}>
           <nav aria-label="All sections" className="flex flex-col gap-4 pt-2">
             <NavGroups onNavigate={() => setMore(false)} />
             <div className="space-y-0.5 border-t border-border pt-3">
               <NavLink to={SETTINGS.to} onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
                 <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
-                {SETTINGS.label}
+                {t(SETTINGS.label)}
               </NavLink>
               <NavLink to="/profile" onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
                 <Avatar name={user?.name ?? ""} size={22} />
-                <span className="min-w-0 truncate">Profile · {user?.name}</span>
+                <span className="min-w-0 truncate">{t("Profile")} · {user?.name}</span>
               </NavLink>
-              <button onClick={signOut} className={`${linkCls(false)} w-full`}>Sign out</button>
+              <div className="px-1 pb-1"><LangSwitch className="w-full" /></div>
+              <button onClick={signOut} className={`${linkCls(false)} w-full`}>{t("Sign out")}</button>
             </div>
           </nav>
         </Sheet>

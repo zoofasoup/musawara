@@ -24,6 +24,7 @@ export function useNotify() {
 }
 
 import { TONE, type Tone } from "../lib/tone";
+import { useT } from "../context/LangContext";
 export type { Tone };
 
 export function Pill({
@@ -42,6 +43,7 @@ export function Pill({
   size?: "sm" | "default" | "lg";
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <Badge
       variant="secondary"
@@ -60,7 +62,7 @@ export function Pill({
       ) : (
         (dot ?? true) && <span className={cn("shrink-0 rounded-full", size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2", TONE[tone].dot)} aria-hidden />
       )}
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </Badge>
   );
 }
@@ -111,6 +113,7 @@ export function Btn({
   loading?: boolean;
   flat?: boolean;
 }) {
+  const t = useT();
   const isGlow = tone === "primary" && !flat;
   const computedStyle = isGlow
     ? { ...glowStyle, ...style }
@@ -141,7 +144,7 @@ export function Btn({
       )}
     >
       {icon && <Icon name={icon} className={cn(size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4", loading ? "animate-spin" : "")} />}
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </Button>
   );
 }
@@ -359,11 +362,12 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
 
 /** A small raised card: a quiet title row on top, the number or summary below. */
 export function Nested({ title, right, children, className = "" }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+  const t = useT();
   return (
     <div className={`rounded-2xl bg-surface p-3 shadow-[var(--shadow-soft)] ${className}`}>
       {(title || right) && (
         <div className="flex items-center justify-between gap-2 px-1 pb-2 pt-0.5 text-xs font-semibold text-ink2">
-          <span className="min-w-0 truncate">{title}</span>
+          <span className="min-w-0 truncate">{typeof title === "string" ? t(title) : title}</span>
           {right}
         </div>
       )}
@@ -377,13 +381,15 @@ export function Nested({ title, right, children, className = "" }: { title?: Rea
  * is one widget (a number, a chart, a table). Title and right slot sit in the top row.
  */
 export function Bento({ title, subtitle, right, children, className = "" }: { title?: ReactNode; subtitle?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+  const t = useT();
+  const tr = (x: ReactNode) => (typeof x === "string" ? t(x) : x);
   return (
     <section className={cn("min-w-0 rounded-3xl bg-surface p-5 shadow-[var(--shadow-soft)]", className)}>
       {(title || right) && (
         <header className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {title && <h2 className="truncate text-base font-semibold text-ink">{title}</h2>}
-            {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+            {title && <h2 className="truncate text-base font-semibold text-ink">{tr(title)}</h2>}
+            {subtitle && <p className="mt-0.5 text-xs text-muted">{tr(subtitle)}</p>}
           </div>
           {right}
         </header>
@@ -400,13 +406,14 @@ export function RowList({ children, className = "" }: { children: ReactNode; cla
 
 /** The one empty state: an icon tile, what is missing, what to do about it. `compact` for inside a card or a list. */
 export function Empty({ icon = "info", title, hint, action, compact }: { icon?: IconName; title: string; hint?: string; action?: ReactNode; compact?: boolean }) {
+  const t = useT();
   return (
     <div className={`flex flex-col items-center rounded-2xl bg-surface text-center shadow-[var(--shadow-soft)] ${compact ? "px-4 py-6" : "px-6 py-10"}`}>
       <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface3 text-ink2">
         <Icon name={icon} className="h-5 w-5" />
       </span>
-      <p className="text-sm font-medium text-ink">{title}</p>
-      {hint && <p className="mt-1 max-w-sm text-xs text-muted">{hint}</p>}
+      <p className="text-sm font-medium text-ink">{t(title)}</p>
+      {hint && <p className="mt-1 max-w-sm text-xs text-muted">{t(hint)}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
