@@ -24,20 +24,27 @@ const TYPE_LABELS: Record<string, string> = {
   sync_failure: "Sync failure",
 };
 
+function List({ inCard, children }: { inCard: boolean; children: React.ReactNode }) {
+  return inCard ? <ul className="divide-y divide-border/70">{children}</ul> : <RowList>{children}</RowList>;
+}
+
 export function AlertFeed({
   alerts,
   onAck,
   showClient = false,
+  inCard = false,
 }: {
   alerts: Alert[];
   onAck?: (id: number) => void;
   showClient?: boolean;
+  /** Already inside a card: list rows with hairlines only, no surface of its own. */
+  inCard?: boolean;
 }) {
   if (alerts.length === 0) {
     return <EmptyState title="No alerts" hint="Anomaly detection runs after every sync." />;
   }
   return (
-    <RowList>
+    <List inCard={inCard}>
       {alerts.map((a) => (
         <li key={a.id} className={`flex items-start gap-2.5 px-3.5 py-3 ${a.acknowledged ? "opacity-45" : ""}`}>
           <SeverityDot severity={a.severity} />
@@ -59,6 +66,6 @@ export function AlertFeed({
           )}
         </li>
       ))}
-    </RowList>
+    </List>
   );
 }

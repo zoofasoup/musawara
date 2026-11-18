@@ -213,6 +213,27 @@ export function Nested({ title, right, children, className = "" }: { title?: Rea
   );
 }
 
+/**
+ * Bento tile: a free-standing white card with a large radius, used for dashboards where each tile
+ * is one widget (a number, a chart, a table). Title and right slot sit in the top row.
+ */
+export function Bento({ title, subtitle, right, children, className = "" }: { title?: ReactNode; subtitle?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={`min-w-0 rounded-3xl border border-border/50 bg-surface p-5 shadow-[var(--shadow-soft)] ${className}`}>
+      {(title || right) && (
+        <header className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && <h2 className="truncate text-base font-semibold text-ink">{title}</h2>}
+            {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+          </div>
+          {right}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+
 /** One surface holding rows separated by hairlines: the way to show a list, instead of a box per item. */
 export function RowList({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <ul className={`divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</ul>;

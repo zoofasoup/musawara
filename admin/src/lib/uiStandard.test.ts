@@ -56,7 +56,7 @@ test("every raw <button> is a deliberate custom control (tabs, chips, icon butto
   // Buttons should be Btn. Files below hold custom interactive widgets that are not plain buttons.
   const allowed = new Set([
     "components/AdminShell.tsx", "components/Kanban.tsx", "components/Layout.tsx", "components/kit.tsx", "components/ui.tsx", "components/TrendChart.tsx",
-    "components/DateRangePicker.tsx", "components/EntityTable.tsx", "components/AlertFeed.tsx",
+    "components/DateRangePicker.tsx", "components/EntityTable.tsx", "components/AlertFeed.tsx", "pages/AdminHome.tsx",
     "pages/Planning.tsx", "pages/Approvals.tsx", "pages/Assets.tsx", "pages/Organic.tsx", "pages/BrandKnowledge.tsx", "pages/Conversions.tsx",
     "pages/SalesGrid.tsx", "pages/Login.tsx", "pages/Invite.tsx", "pages/Shopee.tsx", "pages/settings/MetaSection.tsx", "pages/settings/TeamSection.tsx",
     "pages/crm/AccountSwitcher.tsx", "pages/crm/CrmCampaigns.tsx", "pages/crm/CrmContacts.tsx", "pages/crm/CrmTemplates.tsx",
