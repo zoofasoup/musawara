@@ -1,6 +1,8 @@
 // The living style guide: every shared component in every state it can be in. Team only, not in the menu.
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useMemo, useState, type ReactNode } from "react";
+import { AlignCenter, AlignLeft, AlignRight, PanelLeft } from "lucide-react";
+import { AskBtn, Chip, DashedBtn, FilterBtn, GlowBtn, IconTile, RaisedBtn, SearchField, Segmented, StatusPill, StepperAction } from "../components/Controls";
 import { Bubble } from "./crm/inbox/ThreadView";
 import type { Msg } from "./crm/inbox/util";
 import { PageHeader } from "../components/PageHeader";
@@ -48,6 +50,48 @@ function toneUrl() {
   for (let i = 0; i < n; i++) v.setUint8(44 + i, 128 + Math.round(40 * Math.sin((2 * Math.PI * 440 * i) / rate) * Math.min(1, (n - i) / 800)));
   return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
 }
+function ControlsDemo() {
+  const [align, setAlign] = useState<"l" | "c" | "r">("l");
+  const [mins, setMins] = useState(30);
+  const [filters, setFilters] = useState(2);
+  const [chip, setChip] = useState(true);
+  const [seg, setSeg] = useState("week");
+  return (
+    <div className="flex flex-col gap-5 rounded-3xl bg-surface2 p-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <AskBtn />
+        {chip ? <Chip label="Ella M." avatar="Ella M." onRemove={() => setChip(false)} /> : <RaisedBtn onClick={() => setChip(true)}>Restore chip</RaisedBtn>}
+        <DashedBtn>Upload</DashedBtn>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterBtn count={filters} onClick={() => setFilters((n) => n + 1)} onClear={() => setFilters(0)} />
+        <Segmented label="Alignment" value={align} onChange={setAlign} options={[
+          { value: "l", label: "Align left", icon: <AlignLeft className="h-4 w-4" /> },
+          { value: "c", label: "Align centre", icon: <AlignCenter className="h-4 w-4" /> },
+          { value: "r", label: "Align right", icon: <AlignRight className="h-4 w-4" /> },
+        ]} />
+        <StepperAction value={<>{mins} <span className="font-normal text-muted">mins</span></>} onStep={(d) => setMins((m) => Math.max(15, Math.min(120, m + d * 15)))} action={<GlowBtn className="rounded-xl">Book a Call</GlowBtn>} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <IconTile label="Toggle sidebar"><PanelLeft className="h-4 w-4" /></IconTile>
+        <StatusPill tone="good">Online</StatusPill>
+        <StatusPill tone="info" mark="dashed">In progress</StatusPill>
+        <StatusPill tone="warn">Needs review</StatusPill>
+        <StatusPill tone="crit">Failed</StatusPill>
+        <StatusPill tone="neutral" mark="none">Draft</StatusPill>
+        <div className="min-w-56 flex-1 sm:max-w-xs"><SearchField><Input placeholder="Search" aria-label="Search demo" /></SearchField></div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented label="Range" value={seg} onChange={setSeg} options={[{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }]} />
+        <GlowBtn flat>Flat accent</GlowBtn>
+        <RaisedBtn>Secondary</RaisedBtn>
+        <RaisedBtn disabled>Disabled</RaisedBtn>
+        <GlowBtn disabled>Disabled</GlowBtn>
+      </div>
+    </div>
+  );
+}
+
 const T0 = Math.floor(new Date("2026-11-18T11:46:00+07:00").getTime() / 1000);
 const msg = (id: string, o: Partial<Msg>): Msg => ({ wa_id: id, phone: "6281234567890", from_me: 0, body: "", media_type: null, ack: 3, is_read: 1, ts: T0, ...o });
 
@@ -114,6 +158,10 @@ export function Styleguide() {
             <CopyBtn text="https://musawara.id" label="Copy link" />
           </Row>
         </Panel>
+      </Section>
+
+      <Section title="Buttons v2 (preview)" note="Raised and recessed. White raised tiles with a soft shadow are things you can press; grey recessed wells hold choices; the glow gradient marks the one main action of a view, and a status is a tinted fill with no shadow. Radius nests: outer 2xl, inner xl. Not wired into Btn and Pill yet.">
+        <ControlsDemo />
       </Section>
 
       <Section title="Pills" note="A status or category, never an action. Colour comes from the tone, not the page.">
