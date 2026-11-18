@@ -4,10 +4,12 @@
 // Collapses to cards on mobile.
 
 import { Input } from "@/components/ui/input";
+import { Segmented } from "./Controls";
 import { Fragment, useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtPct, fmtRp } from "../lib/format";
-import { CardSkeleton, Delta, EmptyState, ErrorState, Skeleton, StatusBadge } from "./ui";
+import { CardSkeleton, Delta, ErrorState, Skeleton, StatusBadge } from "./ui";
+import { Empty } from "./kit";
 
 export type Entity = {
   entity_id: string;
@@ -236,7 +238,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
   if (loading) return <CardSkeleton lines={6} />;
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (all.length === 0)
-    return <EmptyState title="No campaign activity in this period" hint="Data appears after the first sync." />;
+    return <Empty title="No campaign activity in this period" hint="Data appears after the first sync." />;
 
   const activeCount = all.filter((e) => (e.effective_status ?? e.status) === "ACTIVE").length;
   const chips: Array<{ k: Show; l: string; n: number }> = [
@@ -264,18 +266,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
     <div className={bare ? "overflow-hidden rounded-2xl border border-border/70" : "overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]"}>
       {/* filters, like the Ads Manager tabs + search */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 p-3">
-        <div role="group" aria-label="Delivery filter" className="inline-flex rounded-full bg-surface3 p-0.5">
-          {chips.map((c) => (
-            <button
-              key={c.k}
-              onClick={() => setShow(c.k)}
-              aria-pressed={show === c.k}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium lg:min-h-8 ${show === c.k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
-            >
-              {c.l} <span className="tnum text-muted">{c.n}</span>
-            </button>
-          ))}
-        </div>
+        <Segmented label="Delivery filter" value={show} onChange={setShow} options={chips.map((c) => ({ value: c.k, label: c.l, badge: c.n }))} />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

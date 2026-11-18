@@ -2,22 +2,25 @@
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useMemo, useState, type ReactNode } from "react";
 import { AlignCenter, AlignLeft, AlignRight, PanelLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import { PillNav, pillTabCls } from "../components/PillNav";
+import { StatusBadge } from "../components/ui";
 import { Callout } from "../components/Callout";
 import { DataTable } from "../components/DataTable";
 import { FormField, FormGrid } from "../components/FormField";
-import { AskBtn, Chip, DashedBtn, FilterBtn, GlowBtn, IconTile, RaisedBtn, SearchField, Segmented, StatusPill, StepperAction } from "../components/Controls";
+import { AskBtn, Chip, DashedBtn, FilterBtn, GlowBtn, IconTile, RaisedBtn, SearchField, Segmented, StepperAction } from "../components/Controls";
 import { Bubble } from "./crm/inbox/ThreadView";
 import type { Msg } from "./crm/inbox/util";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Nested, Panel, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
+import { CardSkeleton, ErrorState } from "../components/ui";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
-const TONES: Tone[] = ["neutral", "good", "warn", "crit", "accent"];
+const TONES: Tone[] = ["neutral", "good", "warn", "crit", "info", "accent"];
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -69,19 +72,19 @@ function ControlsDemo() {
       <div className="flex flex-wrap items-center gap-3">
         <FilterBtn count={filters} onClick={() => setFilters((n) => n + 1)} onClear={() => setFilters(0)} />
         <Segmented label="Alignment" value={align} onChange={setAlign} options={[
-          { value: "l", label: "Align left", icon: <AlignLeft className="h-4 w-4" /> },
-          { value: "c", label: "Align centre", icon: <AlignCenter className="h-4 w-4" /> },
-          { value: "r", label: "Align right", icon: <AlignRight className="h-4 w-4" /> },
+          { value: "l", label: "Align left", iconOnly: true, icon: <AlignLeft className="h-4 w-4" /> },
+          { value: "c", label: "Align centre", iconOnly: true, icon: <AlignCenter className="h-4 w-4" /> },
+          { value: "r", label: "Align right", iconOnly: true, icon: <AlignRight className="h-4 w-4" /> },
         ]} />
         <StepperAction value={<>{mins} <span className="font-normal text-muted">mins</span></>} onStep={(d) => setMins((m) => Math.max(15, Math.min(120, m + d * 15)))} action={<GlowBtn className="rounded-xl">Book a Call</GlowBtn>} />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <IconTile label="Toggle sidebar"><PanelLeft className="h-4 w-4" /></IconTile>
-        <StatusPill tone="good">Online</StatusPill>
-        <StatusPill tone="info" mark="dashed">In progress</StatusPill>
-        <StatusPill tone="warn">Needs review</StatusPill>
-        <StatusPill tone="crit">Failed</StatusPill>
-        <StatusPill tone="neutral" mark="none">Draft</StatusPill>
+        <Pill size="lg" tone="good">Online</Pill>
+        <Pill size="lg" tone="info" busy>In progress</Pill>
+        <Pill size="lg" tone="warn">Needs review</Pill>
+        <Pill size="lg" tone="crit">Failed</Pill>
+        <Pill size="lg" tone="neutral" dot={false}>Draft</Pill>
         <div className="min-w-56 flex-1 sm:max-w-xs"><SearchField><Input placeholder="Search" aria-label="Search demo" /></SearchField></div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -122,6 +125,7 @@ function ChatDemo() {
 export function Styleguide() {
   const { notify, node } = useNotify();
   const [sheet, setSheet] = useState(false);
+  const [seg2, setSeg2] = useState("day");
   const [checked, setChecked] = useState(true);
   const [text, setText] = useState("");
   const [demo, setDemo] = useState([
@@ -175,6 +179,25 @@ export function Styleguide() {
         <ControlsDemo />
       </Section>
 
+      <Section title="Choosing and navigating" note="Three controls, three jobs. Segmented: pick one value you hold in state (a range, a filter, a role). PillNav: move between pages (route tabs, sticks under the phone top bar). Tabs: switch panels inside one page.">
+        <div className="space-y-5 rounded-3xl bg-surface2 p-6">
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">Segmented, text with counts</p>
+            <Segmented label="Demo filter" value={seg2} onChange={setSeg2} options={[{ value: "day", label: "All", badge: 12 }, { value: "week", label: "Active", badge: 8 }, { value: "month", label: "Paused", badge: 4 }]} />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">Segmented, full width</p>
+            <div className="max-w-sm"><Segmented fill label="Demo status" value={seg2} onChange={setSeg2} options={[{ value: "day", label: "All" }, { value: "week", label: "Unread" }, { value: "month", label: "Needs reply" }]} /></div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">PillNav, route tabs</p>
+            <PillNav label="Demo menu">
+              {["Overview", "Ads", "Sales", "Alerts"].map((t, i) => <Link key={t} to="/styleguide" className={pillTabCls(i === 0)}>{t}</Link>)}
+            </PillNav>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Callout" note="One banner for things worth knowing: stale data, open alerts, something waiting, a service down. Tinted fill, no border. Pass `to` to make the whole banner a link, `action` for a button, `compact` inside a card.">
         <div className="max-w-2xl space-y-3">
           <Callout tone="info" title="Heads up">Numbers refresh after every sync, at about 02:00 WIB.</Callout>
@@ -226,6 +249,8 @@ export function Styleguide() {
             <span className="h-5 w-px bg-border/60" />
             <span className="text-xs text-muted">Compact (size=&quot;sm&quot;):</span>
             <Pill tone="accent" size="sm">Active</Pill>
+            <span className="h-5 w-px bg-border/60" />
+            <StatusBadge status="ACTIVE" /><StatusBadge status="CAMPAIGN_PAUSED" /><StatusBadge status="ARCHIVED" /><StatusBadge status="DELETED" />
             <Pill tone="good" size="sm" icon="check">Done</Pill>
           </div>
         </div>
@@ -277,7 +302,7 @@ export function Styleguide() {
             <Empty icon="info" title="Nothing here yet" hint="Say what this page is for and what to do first." action={<Btn tone="primary" icon="plus">Add the first one</Btn>} />
             <ErrorState message="Request failed (500)" onRetry={() => notify("Retrying (demo)")} />
           </div>
-          <EmptyState title="Compact empty state" hint="For inside a card or list." />
+          <Empty title="Compact empty state" hint="For inside a card or list." />
         </div>
       </Section>
 

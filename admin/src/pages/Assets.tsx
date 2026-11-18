@@ -8,8 +8,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { fmtDateTime } from "../lib/format";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Btn, ConfirmBtn, CopyBtn, Pill, Sheet, useNotify } from "../components/kit";
+import { CardSkeleton, ErrorState } from "../components/ui";
+import { Btn, ConfirmBtn, CopyBtn, Pill, Sheet, useNotify, Empty } from "../components/kit";
 import { Icon } from "../components/icons";
 
 export type Asset = { id: number; title: string; kind: "image" | "video" | "doc" | "other"; drive_url: string; tags: string[]; notes: string; created_at: string };
@@ -140,9 +140,9 @@ export function Assets({ clientId }: { clientId: number }) {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={list.reload} />
       ) : all.length === 0 ? (
-        <EmptyState title="No assets yet" hint="Add a Google Drive link to start the library." />
+        <Empty title="No assets yet" hint="Add a Google Drive link to start the library." />
       ) : shown.length === 0 ? (
-        <EmptyState title="No assets match" hint="Try another search or clear the filters." />
+        <Empty title="No assets match" hint="Try another search or clear the filters." />
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shown.map((a) => (

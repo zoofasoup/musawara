@@ -7,7 +7,8 @@ import { useApi } from "../lib/api";
 import { presetByKey, type DateRange } from "../lib/dates";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
+import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { Empty } from "../components/kit";
 
 const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
   cpl: ["Best cost / lead", (a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity)],
@@ -43,7 +44,7 @@ export function CreativeView({ clientId }: { clientId: number }) {
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : ads.length === 0 ? (
-        <EmptyState title="No ads with delivery in this period" />
+        <Empty title="No ads with delivery in this period" />
       ) : (
         <CreativeGrid ads={ads} />
       )}

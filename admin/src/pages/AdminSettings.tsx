@@ -9,14 +9,9 @@ import { ClientsSection } from "./settings/ClientsSection";
 import { MetaSection, type TokenStatus } from "./settings/MetaSection";
 import { TeamSection } from "./settings/TeamSection";
 import { useNotify, type Tone } from "../components/kit";
+import { TONE } from "../lib/tone";
 
-const TILE_TONE: Record<Tone, string> = {
-  good: "bg-good/12 text-good",
-  warn: "bg-warn/12 text-warn",
-  crit: "bg-crit/10 text-crit",
-  neutral: "bg-surface3 text-ink2",
-  accent: "bg-surface3 text-ink2",
-};
+const tileTone = (t: Tone) => TONE[t === "accent" ? "neutral" : t].soft;
 
 function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: IconName; label: string; value: string; sub: string; tone: Tone }) {
   return (
@@ -28,7 +23,7 @@ function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: Ico
       }}
       className="group flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3 hover:border-border2 hover:bg-surface2"
     >
-      <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TILE_TONE[tone]}`}>
+      <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tileTone(tone)}`}>
         <Icon name={icon} className="h-5 w-5" />
       </span>
       <span className="min-w-0">

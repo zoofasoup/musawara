@@ -6,8 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn } from "../components/kit";
+import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { Btn, Empty } from "../components/kit";
 
 type Section = { key: string; label: string; hint: string; body: string; updated_at: string | null; updated_by: string | null };
 type Link = { id: number; label: string; url: string };
@@ -169,7 +169,7 @@ export function BrandKnowledge({ clientId }: { clientId: number }) {
         </Btn>
       </div>
       {visible.length === 0 ? (
-        <EmptyState title="No brand knowledge yet" hint="The team has not filled this in." />
+        <Empty title="No brand knowledge yet" hint="The team has not filled this in." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {visible.map((s) => (

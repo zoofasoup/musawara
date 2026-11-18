@@ -82,3 +82,6 @@ Press feedback on touch-down (`.press`, 100 ms); the phone tab bars have one gla
 
 ## Standard pieces (use these, do not hand-write)
 Banners: `Callout` (tone, title, `to` link, `action`, `compact`). Tables: `DataTable` (columns with `numeric`/`hideBelow`, `onRowClick`, `empty`); EntityTable and the sales data-grid are not on it yet. Labelled form controls: `FormField` + `FormGrid` (the CRM `Field` is the same component). Every one has a demo and its states in /styleguide.
+
+## One of each
+Status colour: `TONE` / `Tone` in `lib/tone.ts` (neutral, good, warn, crit, info, accent). `Pill` (sizes sm/default/lg, `dot`, `busy`), `Callout`, `StatusBadge`, the CPA chip and dots in Planning all read it; do not write new `bg-good/12 text-good` strings. Empty state: `Empty` from kit (one component, `compact` inside cards). Choosing a value: `Segmented`; moving between pages: `PillNav`; panels inside a page: `Tabs`. No hand-made radiogroups. Left to move: the status chips in Approvals and the recipient filter in CRM broadcasts.

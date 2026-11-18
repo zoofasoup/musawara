@@ -5,7 +5,8 @@
 import { useMemo, useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmtCompact, fmtDay, fmtDayFull, fmtNum, fmtRp } from "../lib/format";
-import { Delta, EmptyState } from "./ui";
+import { Delta } from "./ui";
+import { Empty } from "./kit";
 
 export type TrendDay = { date: string; spend: number; leads: number; purchases: number };
 
@@ -29,7 +30,7 @@ export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: Tre
     [days, compare, key, hasCompare]
   );
 
-  if (days.length === 0) return <EmptyState title="No data in this date range" hint="Try a wider range, or wait for the next sync." />;
+  if (days.length === 0) return <Empty title="No data in this date range" hint="Try a wider range, or wait for the next sync." />;
 
   return (
     <div>

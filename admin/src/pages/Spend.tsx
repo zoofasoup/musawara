@@ -13,8 +13,8 @@ import { presetByKey, todayJakarta, type DateRange } from "../lib/dates";
 import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, Nested, RowList } from "../components/kit";
+import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { Btn, Nested, RowList, Empty } from "../components/kit";
 
 const SOURCES = [
   { key: "meta", label: "Meta Ads", color: "var(--color-chart-1)" },
@@ -137,7 +137,7 @@ export function Spend() {
             </Nested>
 
             {days.length === 0 ? (
-              <EmptyState title="No spend in this range" hint="Meta syncs nightly. Add marketplace spend below." />
+              <Empty title="No spend in this range" hint="Meta syncs nightly. Add marketplace spend below." />
             ) : (
               <Nested
                 title="Spend per day"
@@ -253,7 +253,7 @@ export function Spend() {
             ))}
           </RowList>
         ) : (
-          <EmptyState title="No manual entries in this range" hint="Add Shopee, TikTok or Tokopedia spend above." />
+          <Empty title="No manual entries in this range" hint="Add Shopee, TikTok or Tokopedia spend above." />
         )}
       </div>
     </div>

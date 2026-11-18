@@ -1,4 +1,5 @@
 import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "../../components/Controls";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, homeOrigin, type useApi } from "../../lib/api";
@@ -70,21 +71,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
 
       {adding && (
         <form onSubmit={create} className="mb-3 space-y-3 rounded-xl border border-[var(--accent)]/30 bg-surface p-3.5">
-          <div role="radiogroup" aria-label="Role" className="inline-flex rounded-full bg-surface3 p-0.5">
-            {(["client", "admin"] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                role="radio"
-                aria-checked={role === r}
-                onClick={() => setRole(r)}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${role === r ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
-              >
-                <Icon name={r === "admin" ? "shield" : "user"} className="h-3.5 w-3.5" />
-                {r === "admin" ? "Admin" : "Client viewer"}
-              </button>
-            ))}
-          </div>
+          <Segmented label="Role" value={role} onChange={setRole} options={[{ value: "client", label: "Client viewer", icon: <Icon name="user" className="h-3.5 w-3.5" /> }, { value: "admin", label: "Admin", icon: <Icon name="shield" className="h-3.5 w-3.5" /> }]} />
           <div className="grid gap-2 sm:grid-cols-2">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" aria-label="Email" />
             {role === "client" && (

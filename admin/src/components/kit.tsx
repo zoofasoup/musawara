@@ -23,34 +23,23 @@ export function useNotify() {
   return { notify, node };
 }
 
-const TONES = {
-  neutral: "bg-surface3 text-ink2",
-  good: "bg-good/12 text-good",
-  warn: "bg-warn/12 text-warn",
-  crit: "bg-crit/10 text-crit",
-  accent: "bg-[color-mix(in_srgb,var(--accent)_12%,white)] text-musawara-ink",
-} as const;
-export type Tone = keyof typeof TONES;
-
-const DOTS = {
-  neutral: "bg-muted",
-  good: "bg-good",
-  warn: "bg-warn",
-  crit: "bg-crit",
-  accent: "bg-[var(--accent)]",
-} as const;
+import { TONE, type Tone } from "../lib/tone";
+export type { Tone };
 
 export function Pill({
   tone = "neutral",
   icon,
   dot,
+  busy,
   size = "default",
   children,
 }: {
   tone?: Tone;
   icon?: IconName;
   dot?: boolean;
-  size?: "sm" | "default";
+  /** Work in progress: a slowly turning dashed ring instead of the dot. */
+  busy?: boolean;
+  size?: "sm" | "default" | "lg";
   children: ReactNode;
 }) {
   return (
@@ -58,14 +47,18 @@ export function Pill({
       variant="secondary"
       className={cn(
         "gap-1.5 border-0 font-semibold shadow-none transition-colors",
-        size === "sm" ? "h-auto rounded-lg px-2.5 py-0.5 text-[11px]" : "h-auto min-h-7 rounded-xl px-3 py-1 text-xs",
-        TONES[tone]
+        size === "sm" ? "h-auto rounded-lg px-2.5 py-0.5 text-[11px]" : size === "lg" ? "h-auto min-h-9 rounded-2xl px-3.5 py-1 text-sm" : "h-auto min-h-7 rounded-xl px-3 py-1 text-xs",
+        TONE[tone].soft
       )}
     >
       {icon ? (
         <Icon name={icon} className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} />
+      ) : busy ? (
+        <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 animate-[spin_6s_linear_infinite]">
+          <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeDasharray="3.6 3.1" strokeLinecap="round" />
+        </svg>
       ) : (
-        (dot ?? true) && <span className={cn("shrink-0 rounded-full", size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2", DOTS[tone])} aria-hidden />
+        (dot ?? true) && <span className={cn("shrink-0 rounded-full", size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2", TONE[tone].dot)} aria-hidden />
       )}
       {children}
     </Badge>
@@ -405,14 +398,15 @@ export function RowList({ children, className = "" }: { children: ReactNode; cla
   return <ul className={`divide-y divide-border/50 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</ul>;
 }
 
-export function Empty({ icon, title, hint, action }: { icon: IconName; title: string; hint: string; action?: ReactNode }) {
+/** The one empty state: an icon tile, what is missing, what to do about it. `compact` for inside a card or a list. */
+export function Empty({ icon = "info", title, hint, action, compact }: { icon?: IconName; title: string; hint?: string; action?: ReactNode; compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border2 bg-surface px-6 py-10 text-center">
+    <div className={`flex flex-col items-center rounded-2xl bg-surface text-center shadow-[var(--shadow-soft)] ${compact ? "px-4 py-6" : "px-6 py-10"}`}>
       <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface3 text-ink2">
         <Icon name={icon} className="h-5 w-5" />
       </span>
       <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-1 max-w-sm text-xs text-muted">{hint}</p>
+      {hint && <p className="mt-1 max-w-sm text-xs text-muted">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

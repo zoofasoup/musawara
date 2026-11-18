@@ -8,8 +8,8 @@ import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, ConfirmBtn } from "../components/kit";
+import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { Btn, ConfirmBtn, Empty } from "../components/kit";
 
 type Task = { id: number; client_id: number; client_name: string; title: string; status: string; assignee: string | null; due_date: string | null };
 
@@ -84,7 +84,7 @@ export function Board() {
       {tasks.loading && !tasks.data ? (
         <CardSkeleton lines={5} />
       ) : list.length === 0 ? (
-        <EmptyState title={clientFilter ? "No tasks for this client" : "No tasks yet"} hint={clientFilter ? "Add one above." : "Add the first one above."} />
+        <Empty title={clientFilter ? "No tasks for this client" : "No tasks yet"} hint={clientFilter ? "Add one above." : "Add the first one above."} />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {COLUMNS.map((col) => {

@@ -1,4 +1,5 @@
 import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "../../../components/Controls";
 import { Input } from "@/components/ui/input";
 import { useMemo } from "react";
 import { Plus, RefreshCw, Search } from "lucide-react";
@@ -170,19 +171,7 @@ export function ConversationList({
           {noTag > 0 && <option value={NO_TAG}>Contacts without a tag ({noTag})</option>}
           {notContact > 0 && <option value={NOT_CONTACT}>Not in contacts ({notContact})</option>}
         </NativeSelect>
-        <div role="group" aria-label="Status" className="grid grid-cols-3 gap-0.5 rounded-full bg-surface3 p-0.5">
-          {STATUS.map((s) => (
-            <button
-              key={s.v}
-              type="button"
-              aria-pressed={filters.status === s.v}
-              onClick={() => setFilters({ ...filters, status: s.v })}
-              className={`press min-h-11 rounded-full px-2 text-xs font-medium ${filters.status === s.v ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        <Segmented fill label="Status" value={filters.status} onChange={(v) => setFilters({ ...filters, status: v })} options={STATUS.map((s) => ({ value: s.v, label: s.label }))} />
         {(syncText || filtering) && (
           <p className="text-xs text-muted" aria-live="polite">
             {filtering && `${list.length} of ${all.length} conversations`}

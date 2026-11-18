@@ -11,6 +11,7 @@ import { CardSkeleton, ErrorState } from "../components/ui";
 import { Btn, Empty, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
 import { Icon } from "../components/icons";
 import { ClientFilter } from "../components/ClientFilter";
+import { TONE } from "../lib/tone";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
 import { Avatar } from "../components/Avatar";
@@ -40,7 +41,6 @@ const KIND_TINT: Record<string, string> = {
 };
 const STAGE_COLOR: Record<Stage, string> = { idea: "bg-muted", drafting: "bg-chart-2", in_review: "bg-chart-1", scheduled: "bg-chart-4", published: "bg-chart-3" };
 const KIND_SWATCH: Record<string, string> = { feed: "bg-kind-feed-edge", carousel: "bg-kind-carousel-edge", reel: "bg-kind-reel-edge", story: "bg-kind-story-edge" };
-const TONE_DOT: Record<Tone, string> = { neutral: "bg-muted", good: "bg-good", warn: "bg-warn", crit: "bg-crit", accent: "bg-[var(--accent)]" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -140,7 +140,7 @@ export function Planning() {
 function Legend() {
   return (
     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
-      {Object.values(POST_STATUS).map((s) => <span key={s.label} className="inline-flex items-center gap-1.5"><i className={`h-2 w-2 rounded-full ${TONE_DOT[s.tone]}`} />{s.label}</span>)}
+      {Object.values(POST_STATUS).map((s) => <span key={s.label} className="inline-flex items-center gap-1.5"><i className={`h-2 w-2 rounded-full ${TONE[s.tone].dot}`} />{s.label}</span>)}
       <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full border border-dashed border-ink2" />Idea (no post yet)</span>
       <span className="inline-flex items-center gap-3 border-l border-border pl-4">
         {Object.keys(KIND_NAME).map((k) => <span key={k} className="inline-flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-sm ${KIND_SWATCH[k]}`} />{KIND_NAME[k]}</span>)}
@@ -183,7 +183,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                     return (
                       <button key={"p" + p.id} type="button" onClick={() => onPick({ type: "post", post: p })}
                         className={`flex w-full items-center gap-1.5 rounded-lg border px-1.5 py-1 text-left text-[11px] leading-tight hover:brightness-95 ${KIND_TINT[p.kind] ?? "border-border bg-bg"}`}>
-                        <i className={`h-2 w-2 shrink-0 rounded-full ${TONE_DOT[s.tone]}`} aria-label={s.label} />
+                        <i className={`h-2 w-2 shrink-0 rounded-full ${TONE[s.tone].dot}`} aria-label={s.label} />
                         <span className="shrink-0 tabular-nums text-muted">{fmtTime(p.scheduled_at)}</span>
                         <span className="truncate text-ink">{showClient ? `${p.client_name}: ` : ""}{p.caption || KIND_NAME[p.kind]}</span>
                       </button>
@@ -233,7 +233,7 @@ function DaySheet({ day, clients, clientId, owners, items, onPick, onClose, onSa
         <div className="mt-3 space-y-1.5">
           {items.posts.map((p) => (
             <ItemRow key={"p" + p.id} onClick={() => onPick({ type: "post", post: p })}>
-              <i className={`h-2.5 w-2.5 rounded-full ${TONE_DOT[POST_STATUS[p.status]?.tone ?? "neutral"]}`} />
+              <i className={`h-2.5 w-2.5 rounded-full ${TONE[POST_STATUS[p.status].tone].dot}`} />
               <span className="tabular-nums text-muted">{fmtTime(p.scheduled_at)}</span><span className="truncate">{p.client_name}: {p.caption || KIND_NAME[p.kind]}</span>
             </ItemRow>
           ))}

@@ -7,8 +7,8 @@ import { useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, ConfirmBtn, RowList, Sheet } from "../components/kit";
+import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
+import { Btn, ConfirmBtn, RowList, Sheet, Empty } from "../components/kit";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Day = { day: string; count: number };
@@ -235,7 +235,7 @@ export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
       ) : list.error ? (
         <div className="mt-5"><ErrorState message={list.error} onRetry={list.reload} /></div>
       ) : (fixedId ? !clientAccounts.length : !tabs.length) ? (
-        <div className="mt-5"><EmptyState title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." /></div>
+        <div className="mt-5"><Empty title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." /></div>
       ) : (
         <>
           {!fixedId && <Tabs value={String(activeId)} onValueChange={(v) => setClientId(Number(v))} className="mt-5">
@@ -270,7 +270,7 @@ export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
             {posts.loading ? (
               <CardSkeleton lines={4} />
             ) : !shown.length ? (
-              <EmptyState title="No posts yet" hint="Posts appear after the first check. Insights are filled in within a day of posting." />
+              <Empty title="No posts yet" hint="Posts appear after the first check. Insights are filled in within a day of posting." />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                 {shown.map((p) => (

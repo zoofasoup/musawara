@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { fmtNum } from "../lib/format";
+import { statusTone } from "../lib/tone";
+import { Pill } from "./kit";
 
 import { Skeleton } from "@/components/ui/skeleton";
 export { Skeleton };
@@ -12,16 +14,6 @@ export function CardSkeleton({ lines = 3 }: { lines?: number }) {
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton key={i} className={`h-4 ${i === 0 ? "w-1/3" : "w-full"}`} />
       ))}
-    </div>
-  );
-}
-
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-10 text-center shadow-[var(--shadow-soft)]">
-      <div className="mb-2 text-2xl opacity-50">📭</div>
-      <p className="text-sm font-medium text-ink2">{title}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
@@ -48,22 +40,12 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: "bg-good/15 text-good",
-  PAUSED: "bg-warn/15 text-warn",
-  ARCHIVED: "bg-muted/15 text-muted",
-  DELETED: "bg-crit/15 text-crit",
-  CAMPAIGN_PAUSED: "bg-warn/15 text-warn",
-  ADSET_PAUSED: "bg-warn/15 text-warn",
-};
-
 export function StatusBadge({ status }: { status: string | null }) {
   if (!status) return null;
-  const style = STATUS_STYLES[status] ?? "bg-muted/15 text-ink2";
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide ${style}`}>
-      {status.replace(/_/g, " ")}
-    </span>
+    <Pill tone={statusTone(status)} size="sm" dot={false}>
+      {status.replace(/_/g, " ").toLowerCase()}
+    </Pill>
   );
 }
 

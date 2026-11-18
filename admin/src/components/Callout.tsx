@@ -5,18 +5,14 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TONE, type Tone } from "../lib/tone";
 
-const TONE = {
-  info: { box: "bg-chart-4/10 text-chart-4", icon: Info },
-  warn: { box: "bg-warn/12 text-warn", icon: AlertTriangle },
-  crit: { box: "bg-crit/10 text-crit", icon: AlertCircle },
-  good: { box: "bg-good/12 text-good", icon: CheckCircle2 },
-  accent: { box: "bg-[color-mix(in_srgb,var(--accent)_10%,white)] text-musawara-ink", icon: Info },
-} as const;
-export type CalloutTone = keyof typeof TONE;
+const ICON = { info: Info, warn: AlertTriangle, crit: AlertCircle, good: CheckCircle2, accent: Info, neutral: Info } as const;
+export type CalloutTone = Tone;
 
 export function Callout({ tone = "info", title, children, to, action, compact, className }: { tone?: CalloutTone; title?: ReactNode; children?: ReactNode; to?: string; action?: ReactNode; compact?: boolean; className?: string }) {
-  const { box, icon: Icon } = TONE[tone];
+  const box = TONE[tone].soft;
+  const Icon = ICON[tone];
   const body = (
     <>
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />

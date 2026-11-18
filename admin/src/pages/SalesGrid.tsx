@@ -2,6 +2,7 @@
 // Meta state, toggle columns, page through, export what is on screen.
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "../components/Controls";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { api } from "../lib/api";
@@ -326,11 +327,7 @@ export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale
 
       <DataGrid table={table} recordCount={filtered.length} className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div role="group" aria-label="Filter sales" className="inline-flex rounded-full bg-surface3 p-0.5">
-          {STATES.map(([k, l]) => (
-            <button key={k} onClick={() => { setState(k); setPagination((p) => ({ ...p, pageIndex: 0 })); }} aria-pressed={state === k} className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-medium lg:min-h-8 ${state === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
-          ))}
-        </div>
+        <Segmented label="Filter sales" value={state} onChange={(k) => { setState(k); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={STATES.map(([k, l]) => ({ value: k, label: l }))} />
         <div className="flex gap-2">
           <DataGridColumnVisibility table={table} trigger={<Btn icon={undefined}><Columns3 className="h-4 w-4" />Columns</Btn>} />
           <Btn onClick={() => exportCsv(filtered)} disabled={!filtered.length}><Download className="h-4 w-4" />Export CSV</Btn>

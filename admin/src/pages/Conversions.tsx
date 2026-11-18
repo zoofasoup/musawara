@@ -5,6 +5,7 @@
 // Identifiers are hashed in the browser; only hashes reach the server and Meta.
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { Segmented } from "../components/Controls";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { FormField } from "../components/FormField";
@@ -396,12 +397,7 @@ export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
             )}
             <div className="text-xs text-muted">
               <p>What should happen</p>
-              <div role="radiogroup" aria-label="Destination" className="mt-1 inline-flex rounded-full bg-surface3 p-0.5">
-                {([["dashboard", "Dashboard only"], ["meta", "Dashboard + Meta"]] as const).map(([k, l]) => (
-                  <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => { setMode(k); setRows(null); setUnits([]); }}
-                    className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${mode === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
-                ))}
-              </div>
+              <Segmented label="Destination" value={mode} onChange={(k) => { setMode(k); setRows(null); setUnits([]); }} options={[{ value: "dashboard", label: "Dashboard only" }, { value: "meta", label: "Dashboard + Meta" }]} />
             </div>
           </div>
 
@@ -430,12 +426,7 @@ export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
                 </FormField>
                 <div className="text-xs text-muted">
                   <p>Mode</p>
-                  <div role="radiogroup" aria-label="Test or live" className="mt-1 inline-flex rounded-full bg-surface3 p-0.5">
-                    {[{ v: true, l: "Test" }, { v: false, l: "Live" }].map((o) => (
-                      <button key={String(o.v)} type="button" role="radio" aria-checked={test === o.v} onClick={() => { setTest(o.v); setRows(null); setUnits([]); }}
-                        className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${test === o.v ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{o.l}</button>
-                    ))}
-                  </div>
+                  <Segmented label="Test or live" value={test ? "test" : "live"} onChange={(k) => { setTest(k === "test"); setRows(null); setUnits([]); }} options={[{ value: "test", label: "Test" }, { value: "live", label: "Live" }]} />
                 </div>
               </div>
               {test ? (

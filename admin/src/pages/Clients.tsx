@@ -4,8 +4,8 @@ import { PageHeader } from "../components/PageHeader";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtRp } from "../lib/format";
 import { ClientAvatar } from "../components/Layout";
-import { Bento } from "../components/kit";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
+import { Bento, Empty } from "../components/kit";
+import { CardSkeleton, ErrorState } from "../components/ui";
 
 type Row = { id: number; name: string; logo_url: string | null; brand_color: string; totals: { spend: number; leads: number; purchases: number }; unacknowledged_alerts: number };
 
@@ -17,7 +17,7 @@ export function Clients() {
     <div>
       <PageHeader title="Clients" subtitle="Open a client to see its ads, sales, content and files in one place." actions={<Link to="/settings" className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">Add a client in Settings</Link>} />
       {data.clients.length === 0 ? (
-        <EmptyState title="No clients yet" hint="Add your first client in Settings." />
+        <Empty title="No clients yet" hint="Add your first client in Settings." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {data.clients.map((c) => (

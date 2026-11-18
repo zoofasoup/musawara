@@ -13,8 +13,8 @@ import { Link } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { fmtDateTime } from "../lib/format";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Btn, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
+import { CardSkeleton, ErrorState } from "../components/ui";
+import { Btn, Pill, RowList, Sheet, useNotify, type Tone, Empty } from "../components/kit";
 import type { Asset } from "./Assets";
 
 type Status = "pending" | "approved" | "changes_requested";
@@ -286,7 +286,7 @@ export function Approvals({ clientId }: { clientId: number }) {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={list.reload} />
       ) : reqs.length === 0 ? (
-        <EmptyState title={status ? "Nothing with this status" : team ? "No approval requests yet" : "Nothing to approve right now"} hint={team ? "Create a request to send assets to the client." : "New items from the Musawara team will show up here."} />
+        <Empty title={status ? "Nothing with this status" : team ? "No approval requests yet" : "Nothing to approve right now"} hint={team ? "Create a request to send assets to the client." : "New items from the Musawara team will show up here."} />
       ) : (
         <ul className="space-y-3">
           {reqs.map((r) => <RequestCard key={r.id} clientId={clientId} req={r} team={!!team} onChanged={list.reload} notify={notify} />)}
@@ -325,7 +325,7 @@ export function TeamApprovals() {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={list.reload} />
       ) : rows.length === 0 ? (
-        <EmptyState title={status ? "No requests with this status" : "No approval requests yet"} hint="Open a client and choose Approvals to create one." />
+        <Empty title={status ? "No requests with this status" : "No approval requests yet"} hint="Open a client and choose Approvals to create one." />
       ) : (
         <RowList>
           {rows.map((r) => (

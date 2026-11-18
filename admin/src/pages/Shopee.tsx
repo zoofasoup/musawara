@@ -2,6 +2,7 @@
 // from orders synced out of Shopee. No buyer information is stored or shown (see worker/lib/shopee.ts).
 
 import { useEffect, useMemo, useState } from "react";
+import { Segmented } from "../components/Controls";
 import { useSearchParams } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { addDays, todayJakarta } from "../lib/dates";
@@ -177,20 +178,7 @@ export function Shopee() {
               <ConfirmBtn label="Disconnect" confirmLabel="Delete orders and disconnect" onConfirm={disconnect} />
             </Panel>
 
-            <div role="radiogroup" aria-label="Date range" className="inline-flex rounded-full bg-surface3 p-0.5">
-              {RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={range === r.key}
-                  onClick={() => setRange(r.key)}
-                  className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${range === r.key ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <Segmented label="Date range" value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.key, label: r.label }))} />
 
             {summary.loading ? (
               <CardSkeleton lines={4} />

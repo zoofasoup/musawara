@@ -2,6 +2,7 @@
 // their CPA target, a client table, spend share, then alerts and sync health.
 
 import { useMemo, useState } from "react";
+import { Segmented } from "../components/Controls";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { api, useApi } from "../lib/api";
@@ -11,9 +12,9 @@ import { ClientAvatar } from "../components/Layout";
 import { StatTile } from "../components/StatTile";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "../components/DataTable";
-import { Bento } from "../components/kit";
+import { Bento, Pill, Empty } from "../components/kit";
 import { HatchBars, SegmentGauge, TickBar } from "../components/OverviewWidgets";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
+import { CardSkeleton, ErrorState } from "../components/ui";
 
 type Overview = {
   range: { from: string; to: string };
@@ -41,14 +42,11 @@ type Overview = {
 /** Cost per purchase against the client's target: green on target, amber up to 20% over, red beyond. */
 function CpaChip({ cpa, target }: { cpa: number | null; target: number | null }) {
   if (cpa == null) return <span className="text-xs text-muted">–</span>;
-  let cls = "bg-surface3 text-ink2";
-  if (target && target > 0) {
-    const ratio = cpa / target;
-    cls = ratio <= 1 ? "bg-good/12 text-good" : ratio <= 1.2 ? "bg-warn/12 text-warn" : "bg-crit/10 text-crit";
-  }
+  const ratio = target && target > 0 ? cpa / target : null;
+  const tone = ratio == null ? "neutral" : ratio <= 1 ? "good" : ratio <= 1.2 ? "warn" : "crit";
   return (
-    <span className={`tnum inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`} title={target ? `Target ${fmtRp(target)}` : "No target set"}>
-      {fmtRp(cpa)}
+    <span title={target ? `Target ${fmtRp(target)}` : "No target set"}>
+      <Pill tone={tone} size="sm" dot={false}><span className="tnum">{fmtRp(cpa)}</span></Pill>
     </span>
   );
 }
@@ -103,7 +101,7 @@ export function AdminHome() {
       <PageHeader title="Overview" subtitle="How each client's ads are doing this month, and what needs attention." />
 
       {m.clients.length === 0 ? (
-        <EmptyState title="No clients yet" hint="Add your first client in Settings." />
+        <Empty title="No clients yet" hint="Add your first client in Settings." />
       ) : (
         <div className="grid gap-4 xl:grid-cols-12">
           {/* four key totals */}
@@ -161,19 +159,7 @@ export function AdminHome() {
                   aria-label="Search clients"
                   className="min-h-11 w-36 rounded-full px-4 text-xs lg:min-h-9"
                 />
-                <div role="group" aria-label="Client filter" className="inline-flex rounded-full bg-surface3 p-0.5">
-                  {(["all", "attention"] as const).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      aria-pressed={only === k}
-                      onClick={() => setOnly(k)}
-                      className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs font-medium lg:min-h-8 ${only === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
-                    >
-                      {k === "all" ? "All" : `Needs attention ${m.attention.length}`}
-                    </button>
-                  ))}
-                </div>
+                <Segmented label="Client filter" value={only} onChange={setOnly} options={[{ value: "all", label: "All" }, { value: "attention", label: "Needs attention", badge: m.attention.length }]} />
               </div>
             </header>
             <DataTable

@@ -18,8 +18,8 @@ import { EntityTable } from "../components/EntityTable";
 import type { Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
-import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Bento, Btn, useNotify } from "../components/kit";
+import { CardSkeleton, ErrorState } from "../components/ui";
+import { Bento, Btn, useNotify, Empty } from "../components/kit";
 
 type Meta = {
   client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
@@ -308,7 +308,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           ) : creatives.error ? (
             <ErrorState message={creatives.error} onRetry={creatives.reload} />
           ) : (creatives.data?.ads.length ?? 0) === 0 ? (
-            <EmptyState title="No ads with delivery in this period" />
+            <Empty title="No ads with delivery in this period" />
           ) : (
             <CreativeGrid ads={creatives.data!.ads.slice(0, 5)} />
           )}

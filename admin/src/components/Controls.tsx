@@ -86,10 +86,14 @@ export function Chip({ label, avatar, onRemove, className }: { label: string; av
   );
 }
 
-/** Recessed track; the chosen option is a raised white tile. Options can be icons (give each an aria-label) or text. */
-export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: string; icon?: ReactNode }>; label: string }) {
+/**
+ * The one choice control: a recessed track, the chosen option a raised white tile. For picking among a few values you hold in state
+ * (range, role, filter). Options can be text, an icon (give it a label for screen readers), and carry a count. `fill` stretches it
+ * to the full width with equal columns. Route tabs use PillNav instead; in-page panels use Tabs.
+ */
+export function Segmented<T extends string>({ value, onChange, options, label, fill }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: string; icon?: ReactNode; iconOnly?: boolean; badge?: ReactNode }>; label: string; fill?: boolean }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("inline-flex gap-1 rounded-2xl p-1", recessedCls)}>
+    <div role="radiogroup" aria-label={label} className={cn("gap-1 rounded-2xl p-1", recessedCls, fill ? "grid w-full" : "inline-flex")} style={fill ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -98,12 +102,13 @@ export function Segmented<T extends string>({ value, onChange, options, label }:
             type="button"
             role="radio"
             aria-checked={on}
-            aria-label={o.icon ? o.label : undefined}
+            aria-label={o.iconOnly ? o.label : undefined}
             onClick={() => onChange(o.value)}
-            className={cn("press inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-medium transition-[box-shadow,background-color,color]", o.icon && !o.label.length ? "" : "", on ? "bg-surface text-ink shadow-[var(--shadow-soft)]" : "text-ink2 hover:text-ink")}
+            className={cn("press inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium transition-[box-shadow,background-color,color] md:min-h-9", on ? "bg-surface text-ink shadow-[var(--shadow-soft)]" : "text-ink2 hover:text-ink")}
           >
             {o.icon}
-            {!o.icon && o.label}
+            {!o.iconOnly && o.label}
+            {o.badge !== undefined && <span className="tnum text-muted">{o.badge}</span>}
           </button>
         );
       })}
@@ -121,28 +126,6 @@ export function StepperAction({ value, onStep, action }: { value: ReactNode; onS
       </button>
       {action}
     </div>
-  );
-}
-
-/** Status, not an action: tinted fill, no shadow. `dot` for a live state, `dashed` for work in progress. */
-export function StatusPill({ tone = "good", mark = "dot", children }: { tone?: "good" | "info" | "warn" | "crit" | "neutral"; mark?: "dot" | "dashed" | "none"; children: ReactNode }) {
-  const t = {
-    good: "bg-good/15 text-good",
-    info: "bg-chart-4/10 text-chart-4",
-    warn: "bg-warn/15 text-warn",
-    crit: "bg-crit/12 text-crit",
-    neutral: "bg-surface3 text-ink2",
-  }[tone];
-  return (
-    <span className={cn("inline-flex min-h-9 items-center gap-2 rounded-2xl px-3.5 text-sm font-semibold", t)}>
-      {mark === "dot" && <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}
-      {mark === "dashed" && (
-        <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 animate-[spin_6s_linear_infinite]">
-          <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeDasharray="3.6 3.1" strokeLinecap="round" />
-        </svg>
-      )}
-      {children}
-    </span>
   );
 }
 

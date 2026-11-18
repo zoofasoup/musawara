@@ -1,6 +1,6 @@
-import { RowList } from "./kit";
+import { RowList, Empty } from "./kit";
 import { fmtDateTime } from "../lib/format";
-import { EmptyState, SeverityDot } from "./ui";
+import { SeverityDot } from "./ui";
 
 export type Alert = {
   id: number;
@@ -41,7 +41,7 @@ export function AlertFeed({
   inCard?: boolean;
 }) {
   if (alerts.length === 0) {
-    return <EmptyState title="No alerts" hint="Anomaly detection runs after every sync." />;
+    return <Empty title="No alerts" hint="Anomaly detection runs after every sync." />;
   }
   return (
     <List inCard={inCard}>
