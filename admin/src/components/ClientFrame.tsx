@@ -2,12 +2,14 @@
 // (overview, creatives, alerts, approvals, report, brand knowledge, assets, onboarding).
 // Pages inside it render underneath and keep their own content only.
 
+import { Suspense } from "react";
 import { NavLink, Outlet, useParams } from "react-router-dom";
 import { useApi } from "../lib/api";
 import { fmtDateTime } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { ClientAvatar } from "./Layout";
 import type { Alert } from "./AlertFeed";
+import { CardSkeleton } from "./ui";
 
 type Meta = {
   client: { id: number; name: string; logo_url: string | null; brand_color: string };
@@ -73,7 +75,10 @@ export function ClientFrame() {
         </div>
       </nav>
 
-      <Outlet />
+      {/* its own boundary: a page that is still loading must not take the header and menu bar down with it */}
+      <Suspense fallback={<CardSkeleton lines={4} />}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
@@ -80,9 +80,28 @@ function RootRedirect() {
   return <Navigate to={`/c/${user?.client_id}`} replace />;
 }
 
+/** Fetch every page's code once the app is idle, so moving between menus never waits on a download. */
+const PAGES = [
+  () => import("./pages/AdminHome"), () => import("./pages/ClientDashboard"), () => import("./pages/CreativeView"), () => import("./pages/ClientAlerts"),
+  () => import("./pages/Approvals"), () => import("./pages/Assets"), () => import("./pages/BrandKnowledge"), () => import("./pages/ClientReport"),
+  () => import("./pages/Onboarding"), () => import("./pages/Spend"), () => import("./pages/SalesGrid"), () => import("./pages/Conversions"),
+  () => import("./pages/Planning"), () => import("./pages/Board"), () => import("./pages/Shopee"), () => import("./pages/Organic"),
+  () => import("./pages/AdminSettings"), () => import("./pages/Profile"), () => import("./pages/crm/CrmInbox"), () => import("./pages/crm/CrmContacts"),
+];
+function usePrefetchPages() {
+  useEffect(() => {
+    const run = () => PAGES.forEach((load, i) => setTimeout(() => void load().catch(() => {}), i * 120));
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(run);
+    else setTimeout(run, 1500);
+  }, []);
+}
+
 export function App() {
+  usePrefetchPages();
   return (
-    <BrowserRouter basename={BASE}>
+    // startTransition: while a page's code or data is loading, the page you are on stays up instead of flashing a skeleton
+    <BrowserRouter basename={BASE} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ClientScopeProvider>
         <Suspense fallback={null}>
           <Routes>
