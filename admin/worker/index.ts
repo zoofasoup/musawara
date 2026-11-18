@@ -18,6 +18,7 @@ import notionRoutes from "./routes/notion";
 import { notionCfg, runNotionSync } from "./lib/notion";
 import { syncAllAccounts } from "./lib/sync";
 import { pollAllOrganic } from "./lib/organic";
+import { healthReport, trackCron } from "./lib/health";
 
 export const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -32,11 +33,18 @@ app.route("/api/approvals", approvalRoutes);
 app.route("/api/shopee", shopeeRoutes);
 app.route("/api/notion", notionRoutes);
 
-app.get("/api/health", (c) => c.json({ ok: true, app: c.env.APP_NAME }));
+// Public, no secrets. Plain: is the Worker up and the database answering. ?deep=1 also reports the last run of each
+// scheduled job and answers 503 when one failed or went quiet, so an uptime monitor can watch the cron too.
+app.get("/api/health", async (c) => {
+  const h = await healthReport(c.env);
+  if (c.req.query("deep") === "1") return c.json({ ...h, app: c.env.APP_NAME }, h.ok ? 200 : 503);
+  return c.json({ ok: h.db, app: c.env.APP_NAME }, h.db ? 200 : 503);
+});
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {
-  console.error(err);
+  // one searchable line per failure in the Workers logs (observability is on); the path only, never the query string or body
+  console.error(JSON.stringify({ event: "unhandled", method: c.req.method, path: new URL(c.req.url).pathname, message: err.message, stack: err.stack?.split("\n").slice(0, 4).join(" | ") }));
   return c.json({ error: "Internal error" }, 500);
 });
 
@@ -46,9 +54,9 @@ app.onError((err, c) => {
 // because Meta restates history (attribution windows).
 export function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
   const deep = new Date(controller.scheduledTime).getUTCHours() === 20;
-  ctx.waitUntil(pollAllOrganic(env, deep));
-  ctx.waitUntil(syncAllAccounts(env, !deep));
-  if (notionCfg(env)) ctx.waitUntil(runNotionSync(env));
+  ctx.waitUntil(trackCron(env, "organic", () => pollAllOrganic(env, deep)));
+  ctx.waitUntil(trackCron(env, "ads", () => syncAllAccounts(env, !deep)));
+  if (notionCfg(env)) ctx.waitUntil(trackCron(env, "notion", () => runNotionSync(env)));
 }
 
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>;
