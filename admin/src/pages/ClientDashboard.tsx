@@ -271,22 +271,23 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       <div className="grid gap-4 xl:grid-cols-12">
         {/* every metric in one card, one shape */}
         <Bento title="Key numbers" className="xl:col-span-12">
-          <div className={`grid grid-cols-2 gap-x-6 gap-y-5 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
+          <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
             {kpis.map((k) => (
-              <KpiCard
-                key={k.label}
-                bare
-                dense={longNumbers}
-                label={k.label}
-                value={k.value}
-                current={k.cur}
-                previous={k.prev}
-                direction={k.dir}
-                note={k.note}
-                previousText={k.prevText}
-                compare={compareOn}
-                loading={summary.loading}
-              />
+              <div key={k.label} className="min-w-0 bg-surface px-4 py-3.5">
+                <KpiCard
+                  bare
+                  dense={longNumbers}
+                  label={k.label}
+                  value={k.value}
+                  current={k.cur}
+                  previous={k.prev}
+                  direction={k.dir}
+                  note={k.note}
+                  previousText={k.prevText}
+                  compare={compareOn}
+                  loading={summary.loading}
+                />
+              </div>
             ))}
           </div>
         </Bento>
