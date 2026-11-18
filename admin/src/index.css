@@ -113,6 +113,10 @@ body {
 h1, h2, h3 {
   font-family: var(--font-display);
 }
+/* Tracking follows size: large headings sit tighter, body text stays at its default. */
+h1 { letter-spacing: -0.02em; }
+h2 { letter-spacing: -0.012em; }
+h3 { letter-spacing: -0.006em; }
 
 /* Touch targets: 44px on phones and tablets (inline text links excluded). */
 @media (max-width: 1023px) {

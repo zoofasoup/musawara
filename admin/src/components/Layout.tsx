@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ASSET_BASE } from "../lib/api";
 import { Icon, type IconName } from "./icons";
@@ -37,6 +37,7 @@ export function ClientAvatar({ name, logoUrl, color, size = 8 }: { name: string;
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, client, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const links: Array<{ to: string; label: string; short?: string; icon: IconName }> =
     user?.client_id
@@ -50,6 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ]
         : [];
   const isEnd = (to: string) => to === `/c/${user?.client_id}`;
+  const activeIdx = links.findIndex((l) => (isEnd(l.to) ? pathname === l.to : pathname === l.to || pathname.startsWith(l.to + "/")));
 
   if (user?.role === "admin") return <AdminShell>{children}</AdminShell>;
 
@@ -98,13 +100,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Phones: tab bar at the bottom, within thumb reach. */}
       <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 sm:hidden ${glassCls}`}>
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
-          {links.map((l) => (
+        <div className="relative grid" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+            style={{ width: `${100 / links.length}%`, transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
+          />
+          {links.map((l, i) => (
             <NavLink
               key={l.to}
               to={l.to}
               end={isEnd(l.to)}
-              className={({ isActive }) => `press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${isActive ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
+              className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === i ? "text-musawara-ink" : "text-ink2"}`}
             >
               <Icon name={l.icon} className="h-5 w-5" />
               <span className="leading-none">{l.short ?? l.label}</span>

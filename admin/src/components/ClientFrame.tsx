@@ -23,7 +23,7 @@ type Meta = {
 type Tab = { to: string; label: string; end?: boolean; badge?: number; tone?: "crit" | "accent" };
 
 const tabCls = (on: boolean) =>
-  `inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${on ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`;
+  `press inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${on ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`;
 
 function Badge({ tab }: { tab: Tab }) {
   if (!tab.badge) return null;

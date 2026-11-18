@@ -107,7 +107,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
   const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/") || (to === "/clients" && pathname.startsWith("/c/")));
-  const moreActive = !PHONE_TABS.some((t) => onTab(t.to));
+  const tabIdx = PHONE_TABS.findIndex((t) => onTab(t.to));
+  const activeIdx = tabIdx >= 0 ? tabIdx : 4; // anything not in the four daily tabs lives behind More
 
   return (
     <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
@@ -164,13 +165,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Phone: four daily tabs plus More */}
       <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 md:hidden ${glassCls}`}>
-        <div className="grid grid-cols-5">
-          {PHONE_TABS.map((t) => (
+        <div className="relative grid grid-cols-5">
+          {/* one glass pill that glides to the active tab instead of each tab lighting up on its own */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/5 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+            style={{ transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
+          />
+          {PHONE_TABS.map((t, i) => (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.end}
-              className={({ isActive }) => `press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${isActive || onTab(t.to) ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
+              className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === i ? "text-musawara-ink" : "text-ink2"}`}
             >
               <Icon name={t.icon} className="h-5 w-5" />
               <span className="leading-none">{t.label}</span>
@@ -180,7 +187,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setMore(true)}
             aria-haspopup="dialog"
-            className={`press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${moreActive ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
+            className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === 4 ? "text-musawara-ink" : "text-ink2"}`}
           >
             <Icon name="menu" className="h-5 w-5" />
             <span className="leading-none">More</span>

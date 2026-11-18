@@ -71,20 +71,87 @@ function useIsPhone() {
   return phone;
 }
 
+/** Where a flick would come to rest, using Apple's scroll-deceleration form (velocity in px/s, result in px). */
+const project = (v: number, rate = 0.998) => ((v / 1000) * rate) / (1 - rate);
+/** Past a boundary the thing follows less and less, so the edge feels soft instead of hard. */
+const rubberband = (overshoot: number, dimension: number, c = 0.55) => (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+
+/**
+ * Drag-to-dismiss for a bottom sheet. It tracks the finger 1:1 from wherever the sheet is on screen (so it can be grabbed
+ * mid-animation), resists upward pulls, and on release uses the flick's velocity to decide: dismiss or settle back.
+ */
+function useSheetDrag(onDismiss: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; pos: number; hist: Array<[number, number]> } | null>(null);
+  const live = (el: HTMLElement) => {
+    const t = getComputedStyle(el).transform;
+    return t === "none" ? 0 : new DOMMatrixReadOnly(t).m42;
+  };
+  const ease = "cubic-bezier(0.32, 0.72, 0, 1)";
+  const end = () => {
+    const el = ref.current;
+    const d = drag.current;
+    drag.current = null;
+    if (!el || !d) return;
+    const recent = d.hist.filter(([t]) => performance.now() - t < 100);
+    const first = recent[0], last = recent[recent.length - 1];
+    const v = first && last && last[0] > first[0] ? ((last[1] - first[1]) / (last[0] - first[0])) * 1000 : 0;
+    const h = el.offsetHeight;
+    if (d.pos + project(v) > h * 0.5 || v > 900) {
+      el.style.transition = `transform 280ms ${ease}`;
+      el.style.transform = `translateY(${h + 48}px)`;
+      window.setTimeout(onDismiss, 220);
+    } else {
+      el.style.transition = `transform 420ms ${ease}`;
+      el.style.transform = "translateY(0)";
+      window.setTimeout(() => { el.style.transition = ""; el.style.transform = ""; }, 440);
+    }
+  };
+  const handlers = {
+    onPointerDown(e: React.PointerEvent<HTMLElement>) {
+      const el = ref.current;
+      if (!el) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const base = live(el);
+      el.style.transition = "none";
+      el.style.transform = `translateY(${base}px)`;
+      drag.current = { y0: e.clientY - base, pos: base, hist: [[performance.now(), e.clientY]] };
+    },
+    onPointerMove(e: React.PointerEvent<HTMLElement>) {
+      const el = ref.current;
+      const d = drag.current;
+      if (!el || !d) return;
+      d.pos = e.clientY - d.y0;
+      d.hist.push([performance.now(), e.clientY]);
+      if (d.hist.length > 6) d.hist.shift();
+      el.style.transform = `translateY(${d.pos >= 0 ? d.pos : -rubberband(-d.pos, el.offsetHeight)}px)`;
+    },
+    onPointerUp: end,
+    onPointerCancel: end,
+  };
+  return { ref, handlers };
+}
+
 /**
  * Modal sheet: rises from the bottom on phones, slides in from the right on larger screens.
  * Escape, the scrim and the close button dismiss it; focus is trapped and restored (Base UI).
  */
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const phone = useIsPhone();
+  const { ref, handlers } = useSheetDrag(onClose);
   return (
     <UiSheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent
+        ref={ref}
         side={phone ? "bottom" : "right"}
         data-glass={phone ? "" : undefined}
         className={cn("overflow-y-auto bg-background p-4", phone ? `max-h-[90dvh] rounded-t-[28px] pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 ${glassThickCls}` : "sm:max-w-md")}
       >
-        {phone && <span aria-hidden className="absolute left-1/2 top-2 h-1 w-9 -translate-x-1/2 rounded-full bg-ink/20" />}
+        {phone && (
+          <div {...handlers} aria-hidden className="absolute inset-x-0 top-0 z-10 flex h-8 cursor-grab touch-none items-start justify-center pt-2 active:cursor-grabbing">
+            <span className="h-1 w-9 rounded-full bg-ink/20" />
+          </div>
+        )}
         <SheetTitle className="sr-only">{title}</SheetTitle>
         <SheetDescription className="sr-only">{title}</SheetDescription>
         {children}
