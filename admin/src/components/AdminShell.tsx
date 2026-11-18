@@ -88,6 +88,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
+  const [hover, setHover] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("ma_sidebar") === "1"; } catch { return false; }
   });
@@ -97,6 +98,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
       return !c;
     });
 
+  // Collapsed sidebars open while the pointer (or keyboard focus) is on them, over the page, without moving it.
+  const narrow = collapsed && !hover;
+  const peek = collapsed && hover;
   const signOut = async () => {
     await logout();
     navigate("/login");
@@ -107,9 +111,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
       {/* Desktop and tablet: sidebar */}
-      <aside aria-label="Main" className={`fixed inset-y-3 left-3 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/70 bg-white/55 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-[width] duration-200 md:flex ${collapsed ? "w-16 px-2" : "w-60 px-3"}`}>
-        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
-          {!collapsed && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>}
+      <aside aria-label="Main" className={`fixed inset-y-3 left-3 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/70 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-[width,background-color] ${peek ? "bg-white/95" : "bg-white/55"} duration-200 md:flex ${narrow ? "w-16 px-2" : "w-60 px-3"} ${peek ? "shadow-[0_12px_40px_rgba(20,24,36,0.18)]" : ""}`}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHover(false); }}
+      >
+        <div className={`flex items-center ${narrow ? "justify-center" : "justify-between"}`}>
+          {!narrow && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>}
           <button
             type="button"
             onClick={toggle}
@@ -122,21 +131,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
         <nav className="flex flex-1 flex-col gap-4">
-          <NavGroups collapsed={collapsed} />
+          <NavGroups collapsed={narrow} />
         </nav>
         <div className="space-y-0.5 border-t border-border pt-3">
-          <NavLink to={SETTINGS.to} title={collapsed ? SETTINGS.label : undefined} aria-label={collapsed ? SETTINGS.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
+          <NavLink to={SETTINGS.to} title={narrow ? SETTINGS.label : undefined} aria-label={narrow ? SETTINGS.label : undefined} className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}>
             <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
-            {!collapsed && SETTINGS.label}
+            {!narrow && SETTINGS.label}
           </NavLink>
           <NavLink
             to="/profile"
-            title={collapsed ? "Profile" : undefined}
-            aria-label={collapsed ? "Profile" : undefined}
-            className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}
+            title={narrow ? "Profile" : undefined}
+            aria-label={narrow ? "Profile" : undefined}
+            className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}
           >
             <Avatar name={user?.name ?? ""} size={22} />
-            {!collapsed && <span className="min-w-0 truncate">{user?.name}</span>}
+            {!narrow && <span className="min-w-0 truncate">{user?.name}</span>}
           </NavLink>
         </div>
       </aside>
