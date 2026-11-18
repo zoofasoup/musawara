@@ -12,13 +12,15 @@ import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
 import { KpiCard } from "../components/KpiCard";
+import { StatTile } from "../components/StatTile";
+import { SegmentGauge } from "../components/OverviewWidgets";
 import { TrendChart, type TrendDay } from "../components/TrendChart";
 import { EntityTable } from "../components/EntityTable";
 import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { BudgetPacing, type Pacing } from "../components/BudgetPacing";
 import { ClientAvatar } from "../components/Layout";
-import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, Nested, useNotify } from "../components/kit";
+import { CardSkeleton, Delta, EmptyState, ErrorState } from "../components/ui";
+import { Bento, Btn, useNotify } from "../components/kit";
 
 type Meta = {
   client: { id: number; name: string; slug: string; logo_url: string | null; brand_color: string; target_cpa: number | null };
@@ -179,8 +181,10 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
     ];
   }, [summary.data, meta.data]);
 
-  // One size for every number in the block: smaller and wider cells when any value is long.
-  const longNumbers = kpis.some((x) => x.value.length > 13);
+  const byLabel = (l: string) => kpis.find((k) => k.label === l)!;
+  // One size for the four headline tiles: smaller when any of them is long.
+  const headDense = ["Spend", "Leads", "Purchases", "CPA"].some((l) => byLabel(l).value.length > 10);
+  const leadToSaleNow = byLabel("Lead → Sale").cur ?? null;
 
   if (meta.error) return <ErrorState message={meta.error} onRetry={meta.reload} />;
 
@@ -266,78 +270,104 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </Link>
       )}
 
-      {/* key numbers: one card, one grid */}
-      <Nested title="Key numbers" className="mb-5">
-        <div className={`grid grid-cols-2 gap-x-6 gap-y-5 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
-          {kpis.map((k) => (
-            <KpiCard
-              key={k.label}
-              bare
-              dense={longNumbers}
-              label={k.label}
-              value={k.value}
-              current={k.cur}
-              previous={k.prev}
-              direction={k.dir}
-              note={k.note}
-              previousText={k.prevText}
-              compare={compareOn}
-              loading={summary.loading}
-            />
-          ))}
-        </div>
-      </Nested>
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}
 
-      {/* trend */}
-      <div className="mb-6">
-        <SectionTitle>{trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"}</SectionTitle>
-        {trend.loading ? (
-          <CardSkeleton lines={5} />
-        ) : trend.error ? (
-          <ErrorState message={trend.error} onRetry={trend.reload} />
-        ) : (
-          <TrendChart days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} bucket={trend.data?.bucket} />
-        )}
-      </div>
+      <div className="grid gap-4 xl:grid-cols-12">
+        {/* four headline numbers */}
+        <div className="grid grid-cols-2 gap-4 xl:col-span-5">
+          {([["Spend", "spend"], ["Leads", "users"], ["Purchases", "chart"], ["CPA", "check"]] as const).map(([label, icon]) => {
+            const k = byLabel(label);
+            return (
+              <StatTile key={label} label={k.label} icon={icon} value={k.value} dense={headDense} loading={summary.loading}>
+                {compareOn && (
+                  <span className="flex flex-wrap items-baseline gap-x-1">
+                    <Delta current={k.cur} previous={k.prev} direction={k.dir} />
+                    <span className="tnum">{k.prevText ? `vs ${k.prevText}` : "vs prev."}</span>
+                  </span>
+                )}
+                {k.note && <span className={`mt-1 block font-medium ${k.note.tone === "good" ? "text-good" : k.note.tone === "crit" ? "text-crit" : "text-muted"}`}>{k.note.text}</span>}
+              </StatTile>
+            );
+          })}
+        </div>
 
-      <div className="mb-6">
-        <SectionTitle
+        {/* trend */}
+        <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} className="xl:col-span-4">
+          {trend.loading ? (
+            <CardSkeleton lines={5} />
+          ) : trend.error ? (
+            <ErrorState message={trend.error} onRetry={trend.reload} />
+          ) : (
+            <TrendChart bare days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} bucket={trend.data?.bucket} />
+          )}
+        </Bento>
+
+        {/* lead to sale */}
+        <Bento title="Lead → Sale" subtitle="Sales against leads in this period" className="xl:col-span-3">
+          {leadToSaleNow == null ? (
+            <p className="py-10 text-center text-xs text-muted">No leads in this period.</p>
+          ) : (
+            <>
+              <SegmentGauge value={leadToSaleNow} label={`${fmtNum(summary.data?.current.purchases ?? 0)} of ${fmtNum(summary.data?.current.leads ?? 0)} leads`} />
+              <div className="mt-4 space-y-2">
+                {(["ROAS", "Purchase value"] as const).map((l) => (
+                  <div key={l} className="flex items-baseline justify-between gap-3 rounded-2xl bg-surface2 px-3.5 py-2.5">
+                    <span className="whitespace-nowrap text-xs text-muted">{l}</span>
+                    <span className="tnum whitespace-nowrap text-sm font-semibold text-ink">{byLabel(l).value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Bento>
+
+        {/* the rest of the numbers */}
+        <Bento title="More numbers" className="xl:col-span-12">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
+            {["Cost / Lead", "CTR", "CPM", "Frequency", "Reach"].map((l) => {
+              const k = byLabel(l);
+              return (
+                <KpiCard key={l} bare dense label={k.label} value={k.value} current={k.cur} previous={k.prev} direction={k.dir} note={k.note} previousText={k.prevText} compare={compareOn} loading={summary.loading} />
+              );
+            })}
+          </div>
+        </Bento>
+
+        {/* creatives */}
+        <Bento
+          title="Top creatives by spend"
+          className="xl:col-span-12"
           right={!share && <Link to={`/c/${clientId}/creatives`} className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">All creatives</Link>}
         >
-          Top creatives by spend
-        </SectionTitle>
-        {creatives.loading ? (
-          <CardSkeleton lines={4} />
-        ) : creatives.error ? (
-          <ErrorState message={creatives.error} onRetry={creatives.reload} />
-        ) : (creatives.data?.ads.length ?? 0) === 0 ? (
-          <EmptyState title="No ads with delivery in this period" />
-        ) : (
-          <CreativeGrid ads={creatives.data!.ads.slice(0, 5)} />
-        )}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2">
-          <SectionTitle>Campaigns</SectionTitle>
-          <EntityTable key={syncTick} clientId={clientId} from={range.from} to={range.to} compare={cmp} />
-        </div>
-        <div className="space-y-6">
-          {(pacing.data?.pacing?.length ?? 0) > 0 && (
-            <div>
-              <SectionTitle>Budget pacing</SectionTitle>
-              <BudgetPacing pacing={pacing.data!.pacing} />
-            </div>
+          {creatives.loading ? (
+            <CardSkeleton lines={4} />
+          ) : creatives.error ? (
+            <ErrorState message={creatives.error} onRetry={creatives.reload} />
+          ) : (creatives.data?.ads.length ?? 0) === 0 ? (
+            <EmptyState title="No ads with delivery in this period" />
+          ) : (
+            <CreativeGrid ads={creatives.data!.ads.slice(0, 5)} />
           )}
-          <div>
-            <SectionTitle>Alerts</SectionTitle>
+        </Bento>
+
+        {/* campaigns */}
+        <Bento title="Campaigns" className="xl:col-span-12">
+          <EntityTable bare key={syncTick} clientId={clientId} from={range.from} to={range.to} compare={cmp} />
+        </Bento>
+        <div className="grid min-w-0 gap-4 xl:col-span-12 xl:grid-cols-2">
+          {(pacing.data?.pacing?.length ?? 0) > 0 && (
+            <Bento title="Budget pacing">
+              <BudgetPacing pacing={pacing.data!.pacing} />
+            </Bento>
+          )}
+          <Bento title="Alerts">
             {alerts.loading ? (
               <CardSkeleton lines={4} />
             ) : alerts.error ? (
               <ErrorState message={alerts.error} onRetry={alerts.reload} />
             ) : (
               <AlertFeed
+                inCard
                 alerts={alerts.data?.alerts ?? []}
                 onAck={
                   !share && user?.role === "admin"
@@ -349,7 +379,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
                 }
               />
             )}
-          </div>
+          </Bento>
         </div>
       </div>
     </div>

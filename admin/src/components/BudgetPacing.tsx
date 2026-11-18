@@ -1,7 +1,6 @@
 // Month-to-date spend vs ideal linear pace, with projected month-end spend.
 
 import { fmtRp } from "../lib/format";
-import { Nested } from "./kit";
 
 export type Pacing = {
   account_id: number;
@@ -17,7 +16,7 @@ export type Pacing = {
 export function BudgetPacing({ pacing }: { pacing: Pacing[] }) {
   if (pacing.length === 0) return null;
   return (
-    <Nested title="Budget pacing" className="[&>div]:space-y-4">
+    <div className="space-y-4">
       {pacing.map((p) => {
         const spentPct = Math.min((p.spent / p.budget) * 100, 100);
         const idealPct = Math.min((p.ideal / p.budget) * 100, 100);
@@ -57,6 +56,6 @@ export function BudgetPacing({ pacing }: { pacing: Pacing[] }) {
           </div>
         );
       })}
-    </Nested>
+    </div>
   );
 }

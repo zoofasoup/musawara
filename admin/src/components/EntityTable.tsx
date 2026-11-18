@@ -191,7 +191,7 @@ function EntityRows({
 
 type Show = "all" | "active" | "off";
 
-export function EntityTable({ clientId, from, to, compare }: { clientId: number; from: string; to: string; compare?: { from: string; to: string } | null }) {
+export function EntityTable({ clientId, from, to, compare, bare }: { clientId: number; from: string; to: string; compare?: { from: string; to: string } | null; bare?: boolean }) {
   const query = `from=${from}&to=${to}${compare ? `&compFrom=${compare.from}&compTo=${compare.to}` : ""}`;
   const { data, error, loading, reload } = useApi<{ entities: Entity[] }>(
     `/clients/${clientId}/entities?level=campaign&${query}`
@@ -261,7 +261,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+    <div className={bare ? "overflow-hidden rounded-2xl border border-border/70" : "overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]"}>
       {/* filters, like the Ads Manager tabs + search */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 p-3">
         <div role="group" aria-label="Delivery filter" className="inline-flex rounded-full bg-surface3 p-0.5">

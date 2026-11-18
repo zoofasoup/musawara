@@ -38,7 +38,7 @@ const LINE_METRICS = [
 const BAR_COLOR = "var(--color-chart-1)";
 const LINE_COLOR = "var(--color-chart-2)";
 
-export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }) {
+export function TrendChart({ days, compare, bucket = "day", bare }: { days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month"; bare?: boolean }) {
   const [barKey, setBarKey] = useState<"spend" | "leads">("spend");
   const [lineKey, setLineKey] = useState<"cpl" | "ctr" | "cpm" | "none">("cpl");
 
@@ -58,7 +58,7 @@ export function TrendChart({ days, compare, bucket = "day" }: { days: TrendDay[]
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
+    <div className={bare ? "" : "rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4"}>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-full bg-surface3 p-0.5">
           {BAR_METRICS.map((m) => (

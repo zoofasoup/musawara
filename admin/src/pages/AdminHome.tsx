@@ -8,7 +8,7 @@ import { api, useApi } from "../lib/api";
 import { fmtDateTime, fmtNum, fmtRp, hoursSince } from "../lib/format";
 import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { ClientAvatar } from "../components/Layout";
-import { Icon, type IconName } from "../components/icons";
+import { StatTile } from "../components/StatTile";
 import { Input } from "@/components/ui/input";
 import { Bento } from "../components/kit";
 import { HatchBars, SegmentGauge, TickBar } from "../components/OverviewWidgets";
@@ -49,23 +49,6 @@ function CpaChip({ cpa, target }: { cpa: number | null; target: number | null })
     <span className={`tnum inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`} title={target ? `Target ${fmtRp(target)}` : "No target set"}>
       {fmtRp(cpa)}
     </span>
-  );
-}
-
-function Tile({ label, icon, value, note, dense }: { label: string; icon: IconName; value: string; note?: string; dense?: boolean }) {
-  return (
-    <Bento className="flex flex-col justify-between">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-ink2">{label}</p>
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-ink2">
-          <Icon name={icon} className="h-4 w-4" />
-        </span>
-      </div>
-      <div className="mt-5 min-w-0">
-        <p className={`tnum font-semibold leading-tight text-ink ${dense ? "text-base sm:text-xl" : "text-2xl sm:text-3xl"}`} title={value}>{value}</p>
-        {note && <p className="mt-2 text-xs text-muted">{note}</p>}
-      </div>
-    </Bento>
   );
 }
 
@@ -124,10 +107,10 @@ export function AdminHome() {
         <div className="grid gap-4 xl:grid-cols-12">
           {/* four key totals */}
           <div className="grid grid-cols-2 gap-4 xl:col-span-5">
-            <Tile dense={dense} label="Total spend" icon="spend" value={fmtRp(m.spend)} note={`across ${m.clients.length} client${m.clients.length === 1 ? "" : "s"}`} />
-            <Tile dense={dense} label="Leads" icon="users" value={fmtNum(m.leads)} note={m.leads > 0 ? `avg ${fmtRp(m.spend / m.leads)} per lead` : "no leads yet"} />
-            <Tile dense={dense} label="Purchases" icon="chart" value={fmtNum(m.purchases)} note={m.purchases > 0 ? `avg ${fmtRp(m.spend / m.purchases)} per purchase` : "no purchases yet"} />
-            <Tile dense={dense} label="Open alerts" icon="alert" value={fmtNum(m.alerts)} note={m.alerts ? `${m.clients.filter((c) => c.unacknowledged_alerts > 0).length} client(s) affected` : "all clear"} />
+            <StatTile dense={dense} label="Total spend" icon="spend" value={fmtRp(m.spend)}>{`across ${m.clients.length} client${m.clients.length === 1 ? "" : "s"}`}</StatTile>
+            <StatTile dense={dense} label="Leads" icon="users" value={fmtNum(m.leads)}>{m.leads > 0 ? `avg ${fmtRp(m.spend / m.leads)} per lead` : "no leads yet"}</StatTile>
+            <StatTile dense={dense} label="Purchases" icon="chart" value={fmtNum(m.purchases)}>{m.purchases > 0 ? `avg ${fmtRp(m.spend / m.purchases)} per purchase` : "no purchases yet"}</StatTile>
+            <StatTile dense={dense} label="Open alerts" icon="alert" value={fmtNum(m.alerts)}>{m.alerts ? `${m.clients.filter((c) => c.unacknowledged_alerts > 0).length} client(s) affected` : "all clear"}</StatTile>
           </div>
 
           {/* spend per day */}
