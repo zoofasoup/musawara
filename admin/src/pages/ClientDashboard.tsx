@@ -11,6 +11,8 @@ import { fmtDay, fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } fr
 import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
+import { CampaignRanking } from "../components/CampaignRanking";
+import type { Entity } from "../components/EntityTable";
 import { Callout } from "../components/Callout";
 import { KpiCard } from "../components/KpiCard";
 import { MetricTrend, type TrendDay } from "../components/MetricTrend";
@@ -87,6 +89,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const summary = useApi<Summary>(`/clients/${clientId}/summary?${query}`);
   const trend = useApi<{ days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
+  // the same address EntityTable asks for, so the two share one answer
+  const campaigns = useApi<{ entities: Entity[] }>(`/clients/${clientId}/entities?level=campaign&${query}`);
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
   const creatives = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
   // client users see how many approvals are waiting for them (the API refuses everyone else)
@@ -313,6 +317,13 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
             <CreativeGrid ads={creatives.data!.ads.slice(0, 5)} />
           )}
         </Bento>
+
+        {/* winners and boncos */}
+        {(campaigns.data?.entities.length ?? 0) > 0 && (
+          <Bento title="Winners and boncos" subtitle="Campaigns by spend, judged against this client's typical cost per lead" className="xl:col-span-12">
+            <CampaignRanking rows={campaigns.data!.entities.map((e) => ({ id: e.entity_id, name: e.name ?? e.entity_id, spend: e.spend, leads: e.leads }))} />
+          </Bento>
+        )}
 
         {/* campaigns */}
         <Bento title="Campaigns" className="xl:col-span-12">

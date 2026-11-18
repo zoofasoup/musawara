@@ -22,6 +22,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { raisedCls } from "../components/Controls";
+import { CampaignRanking } from "../components/CampaignRanking";
+import { CreativeQuadrant } from "../components/CreativeQuadrant";
+import type { Creative } from "../components/CreativeCards";
 import { Callout } from "../components/Callout";
 import { DataTable } from "../components/DataTable";
 import { FormField, FormGrid } from "../components/FormField";
@@ -246,6 +249,17 @@ function OverlaysDemo({ notify }: { notify: (t: string, k?: "ok" | "err") => voi
     </div>
   );
 }
+
+const ad = (i: number, name: string, spend: number, leads: number, verdict: Creative["verdict"], frequency = 1.6): Creative => ({ entity_id: "q" + i, name, thumbnail_url: null, status: "ACTIVE", effective_status: "ACTIVE", spend, impressions: 90000, leads, cpl: leads ? spend / leads : null, link_ctr: 1.4, cost_per_link_click: 1800, frequency, hook_rate: null, hold_rate: null, avg_watch_s: null, days_active: 14, quality: null, engagement: null, conversion: null, verdict });
+const QUAD_ADS: Creative[] = [
+  ad(1, "Video Testimoni Jamaah", 2_880_000, 61, "winner"), ad(2, "Carousel Paket Desember", 2_050_000, 38, "ok"), ad(3, "Reels Tips Umroh", 1_930_000, 42, "winner"),
+  ad(4, "Foto Hotel Madinah", 1_450_000, 17, "weak"), ad(5, "Promo Early Bird", 1_280_000, 10, "fatigued", 3.9), ad(6, "Story Countdown", 420_000, 12, "ok"),
+  ad(7, "Banner Visa", 3_100_000, 22, "weak"), ad(8, "Reels Behind The Scene", 260_000, 0, "low_data"), ad(9, "Foto Manasik", 900_000, 0, "weak"),
+];
+const CAMPAIGNS = [
+  { id: "c1", name: "Umroh Desember Leads", spend: 9_000_000, leads: 210 }, { id: "c2", name: "Retargeting Website", spend: 4_100_000, leads: 80 },
+  { id: "c3", name: "Awareness Brand", spend: 3_300_000, leads: 24 }, { id: "c4", name: "Promo Early Bird", spend: 2_100_000, leads: 61 }, { id: "c5", name: "Lookalike Jamaah", spend: 800_000, leads: 0 },
+];
 
 const T0 = Math.floor(new Date("2026-11-18T11:46:00+07:00").getTime() / 1000);
 const msg = (id: string, o: Partial<Msg>): Msg => ({ wa_id: id, phone: "6281234567890", from_me: 0, body: "", media_type: null, ack: 3, is_read: 1, ts: T0, ...o });
@@ -501,6 +515,13 @@ export function Styleguide() {
 
       <Section title="Dashboard tiles and charts" note="Bento is the white tile every dashboard widget sits in. Numbers go in StatTile (headline) or KpiCard (with change); charts show one unit at a time. Long numbers: shrink every number in the row together, never truncate one.">
         <DashboardDemo />
+      </Section>
+
+      <Section title="Winners and boncos" note="One rule, two views. An item is judged against the client's own typical cost per lead: winning is 20% or more cheaper, weak is 50% or more dearer, no leads is weak. The quadrant (team) shows every ad as a dot: spend across, cost per lead up, size = leads. The ranking (team and client) lists campaigns by spend with the verdict and one budget suggestion.">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Bento title="Creative quadrant" subtitle="Bottom right scales, top right burns money"><CreativeQuadrant ads={QUAD_ADS} onSelect={(id) => notify(`Selected ${id} (demo)`)} /></Bento>
+          <Bento title="Campaign ranking" subtitle="By spend, judged against typical cost per lead"><CampaignRanking rows={CAMPAIGNS} /></Bento>
+        </div>
       </Section>
 
       <Section title="Alerts" note="Open alerts first, acknowledged ones fade. `inCard` drops the surface when it already sits in a card; pass `onAck` to show the Ack button (team only).">

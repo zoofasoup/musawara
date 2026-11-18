@@ -8,7 +8,9 @@ import { presetByKey, type DateRange } from "../lib/dates";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
-import { Empty } from "../components/kit";
+import { Bento, Empty } from "../components/kit";
+import { CreativeQuadrant } from "../components/CreativeQuadrant";
+import { useAuth } from "../context/AuthContext";
 
 const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
   cpl: ["Best cost / lead", (a, b) => (a.cpl ?? Infinity) - (b.cpl ?? Infinity)],
@@ -21,6 +23,7 @@ const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
 export function CreativeView({ clientId }: { clientId: number }) {
   const [range, setRange] = useState<DateRange>(presetByKey("month"));
   const [sort, setSort] = useState("cpl");
+  const { user } = useAuth();
   const { data, error, loading, reload } = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
   const ads = useMemo(() => [...(data?.ads ?? [])].sort(SORTS[sort][1]), [data, sort]);
 
@@ -30,6 +33,19 @@ export function CreativeView({ clientId }: { clientId: number }) {
         <h1 className="text-lg font-semibold text-ink">Creatives</h1>
         <DateRangePicker value={range} onChange={setRange} />
       </div>
+      {user?.role === "admin" && !loading && !error && (data?.ads.length ?? 0) >= 3 && (
+        <Bento title="Winners and boncos" subtitle="Spend across, cost per lead up. Tap a dot to jump to its card." className="mb-6">
+          <CreativeQuadrant
+            ads={data!.ads}
+            onSelect={(id) => {
+              const el = document.getElementById(`creative-${id}`);
+              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              el?.classList.add("ring-2", "ring-[var(--accent)]");
+              window.setTimeout(() => el?.classList.remove("ring-2", "ring-[var(--accent)]"), 1600);
+            }}
+          />
+        </Bento>
+      )}
       <SectionTitle
         right={
           <NativeSelect size="sm" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">

@@ -55,7 +55,7 @@ export function CreativeCard({ ad }: { ad: Creative }) {
     ["Conversion", ad.conversion],
   ].filter(([, r]) => r && RANK_TEXT[r as string]) as Array<[string, string]>;
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+    <div id={`creative-${ad.entity_id}`} className="scroll-mt-28 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] transition-shadow">
       <div className="relative aspect-square bg-surface2">
         {ad.thumbnail_url ? (
           <img src={ad.thumbnail_url} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
