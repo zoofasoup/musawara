@@ -172,6 +172,25 @@ h3 { letter-spacing: -0.006em; }
   transform: scale(0.97);
 }
 
+/* Pointer cursor on every interactive element that isn't disabled or plain text. */
+:where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="menuitem"],
+  [role="option"],
+  [role="switch"],
+  label[for],
+  label:has(input),
+  select,
+  summary,
+  a[href]
+):not(:disabled):not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 /* Borders default to the palette's hairline colour instead of currentColor (the shadcn/ReUI components rely on this). */
 @layer base {
   *, ::before, ::after, ::backdrop {

@@ -8,7 +8,7 @@ export { Skeleton };
 
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 space-y-3">
+    <div className="rounded-2xl bg-surface p-5 shadow-[var(--shadow-soft)] space-y-3">
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton key={i} className={`h-4 ${i === 0 ? "w-1/3" : "w-full"}`} />
       ))}
@@ -18,8 +18,8 @@ export function CardSkeleton({ lines = 3 }: { lines?: number }) {
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border2 bg-surface px-6 py-10 text-center">
-      <div className="mb-2 text-2xl opacity-60">📭</div>
+    <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-10 text-center shadow-[var(--shadow-soft)]">
+      <div className="mb-2 text-2xl opacity-50">📭</div>
       <p className="text-sm font-medium text-ink2">{title}</p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
@@ -28,13 +28,18 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-crit/30 bg-crit/5 px-6 py-8 text-center">
-      <p className="text-sm font-medium text-crit">Something went wrong</p>
+    <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-8 text-center shadow-[var(--shadow-soft)]">
+      <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-crit/8 text-crit">
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden>
+          <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-1-5a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0v-1zm0-4a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0V9z" clipRule="evenodd" />
+        </svg>
+      </div>
+      <p className="text-sm font-semibold text-crit">Something went wrong</p>
       <p className="mt-1 text-xs text-ink2">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border2 bg-surface px-4 text-xs font-medium text-ink hover:bg-surface3"
+          className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-surface3 px-4 text-xs font-medium text-ink transition-colors hover:bg-surface3/70"
         >
           Try again
         </button>

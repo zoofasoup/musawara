@@ -132,49 +132,67 @@ export function Styleguide() {
       {node}
       <PageHeader title="Style guide" subtitle="Every shared component and each state. Build from these; do not restyle raw HTML controls." />
 
-      <Section title="Buttons" note="One primary per view. Secondary and ghost for the rest. Destructive always behind a confirm.">
-        <Panel className="space-y-3 p-4">
-          <Row label="Tones">
-            <Btn tone="primary">Primary</Btn>
-            <Btn tone="secondary">Secondary</Btn>
+      <Section title="Buttons & Controls (v2 Language)" note="Raised and recessed visual language. Primary buttons carry the warm radial glow with white rim; secondary buttons are white raised tiles with soft shadow (no harsh borders); ghost buttons are clean; danger actions are tactile tiles.">
+        <div className="space-y-4 rounded-3xl bg-surface2 p-6">
+          <Row label="Tones (40/44px)">
+            <Btn tone="primary">Primary Glow</Btn>
+            <Btn tone="primary" flat>Flat Accent</Btn>
+            <Btn tone="secondary">Secondary Raised</Btn>
             <Btn tone="ghost">Ghost</Btn>
             <Btn tone="danger">Danger</Btn>
           </Row>
+          <Row label="Compact (size=&quot;sm&quot;)">
+            <Btn tone="primary" size="sm">Primary</Btn>
+            <Btn tone="secondary" size="sm">Secondary</Btn>
+            <Btn tone="ghost" size="sm">Ghost</Btn>
+            <Btn tone="danger" size="sm">Danger</Btn>
+          </Row>
           <Row label="With icon">
-            <Btn tone="primary" icon="plus">Add</Btn>
-            <Btn tone="secondary" icon="refresh">Sync</Btn>
+            <Btn tone="primary" icon="plus">Add Item</Btn>
+            <Btn tone="secondary" icon="refresh">Sync Now</Btn>
           </Row>
           <Row label="Loading">
-            <Btn tone="primary" icon="refresh" loading>Saving</Btn>
+            <Btn tone="primary" icon="refresh" loading>Saving...</Btn>
+            <Btn tone="secondary" icon="refresh" loading>Refreshing</Btn>
           </Row>
           <Row label="Disabled">
             <Btn tone="primary" disabled>Primary</Btn>
             <Btn tone="secondary" disabled>Secondary</Btn>
           </Row>
           <Row label="Two-tap delete">
-            <ConfirmBtn label="Delete" onConfirm={() => notify("Deleted (demo)")} />
+            <ConfirmBtn label="Delete item" onConfirm={() => notify("Deleted (demo)")} />
           </Row>
-          <Row label="Copy">
+          <Row label="Copy tile">
             <CopyBtn text="https://musawara.id" label="Copy link" />
           </Row>
-        </Panel>
+        </div>
       </Section>
 
-      <Section title="Buttons v2 (preview)" note="Raised and recessed. White raised tiles with a soft shadow are things you can press; grey recessed wells hold choices; the glow gradient marks the one main action of a view, and a status is a tinted fill with no shadow. Radius nests: outer 2xl, inner xl. Not wired into Btn and Pill yet.">
+      <Section title="Specialised Controls v2" note="Wadah cekung (recessed wells) menampung pilihan; tombol interaktif terangkat (raised tiles); kontrol segmented, filter, dan chip khusus.">
         <ControlsDemo />
       </Section>
 
-      <Section title="Pills" note="A status or category, never an action. Colour comes from the tone, not the page.">
-        <Panel className="p-4">
-          <div className="flex flex-wrap gap-2">
+      <Section title="Pills & Badges v2" note="Status bertitik semantik dengan kontras lembut, rounded-xl tanpa border kaku.">
+        <div className="rounded-3xl bg-surface2 p-6">
+          <div className="flex flex-wrap items-center gap-2.5">
             {TONES.map((t) => <Pill key={t} tone={t}>{t}</Pill>)}
-            <Pill tone="good" icon="checkCircle">With icon</Pill>
+            <Pill tone="good" icon="checkCircle">Verified</Pill>
+            <Pill tone="warn" dot={false}>No dot</Pill>
+            <span className="h-5 w-px bg-border/60" />
+            <span className="text-xs text-muted">Compact (size=&quot;sm&quot;):</span>
+            <Pill tone="accent" size="sm">Active</Pill>
+            <Pill tone="good" size="sm" icon="check">Done</Pill>
           </div>
-        </Panel>
+        </div>
       </Section>
 
       <Section title="Form controls" note="Input, Textarea, NativeSelect and Checkbox from components/ui. They size themselves: 44px on phones, 40px from tablet.">
-        <Panel className="space-y-3 p-4">
+        <div className="space-y-4 rounded-3xl bg-surface2 p-6">
+          <Row label="Recessed Search">
+            <div className="w-full sm:max-w-xs">
+              <SearchField><Input placeholder="Search field..." aria-label="Search" /></SearchField>
+            </div>
+          </Row>
           <Row label="Input">
             <Input placeholder="Placeholder" value={text} onChange={(e) => setText(e.target.value)} aria-label="Demo input" className="sm:max-w-xs" />
           </Row>
@@ -204,32 +222,36 @@ export function Styleguide() {
               Checked is {String(checked)}
             </label>
           </Row>
-        </Panel>
+        </div>
       </Section>
 
       <Section title="Loading, empty and error" note="Every list or data view needs all three. Empty teaches the first step.">
-        <div className="grid gap-4 md:grid-cols-3">
-          <CardSkeleton lines={3} />
-          <Empty icon="info" title="Nothing here yet" hint="Say what this page is for and what to do first." action={<Btn tone="primary" icon="plus">Add the first one</Btn>} />
-          <ErrorState message="Request failed (500)" onRetry={() => notify("Retrying (demo)")} />
+        <div className="space-y-4 rounded-3xl bg-surface2 p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <CardSkeleton lines={3} />
+            <Empty icon="info" title="Nothing here yet" hint="Say what this page is for and what to do first." action={<Btn tone="primary" icon="plus">Add the first one</Btn>} />
+            <ErrorState message="Request failed (500)" onRetry={() => notify("Retrying (demo)")} />
+          </div>
+          <EmptyState title="Compact empty state" hint="For inside a card or list." />
         </div>
-        <EmptyState title="Compact empty state" hint="For inside a card or list." />
       </Section>
 
       <Section title="Nested card and row list" note="Group with tint, not with outlines. A number or small summary is a Nested card; a list is one RowList with hairlines, never a bordered box per item.">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Nested title="Total spend"><p className="tnum text-xl font-semibold text-ink">Rp 12.600.000</p><p className="mt-1 text-xs text-good">+2.1% <span className="text-muted">vs prev.</span></p></Nested>
-          <Nested title="Leads" right={<Pill tone="warn">Low</Pill>}><p className="tnum text-xl font-semibold text-ink">184</p><p className="mt-1 text-xs text-crit">-3.2% <span className="text-muted">vs prev.</span></p></Nested>
-          <Nested title="Cost / lead"><p className="tnum text-xl font-semibold text-ink">Rp 68.400</p><p className="mt-1 text-xs text-muted">Target Rp 70.000</p></Nested>
+        <div className="space-y-4 rounded-3xl bg-surface2 p-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Nested title="Total spend"><p className="tnum text-xl font-semibold text-ink">Rp 12.600.000</p><p className="mt-1 text-xs text-good">+2.1% <span className="text-muted">vs prev.</span></p></Nested>
+            <Nested title="Leads" right={<Pill tone="warn">Low</Pill>}><p className="tnum text-xl font-semibold text-ink">184</p><p className="mt-1 text-xs text-crit">-3.2% <span className="text-muted">vs prev.</span></p></Nested>
+            <Nested title="Cost / lead"><p className="tnum text-xl font-semibold text-ink">Rp 68.400</p><p className="mt-1 text-xs text-muted">Target Rp 70.000</p></Nested>
+          </div>
+          <RowList>
+            {["Brief Desember", "Paket promo 12.12", "Reel teaser Nobar"].map((t) => (
+              <li key={t} className="flex min-h-14 items-center justify-between gap-2 px-4 py-3">
+                <span className="text-sm font-medium text-ink">{t}</span>
+                <Pill tone="accent">Waiting</Pill>
+              </li>
+            ))}
+          </RowList>
         </div>
-        <RowList>
-          {["Brief Desember", "Paket promo 12.12", "Reel teaser Nobar"].map((t) => (
-            <li key={t} className="flex min-h-14 items-center justify-between gap-2 px-4 py-3">
-              <span className="text-sm font-medium text-ink">{t}</span>
-              <Pill tone="accent">Waiting</Pill>
-            </li>
-          ))}
-        </RowList>
       </Section>
 
       <Section title="Kanban" note="Drag a card to another column with mouse, touch (hold briefly) or keyboard (Space, arrows, Space). A locked card does not move; a column that fills in by itself does not accept drops.">
@@ -244,7 +266,7 @@ export function Styleguide() {
           getColumn={(c) => c.col}
           canDrag={(c) => c.col !== "done"}
           onMove={async (c, to) => setDemo((d) => d.map((x) => (x.id === c.id ? { ...x, col: to } : x)))}
-          renderCard={(c) => <div className="rounded-lg border border-border bg-surface p-2.5 text-sm font-medium text-ink">{c.title}</div>}
+          renderCard={(c) => <div className="rounded-xl bg-surface p-3 text-sm font-medium text-ink shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-panel)]">{c.title}</div>}
           className="lg:grid-cols-3"
         />
       </Section>

@@ -34,7 +34,11 @@ type Props<T> = {
 function Card<T>({ id, draggable, children }: { id: string; draggable: boolean; children: ReactNode }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, disabled: !draggable });
   return (
-    <div ref={setNodeRef} {...(draggable ? { ...attributes, ...listeners } : {})} className={`touch-manipulation ${isDragging ? "opacity-40" : ""}`}>
+    <div
+      ref={setNodeRef}
+      {...(draggable ? { ...attributes, ...listeners } : {})}
+      className={`touch-manipulation select-none ${isDragging ? "opacity-40" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+    >
       {children}
     </div>
   );
@@ -118,7 +122,9 @@ export function Kanban<T>({ columns, items, getId, getColumn, canDrag = () => tr
           );
         })}
       </div>
-      <DragOverlay>{active ? <div className="rotate-1 shadow-lg">{renderCard(active)}</div> : null}</DragOverlay>
+      <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18,0.67,0.6,1.22)" }}>
+        {active ? <div className="rotate-1 cursor-grabbing shadow-lg">{renderCard(active)}</div> : null}
+      </DragOverlay>
     </DndContext>
   );
 }

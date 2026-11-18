@@ -32,10 +32,41 @@ const TONES = {
 } as const;
 export type Tone = keyof typeof TONES;
 
-export function Pill({ tone = "neutral", icon, children }: { tone?: Tone; icon?: IconName; children: ReactNode }) {
+const DOTS = {
+  neutral: "bg-muted",
+  good: "bg-good",
+  warn: "bg-warn",
+  crit: "bg-crit",
+  accent: "bg-[var(--accent)]",
+} as const;
+
+export function Pill({
+  tone = "neutral",
+  icon,
+  dot,
+  size = "default",
+  children,
+}: {
+  tone?: Tone;
+  icon?: IconName;
+  dot?: boolean;
+  size?: "sm" | "default";
+  children: ReactNode;
+}) {
   return (
-    <Badge variant="secondary" className={cn("h-auto gap-1 px-2 py-0.5 font-medium", TONES[tone])}>
-      {icon && <Icon name={icon} className="h-3 w-3" />}
+    <Badge
+      variant="secondary"
+      className={cn(
+        "gap-1.5 border-0 font-semibold shadow-none transition-colors",
+        size === "sm" ? "h-auto rounded-lg px-2.5 py-0.5 text-[11px]" : "h-auto min-h-7 rounded-xl px-3 py-1 text-xs",
+        TONES[tone]
+      )}
+    >
+      {icon ? (
+        <Icon name={icon} className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} />
+      ) : (
+        (dot ?? true) && <span className={cn("shrink-0 rounded-full", size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2", DOTS[tone])} aria-hidden />
+      )}
       {children}
     </Badge>
   );
@@ -43,17 +74,80 @@ export function Pill({ tone = "neutral", icon, children }: { tone?: Tone; icon?:
 
 const BTN_VARIANT = { primary: "default", secondary: "outline", ghost: "ghost", danger: "destructive" } as const;
 
+export type BtnSize = "default" | "sm" | "lg";
+
+const BTN_SIZE_CLASSES: Record<BtnSize, string> = {
+  default: "h-auto min-h-11 md:min-h-10 px-4 text-sm rounded-2xl",
+  sm: "h-auto min-h-8 px-3 py-1 text-xs rounded-xl",
+  lg: "h-auto min-h-12 px-5 text-base rounded-2xl",
+};
+
+const glowStyle = {
+  background:
+    "radial-gradient(130% 100% at 0% 0%, oklch(0.87 0.14 62) 0%, oklch(0.78 0.17 20 / 0.55) 30%, transparent 64%), linear-gradient(165deg, color-mix(in oklch, var(--accent) 80%, oklch(0.72 0.2 335)) 0%, var(--accent) 100%)",
+  // No ring-as-outline: use inset + drop to avoid the 1px gap the border creates
+  boxShadow: "inset 0 1px 0 0 rgb(255 255 255 / 0.35), 0 8px 22px -6px color-mix(in srgb, var(--accent) 55%, transparent)",
+} as const;
+
+const flatPrimaryStyle = {
+  boxShadow: "0 6px 16px -6px color-mix(in srgb, var(--accent) 60%, transparent)",
+} as const;
+
+const TONE_CLASSES = {
+  // border-0 bg-clip-border to prevent the base <Button> from inserting a gap before boxShadow rings
+  primary: "border-0 bg-clip-border font-semibold text-white",
+  secondary: "border-0 bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)]",
+  ghost: "border-0 bg-transparent text-ink2 hover:bg-surface3 hover:text-ink shadow-none",
+  danger: "border-0 bg-surface text-crit shadow-[var(--shadow-soft)] hover:bg-crit/10 hover:shadow-[var(--shadow-panel)]",
+} as const;
+
 export function Btn({
   tone = "secondary",
+  size = "default",
   icon,
   loading,
   children,
   className = "",
+  style,
+  flat,
   ...rest
-}: Omit<React.ComponentProps<typeof Button>, "variant"> & { tone?: keyof typeof BTN_VARIANT; icon?: IconName; loading?: boolean }) {
+}: Omit<React.ComponentProps<typeof Button>, "variant" | "size"> & {
+  tone?: keyof typeof BTN_VARIANT;
+  size?: BtnSize;
+  icon?: IconName;
+  loading?: boolean;
+  flat?: boolean;
+}) {
+  const isGlow = tone === "primary" && !flat;
+  const computedStyle = isGlow
+    ? { ...glowStyle, ...style }
+    : tone === "primary"
+      ? { ...flatPrimaryStyle, ...style }
+      : style;
+
+  // primary tone needs border:none in inline style because the base <Button> variant
+  // adds `border border-transparent bg-clip-padding` which creates a 1-px transparent gap
+  // before any box-shadow ring. bg-clip-border + border:none closes that gap.
+  const inlineStyle =
+    tone === "primary"
+      ? { border: "none", backgroundClip: "border-box", ...computedStyle }
+      : computedStyle;
+
   return (
-    <Button {...rest} variant={BTN_VARIANT[tone]} disabled={rest.disabled || loading} className={cn("rounded-full text-xs", className)}>
-      {icon && <Icon name={icon} className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />}
+    <Button
+      {...rest}
+      variant={tone === "secondary" ? "outline" : tone === "danger" ? "destructive" : tone === "ghost" ? "ghost" : "default"}
+      disabled={rest.disabled || loading}
+      style={inlineStyle}
+      className={cn(
+        "press inline-flex select-none items-center justify-center gap-2 font-medium outline-none transition-[box-shadow,background-color,color] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 disabled:pointer-events-none disabled:opacity-50",
+        BTN_SIZE_CLASSES[size],
+        TONE_CLASSES[tone],
+        tone === "primary" && flat && "bg-[var(--accent)]",
+        className
+      )}
+    >
+      {icon && <Icon name={icon} className={cn(size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4", loading ? "animate-spin" : "")} />}
       {children}
     </Button>
   );
@@ -180,11 +274,11 @@ export function ConfirmBtn({ label, confirmLabel = "Tap again to confirm", icon 
     );
   }
   return (
-    <span className="inline-flex items-center gap-1">
-      <Btn tone="danger" className="bg-crit/10" onClick={onConfirm}>
+    <span className="inline-flex min-h-11 md:min-h-10 items-center gap-1.5 rounded-2xl bg-surface p-1 shadow-[var(--shadow-soft)]">
+      <Btn tone="danger" size="sm" className="rounded-xl" onClick={onConfirm}>
         {confirmLabel}
       </Btn>
-      <Btn tone="ghost" onClick={() => setArmed(false)}>
+      <Btn tone="ghost" size="sm" className="rounded-xl" onClick={() => setArmed(false)}>
         Cancel
       </Btn>
     </span>
@@ -207,9 +301,14 @@ export function CopyBtn({ text, label }: { text: string; label?: string }) {
           /* clipboard blocked: nothing to do */
         }
       }}
-      className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-xs text-ink2 hover:bg-surface2 hover:text-ink lg:h-7 lg:min-h-0 lg:min-w-0"
+      className={cn(
+        "press inline-flex min-h-11 md:min-h-10 select-none items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium transition-[box-shadow,background-color,color] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40",
+        done
+          ? "bg-good/12 text-good shadow-[var(--shadow-soft)]"
+          : "bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)]"
+      )}
     >
-      <Icon name={done ? "check" : "copy"} className={`h-3.5 w-3.5 ${done ? "text-good" : ""}`} />
+      <Icon name={done ? "check" : "copy"} className={cn("h-4 w-4", done && "text-good")} />
       {label && <span>{done ? "Copied" : label}</span>}
     </button>
   );
@@ -261,24 +360,21 @@ export function Section({
 }
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</div>;
+  // A raised card. No default padding: lists, tables and the inbox fill it edge to edge, and forms add their own (p-4, p-5).
+  return <div className={cn("rounded-2xl bg-surface shadow-[var(--shadow-soft)]", className)}>{children}</div>;
 }
 
-/**
- * A card inside a tinted holder: a quiet title row on top, the content on a white card below.
- * The default shape for a number, a stat or a small summary. Use it instead of a bordered box
- * around every item; group with surface tint, not with more outlines.
- */
+/** A small raised card: a quiet title row on top, the number or summary below. */
 export function Nested({ title, right, children, className = "" }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border/70 bg-surface2/70 p-1.5 ${className}`}>
+    <div className={`rounded-2xl bg-surface p-3 shadow-[var(--shadow-soft)] ${className}`}>
       {(title || right) && (
-        <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink2">
+        <div className="flex items-center justify-between gap-2 px-1 pb-2 pt-0.5 text-xs font-semibold text-ink2">
           <span className="min-w-0 truncate">{title}</span>
           {right}
         </div>
       )}
-      <div className="rounded-xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">{children}</div>
+      <div className="px-1">{children}</div>
     </div>
   );
 }
@@ -289,7 +385,7 @@ export function Nested({ title, right, children, className = "" }: { title?: Rea
  */
 export function Bento({ title, subtitle, right, children, className = "" }: { title?: ReactNode; subtitle?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`min-w-0 rounded-3xl border border-border/50 bg-surface p-5 shadow-[var(--shadow-soft)] ${className}`}>
+    <section className={cn("min-w-0 rounded-3xl bg-surface p-5 shadow-[var(--shadow-soft)]", className)}>
       {(title || right) && (
         <header className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -306,7 +402,7 @@ export function Bento({ title, subtitle, right, children, className = "" }: { ti
 
 /** One surface holding rows separated by hairlines: the way to show a list, instead of a box per item. */
 export function RowList({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <ul className={`divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</ul>;
+  return <ul className={`divide-y divide-border/50 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-soft)] ${className}`}>{children}</ul>;
 }
 
 export function Empty({ icon, title, hint, action }: { icon: IconName; title: string; hint: string; action?: ReactNode }) {
