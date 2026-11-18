@@ -4,7 +4,7 @@
 // Collapses to cards on mobile.
 
 import { Input } from "@/components/ui/input";
-import { Segmented } from "./Controls";
+import { Segmented } from "./Segmented";
 import { Fragment, useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtPct, fmtRp } from "../lib/format";

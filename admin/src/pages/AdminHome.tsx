@@ -2,7 +2,7 @@
 // their CPA target, a client table, spend share, then alerts and sync health.
 
 import { useMemo, useState } from "react";
-import { Segmented } from "../components/Controls";
+import { Segmented } from "../components/Segmented";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { api, useApi } from "../lib/api";

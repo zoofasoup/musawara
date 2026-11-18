@@ -100,7 +100,7 @@ export function ClientFrame() {
           )}
         </div>
 
-        <PillNav label="Client menu" className="mb-5">
+        <PillNav label="Client menu" className="mb-2">
             {tabs.map((t) => (
               <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => pillTabCls(isActive)}>
                 {t.label}

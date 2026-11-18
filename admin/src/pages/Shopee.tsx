@@ -2,7 +2,7 @@
 // from orders synced out of Shopee. No buyer information is stored or shown (see worker/lib/shopee.ts).
 
 import { useEffect, useMemo, useState } from "react";
-import { Segmented } from "../components/Controls";
+import { Segmented } from "../components/Segmented";
 import { useSearchParams } from "react-router-dom";
 import { api, useApi } from "../lib/api";
 import { addDays, todayJakarta } from "../lib/dates";

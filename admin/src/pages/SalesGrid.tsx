@@ -2,7 +2,7 @@
 // Meta state, toggle columns, page through, export what is on screen.
 
 import { NativeSelect } from "@/components/ui/native-select";
-import { Segmented } from "../components/Controls";
+import { Segmented } from "../components/Segmented";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { api } from "../lib/api";

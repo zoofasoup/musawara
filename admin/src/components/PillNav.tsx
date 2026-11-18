@@ -11,7 +11,7 @@ export const pillTabCls = (on: boolean) =>
 /** Scrolls sideways when the tabs are wider than the screen; sticks under the phone top bar while the page scrolls. */
 export function PillNav({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <nav aria-label={label} className={`sticky top-[4.25rem] z-10 -mx-1 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:top-auto md:mx-0 md:px-0 md:py-0 md:pb-1 ${className}`}>
+    <nav aria-label={label} className={`sticky top-[4.25rem] z-10 -mx-3 -my-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:top-auto ${className}`}>
       <SlidingTrack className={`inline-flex min-w-max gap-1 rounded-2xl p-1 ${glassCls} md:border-0 md:bg-surface3 md:shadow-none md:backdrop-blur-none`} {...{ "data-glass": "" }}>
         {children}
       </SlidingTrack>

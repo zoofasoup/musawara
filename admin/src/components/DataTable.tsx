@@ -21,9 +21,9 @@ const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidd
 export function DataTable<T>({ columns, rows, getKey, onRowClick, empty = "Nothing to show.", footer, className }: { columns: Column<T>[]; rows: T[]; getKey: (row: T) => string | number; onRowClick?: (row: T) => void; empty?: ReactNode; footer?: ReactNode; className?: string }) {
   const cellCls = (c: Column<T>) => cn("px-4 py-3", c.numeric && "tnum whitespace-nowrap text-right", c.hideBelow && HIDE[c.hideBelow], c.className);
   return (
-    <div className={cn("overflow-x-auto rounded-2xl border border-border/70", className)}>
+    <div className={cn("overflow-x-auto rounded-2xl border border-border/70 bg-surface shadow-[var(--shadow-soft)]", className)}>
       <table className="w-full min-w-[22rem] text-left text-sm">
-        <thead className="bg-surface2/70 text-xs text-muted">
+        <thead className="bg-surface2 text-xs text-muted">
           <tr>
             {columns.map((c) => (
               <th key={c.key} scope="col" className={cn("px-4 py-2.5 font-medium", c.numeric && "text-right", c.hideBelow && HIDE[c.hideBelow])}>{c.header}</th>

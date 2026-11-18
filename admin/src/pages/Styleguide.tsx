@@ -1,7 +1,6 @@
 // The living style guide: every shared component in every state it can be in. Team only, not in the menu.
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useMemo, useState, type ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, PanelLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PillNav, pillTabCls } from "../components/PillNav";
 import { StatusBadge } from "../components/ui";
@@ -21,14 +20,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
-import { raisedCls } from "../components/Controls";
 import { CampaignRanking } from "../components/CampaignRanking";
 import { CreativeQuadrant } from "../components/CreativeQuadrant";
 import type { Creative } from "../components/CreativeCards";
 import { Callout } from "../components/Callout";
 import { DataTable } from "../components/DataTable";
 import { FormField, FormGrid } from "../components/FormField";
-import { AskBtn, Chip, DashedBtn, FilterBtn, GlowBtn, IconTile, RaisedBtn, SearchField, Segmented, StepperAction } from "../components/Controls";
+import { Segmented } from "../components/Segmented";
 import { Bubble } from "./crm/inbox/ThreadView";
 import type { Msg } from "./crm/inbox/util";
 import { PageHeader } from "../components/PageHeader";
@@ -75,47 +73,6 @@ function toneUrl() {
   v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
   for (let i = 0; i < n; i++) v.setUint8(44 + i, 128 + Math.round(40 * Math.sin((2 * Math.PI * 440 * i) / rate) * Math.min(1, (n - i) / 800)));
   return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
-}
-function ControlsDemo() {
-  const [align, setAlign] = useState<"l" | "c" | "r">("l");
-  const [mins, setMins] = useState(30);
-  const [filters, setFilters] = useState(2);
-  const [chip, setChip] = useState(true);
-  const [seg, setSeg] = useState("week");
-  return (
-    <div className="flex flex-col gap-5 rounded-3xl bg-surface2 p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <AskBtn />
-        {chip ? <Chip label="Ella M." avatar="Ella M." onRemove={() => setChip(false)} /> : <RaisedBtn onClick={() => setChip(true)}>Restore chip</RaisedBtn>}
-        <DashedBtn>Upload</DashedBtn>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterBtn count={filters} onClick={() => setFilters((n) => n + 1)} onClear={() => setFilters(0)} />
-        <Segmented label="Alignment" value={align} onChange={setAlign} options={[
-          { value: "l", label: "Align left", iconOnly: true, icon: <AlignLeft className="h-4 w-4" /> },
-          { value: "c", label: "Align centre", iconOnly: true, icon: <AlignCenter className="h-4 w-4" /> },
-          { value: "r", label: "Align right", iconOnly: true, icon: <AlignRight className="h-4 w-4" /> },
-        ]} />
-        <StepperAction value={<>{mins} <span className="font-normal text-muted">mins</span></>} onStep={(d) => setMins((m) => Math.max(15, Math.min(120, m + d * 15)))} action={<GlowBtn className="rounded-xl">Book a Call</GlowBtn>} />
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <IconTile label="Toggle sidebar"><PanelLeft className="h-4 w-4" /></IconTile>
-        <Pill size="lg" tone="good">Online</Pill>
-        <Pill size="lg" tone="info" busy>In progress</Pill>
-        <Pill size="lg" tone="warn">Needs review</Pill>
-        <Pill size="lg" tone="crit">Failed</Pill>
-        <Pill size="lg" tone="neutral" dot={false}>Draft</Pill>
-        <div className="min-w-56 flex-1 sm:max-w-xs"><SearchField><Input placeholder="Search" aria-label="Search demo" /></SearchField></div>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <Segmented label="Range" value={seg} onChange={setSeg} options={[{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }]} />
-        <GlowBtn flat>Flat accent</GlowBtn>
-        <RaisedBtn>Secondary</RaisedBtn>
-        <RaisedBtn disabled>Disabled</RaisedBtn>
-        <GlowBtn disabled>Disabled</GlowBtn>
-      </div>
-    </div>
-  );
 }
 
 
@@ -206,10 +163,10 @@ function OverlaysDemo({ notify }: { notify: (t: string, k?: "ok" | "err") => voi
   return (
     <div className="space-y-5 rounded-3xl bg-surface2 p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <RaisedBtn onClick={() => setDialog(true)}>Dialog</RaisedBtn>
-        <RaisedBtn onClick={() => setConfirm(true)}>Confirm dialog</RaisedBtn>
+        <Btn tone="secondary" onClick={() => setDialog(true)}>Dialog</Btn>
+        <Btn tone="secondary" onClick={() => setConfirm(true)}>Confirm dialog</Btn>
         <DropdownMenu>
-          <DropdownMenuTrigger className={`press inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-medium md:min-h-10 ${raisedCls}`}>Menu</DropdownMenuTrigger>
+          <DropdownMenuTrigger render={<Btn tone="secondary" />}>Menu</DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => notify("Opened (demo)")}>Open</DropdownMenuItem>
             <DropdownMenuItem onClick={() => notify("Duplicated (demo)")}>Duplicate</DropdownMenuItem>
@@ -218,7 +175,7 @@ function OverlaysDemo({ notify }: { notify: (t: string, k?: "ok" | "err") => voi
           </DropdownMenuContent>
         </DropdownMenu>
         <Popover>
-          <PopoverTrigger className={`press inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-medium md:min-h-10 ${raisedCls}`}>Popover</PopoverTrigger>
+          <PopoverTrigger render={<Btn tone="secondary" />}>Popover</PopoverTrigger>
           <PopoverContent>
             <PopoverHeader><PopoverTitle>Small panel</PopoverTitle><PopoverDescription>For a few controls anchored to a button.</PopoverDescription></PopoverHeader>
           </PopoverContent>
@@ -303,7 +260,7 @@ export function Styleguide() {
       {node}
       <PageHeader title="Style guide" subtitle="Every shared component and each state. Build from these; do not restyle raw HTML controls." />
 
-      <Section title="Buttons & Controls (v2 Language)" note="Raised and recessed visual language. Primary buttons carry the warm radial glow with white rim; secondary buttons are white raised tiles with soft shadow (no harsh borders); ghost buttons are clean; danger actions are tactile tiles.">
+      <Section title="Buttons" note="Raised and recessed visual language. Primary buttons carry the warm radial glow with white rim; secondary buttons are white raised tiles with soft shadow (no harsh borders); ghost buttons are clean; danger actions are tactile tiles.">
         <div className="space-y-4 rounded-3xl bg-surface2 p-6">
           <Row label="Tones (40/44px)">
             <Btn tone="primary">Primary Glow</Btn>
@@ -337,10 +294,6 @@ export function Styleguide() {
             <CopyBtn text="https://musawara.id" label="Copy link" />
           </Row>
         </div>
-      </Section>
-
-      <Section title="Specialised Controls v2" note="Wadah cekung (recessed wells) menampung pilihan; tombol interaktif terangkat (raised tiles); kontrol segmented, filter, dan chip khusus.">
-        <ControlsDemo />
       </Section>
 
       <Section title="Choosing and navigating" note="Three controls, three jobs. Segmented: pick one value you hold in state (a range, a filter, a role). PillNav: move between pages (route tabs, sticks under the phone top bar). Tabs: switch panels inside one page.">
@@ -404,7 +357,7 @@ export function Styleguide() {
         </Panel>
       </Section>
 
-      <Section title="Pills & Badges v2" note="Status bertitik semantik dengan kontras lembut, rounded-xl tanpa border kaku.">
+      <Section title="Pills and badges" note="Status bertitik semantik dengan kontras lembut, rounded-xl tanpa border kaku.">
         <div className="rounded-3xl bg-surface2 p-6">
           <div className="flex flex-wrap items-center gap-2.5">
             {TONES.map((t) => <Pill key={t} tone={t}>{t}</Pill>)}
@@ -422,11 +375,6 @@ export function Styleguide() {
 
       <Section title="Form controls" note="Input, Textarea, NativeSelect and Checkbox from components/ui. They size themselves: 44px on phones, 40px from tablet.">
         <div className="space-y-4 rounded-3xl bg-surface2 p-6">
-          <Row label="Recessed Search">
-            <div className="w-full sm:max-w-xs">
-              <SearchField><Input placeholder="Search field..." aria-label="Search" /></SearchField>
-            </div>
-          </Row>
           <Row label="Input">
             <Input placeholder="Placeholder" value={text} onChange={(e) => setText(e.target.value)} aria-label="Demo input" className="sm:max-w-xs" />
           </Row>

@@ -1,5 +1,5 @@
 import { NativeSelect } from "@/components/ui/native-select";
-import { Segmented } from "../../components/Controls";
+import { Segmented } from "../../components/Segmented";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, homeOrigin, type useApi } from "../../lib/api";

@@ -5,7 +5,7 @@
 // Identifiers are hashed in the browser; only hashes reach the server and Meta.
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Segmented } from "../components/Controls";
+import { Segmented } from "../components/Segmented";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { FormField } from "../components/FormField";
