@@ -247,7 +247,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
 
   const header = (key: SortKey, label: string, extraClass = "") => (
     <th
-      className={`cursor-pointer select-none px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted hover:text-ink2 ${extraClass}`}
+      className={`cursor-pointer select-none px-3 py-2 text-right text-xs font-medium text-muted hover:text-ink2 ${extraClass}`}
       onClick={() => {
         if (sortKey === key) setSortDir((d) => (d === 1 ? -1 : 1));
         else {
@@ -263,14 +263,14 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
       {/* filters, like the Ads Manager tabs + search */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
-        <div role="group" aria-label="Delivery filter" className="inline-flex rounded-lg bg-surface3 p-0.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 p-3">
+        <div role="group" aria-label="Delivery filter" className="inline-flex rounded-full bg-surface3 p-0.5">
           {chips.map((c) => (
             <button
               key={c.k}
               onClick={() => setShow(c.k)}
               aria-pressed={show === c.k}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-xs font-medium lg:min-h-8 ${show === c.k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium lg:min-h-8 ${show === c.k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
             >
               {c.l} <span className="tnum text-muted">{c.n}</span>
             </button>
@@ -281,7 +281,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name"
           aria-label="Search campaigns"
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-border2 bg-surface px-3 text-xs text-ink placeholder:text-muted lg:min-h-8 sm:max-w-[16rem]"
+          className="min-h-11 min-w-0 flex-1 rounded-full border border-border2 bg-surface px-3 text-xs text-ink placeholder:text-muted lg:min-h-8 sm:max-w-[16rem]"
         />
       </div>
 
@@ -295,7 +295,7 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
               <thead>
                 <tr className="bg-surface2/60">
                   <th
-                    className="cursor-pointer select-none px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted hover:text-ink2"
+                    className="cursor-pointer select-none px-3 py-2 text-left text-xs font-medium text-muted hover:text-ink2"
                     onClick={() => {
                       if (sortKey === "name") setSortDir((d) => (d === 1 ? -1 : 1));
                       else {
@@ -306,10 +306,10 @@ export function EntityTable({ clientId, from, to, compare }: { clientId: number;
                   >
                     Campaign {sortKey === "name" ? (sortDir === -1 ? "↓" : "↑") : ""}
                   </th>
-                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted md:table-cell">
+                  <th className="hidden px-3 py-2 text-left text-xs font-medium text-muted md:table-cell">
                     Delivery
                   </th>
-                  <th className="hidden px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted xl:table-cell">Budget</th>
+                  <th className="hidden px-3 py-2 text-right text-xs font-medium text-muted xl:table-cell">Budget</th>
                   {header("spend", "Spend")}
                   {header("leads", "Leads")}
                   {header("cpl", "Cost / Lead · Δ")}

@@ -13,7 +13,7 @@ import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn } from "../components/kit";
+import { Btn, Nested, RowList } from "../components/kit";
 
 const SOURCES = [
   { key: "meta", label: "Meta Ads", color: "var(--color-chart-1)" },
@@ -119,33 +119,39 @@ export function Spend() {
       ) : (
         d && (
           <>
-            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label="Total spend" value={fmtRp(d.total)} current={d.total} previous={d.previous_total} direction="neutral" />
-              {sources.slice(0, 3).map((s) => (
-                <div key={s.key} className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3.5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted">{label(s.key)}</p>
-                  <p className="tnum mt-1 truncate text-xl font-semibold text-ink">{fmtRp(s.total)}</p>
-                  <p className="tnum mt-1 text-xs text-ink2">{fmtPct(d.total ? (s.total / d.total) * 100 : 0, 0)} of total</p>
-                </div>
-              ))}
-            </div>
+            <Nested title="Spend in this range">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+                <KpiCard bare label="Total spend" value={fmtRp(d.total)} current={d.total} previous={d.previous_total} direction="neutral" />
+                {sources.slice(0, 3).map((s) => (
+                  <div key={s.key} className="min-w-0">
+                    <p className="text-xs font-medium text-muted">{label(s.key)}</p>
+                    <p className="tnum mt-1 truncate text-xl font-semibold text-ink">{fmtRp(s.total)}</p>
+                    <p className="tnum mt-1 text-xs text-ink2">{fmtPct(d.total ? (s.total / d.total) * 100 : 0, 0)} of total</p>
+                  </div>
+                ))}
+              </div>
+            </Nested>
 
             {days.length === 0 ? (
               <EmptyState title="No spend in this range" hint="Meta syncs nightly. Add marketplace spend below." />
             ) : (
-              <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
-                <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
-                  {sources.map((s) => (
-                    <span key={s.key} className="inline-flex items-center gap-1.5">
-                      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SOURCES.find((x) => x.key === s.key)?.color }} />
-                      {label(s.key)}
-                    </span>
-                  ))}
-                </div>
+              <Nested
+                title="Spend per day"
+                right={
+                  <span className="flex flex-wrap justify-end gap-x-3 gap-y-1 font-normal">
+                    {sources.map((s) => (
+                      <span key={s.key} className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full" style={{ background: SOURCES.find((x) => x.key === s.key)?.color }} />
+                        {label(s.key)}
+                      </span>
+                    ))}
+                  </span>
+                }
+              >
                 <div className="h-64 w-full">
                   <ResponsiveContainer>
                     <BarChart data={days} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
-                      <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                      <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
                       <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
                       <YAxis tickFormatter={(v: number) => fmtCompact(v)} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={44} />
                       <Tooltip
@@ -170,13 +176,13 @@ export function Spend() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
+              </Nested>
             )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               <div>
                 <SectionTitle>By source</SectionTitle>
-                <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+                <RowList>
                   {sources.map((s) => (
                     <li key={s.key} className="tnum flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
                       <span className="text-ink">{label(s.key)}</span>
@@ -187,11 +193,11 @@ export function Spend() {
                     </li>
                   ))}
                   {sources.length === 0 && <li className="px-4 py-3 text-sm text-muted">–</li>}
-                </ul>
+                </RowList>
               </div>
               <div>
                 <SectionTitle>By client</SectionTitle>
-                <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+                <RowList>
                   {d.by_client.map((c) => (
                     <li key={c.client_id ?? "none"} className="tnum flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
                       <span className="truncate text-ink">{c.client_name ?? "Company-wide"}</span>
@@ -199,7 +205,7 @@ export function Spend() {
                     </li>
                   ))}
                   {d.by_client.length === 0 && <li className="px-4 py-3 text-sm text-muted">–</li>}
-                </ul>
+                </RowList>
               </div>
             </div>
           </>
@@ -229,7 +235,7 @@ export function Spend() {
         {entries.error ? (
           <ErrorState message={entries.error} onRetry={entries.reload} />
         ) : entries.data?.entries.length ? (
-          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+          <RowList>
             {entries.data.entries.map((e) => (
               <li key={e.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className="min-w-0 flex-1">
@@ -241,7 +247,7 @@ export function Spend() {
                 <Btn tone="secondary" onClick={() => remove(e.id)} aria-label={`Delete entry ${fmtRp(e.amount)} ${label(e.source)}`}>Delete</Btn>
               </li>
             ))}
-          </ul>
+          </RowList>
         ) : (
           <EmptyState title="No manual entries in this range" hint="Add Shopee, TikTok or Tokopedia spend above." />
         )}

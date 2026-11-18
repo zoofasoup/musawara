@@ -325,9 +325,9 @@ export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale
 
       <DataGrid table={table} recordCount={filtered.length} className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div role="group" aria-label="Filter sales" className="inline-flex rounded-lg bg-surface3 p-0.5">
+        <div role="group" aria-label="Filter sales" className="inline-flex rounded-full bg-surface3 p-0.5">
           {STATES.map(([k, l]) => (
-            <button key={k} onClick={() => { setState(k); setPagination((p) => ({ ...p, pageIndex: 0 })); }} aria-pressed={state === k} className={`inline-flex min-h-11 items-center rounded-md px-3 text-xs font-medium lg:min-h-8 ${state === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
+            <button key={k} onClick={() => { setState(k); setPagination((p) => ({ ...p, pageIndex: 0 })); }} aria-pressed={state === k} className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-medium lg:min-h-8 ${state === k ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}>{l}</button>
           ))}
         </div>
         <div className="flex gap-2">
@@ -348,7 +348,7 @@ export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale
         <p className="mb-1.5 text-xs font-medium text-ink">By closer{month ? ` · ${month}` : ""}</p>
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-left text-xs">
-            <thead className="border-b border-border text-xs uppercase tracking-wider text-muted">
+            <thead className="border-b border-border/70 text-xs text-muted">
               <tr><th className="px-3 py-2">Closer</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Average</th><th className="px-3 py-2 text-right">Share</th></tr>
             </thead>
             <tbody className="divide-y divide-border">

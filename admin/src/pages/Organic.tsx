@@ -8,7 +8,7 @@ import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, EmptyState, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, ConfirmBtn, Sheet } from "../components/kit";
+import { Btn, ConfirmBtn, RowList, Sheet } from "../components/kit";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Day = { day: string; count: number };
@@ -87,7 +87,7 @@ function StoryRow({ a }: { a: Account }) {
   const today = a.days[a.days.length - 1]?.count ?? 0;
   const met = today >= a.story_target;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-surface2/70 px-4 py-3">
       <div className="min-w-0">
         <p className="text-xs text-muted">Stories today · @{a.ig_username ?? a.ig_user_id}</p>
         <p className={`tnum text-lg font-semibold ${met ? "text-good" : "text-ink"}`}>
@@ -300,9 +300,9 @@ export function Organic() {
       {found && found.length > 0 && (
         <div className="mt-8">
           <SectionTitle>Accounts the token can see</SectionTitle>
-          <div className="grid gap-2">
+          <RowList>
             {found.map((c) => (
-              <div key={c.ig_user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">
+              <li key={c.ig_user_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-ink">@{c.ig_username ?? c.ig_user_id}</p>
                   <p className="text-xs text-muted">Page: {c.page_name}</p>
@@ -318,9 +318,9 @@ export function Organic() {
                     <Btn tone="secondary" disabled={!pick[c.ig_user_id] || !!busy} onClick={() => add(c)}>Track</Btn>
                   </span>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </RowList>
         </div>
       )}
 

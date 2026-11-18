@@ -7,7 +7,7 @@ import { api, useApi } from "../lib/api";
 import { addDays, todayJakarta } from "../lib/dates";
 import { fmtDay, fmtNum, fmtRp } from "../lib/format";
 import { CardSkeleton, ErrorState } from "../components/ui";
-import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Tone } from "../components/kit";
+import { Btn, ConfirmBtn, Empty, Nested, Panel, Pill, useNotify, type Tone } from "../components/kit";
 import { PageHeader } from "../components/PageHeader";
 import { NeedsClient } from "../components/NeedsClient";
 import { useClientScope } from "../context/ClientScope";
@@ -61,9 +61,9 @@ const fmtSynced = (utc: string | null) =>
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3.5">
+    <div className="min-w-0">
       <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 whitespace-nowrap text-lg font-semibold text-ink tabular-nums sm:text-xl">{value}</p>
+      <p className="mt-1 truncate text-lg font-semibold text-ink tabular-nums sm:text-xl">{value}</p>
       {note && <p className="mt-0.5 text-xs text-ink2">{note}</p>}
     </div>
   );
@@ -176,7 +176,7 @@ export function Shopee() {
               <ConfirmBtn label="Disconnect" confirmLabel="Delete orders and disconnect" onConfirm={disconnect} />
             </Panel>
 
-            <div role="radiogroup" aria-label="Date range" className="inline-flex rounded-lg bg-surface3 p-0.5">
+            <div role="radiogroup" aria-label="Date range" className="inline-flex rounded-full bg-surface3 p-0.5">
               {RANGES.map((r) => (
                 <button
                   key={r.key}
@@ -184,7 +184,7 @@ export function Shopee() {
                   role="radio"
                   aria-checked={range === r.key}
                   onClick={() => setRange(r.key)}
-                  className={`inline-flex min-h-11 items-center rounded-md px-3.5 text-xs font-medium lg:min-h-9 ${range === r.key ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
+                  className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${range === r.key ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
                 >
                   {r.label}
                 </button>
@@ -199,19 +199,20 @@ export function Shopee() {
               <Empty icon="chart" title="No orders in this range" hint="Run Sync now to pull the latest orders, or pick a longer range." action={<Btn tone="secondary" icon="refresh" loading={busy === "sync"} onClick={syncNow}>Sync now</Btn>} />
             ) : s ? (
               <>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tile label="Revenue" value={fmtRp(s.totals.revenue)} />
-                  <Tile label="Orders" value={fmtNum(s.totals.orders)} note="Excludes unpaid and cancelled" />
-                  <Tile label="Units sold" value={fmtNum(s.totals.units)} />
-                  <Tile label="Average order" value={fmtRp(s.totals.avg_order)} />
-                </div>
+                <Nested title="Key numbers">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+                    <Tile label="Revenue" value={fmtRp(s.totals.revenue)} />
+                    <Tile label="Orders" value={fmtNum(s.totals.orders)} note="Excludes unpaid and cancelled" />
+                    <Tile label="Units sold" value={fmtNum(s.totals.units)} />
+                    <Tile label="Average order" value={fmtRp(s.totals.avg_order)} />
+                  </div>
+                </Nested>
 
-                <Panel className="p-3.5">
-                  <h2 className="text-sm font-semibold text-ink">Revenue per day</h2>
-                  <div className="mt-3 flex h-40 items-end gap-0.5" role="img" aria-label={`Daily revenue, highest ${fmtRp(maxRev)}`}>
+                <Nested title="Revenue per day">
+                  <div className="flex h-40 items-end gap-0.5" role="img" aria-label={`Daily revenue, highest ${fmtRp(maxRev)}`}>
                     {days.map((d) => (
                       <div key={d.day} className="group relative flex h-full min-w-0 flex-1 items-end" title={`${fmtDay(d.day)}: ${fmtRp(d.revenue)}, ${d.orders} order${d.orders === 1 ? "" : "s"}`}>
-                        <div className="w-full rounded-t bg-[var(--accent)]" style={{ height: `${d.revenue > 0 ? Math.max(3, (d.revenue / maxRev) * 100) : 0}%` }} />
+                        <div className="w-full rounded-t-sm bg-[color-mix(in_srgb,var(--accent)_45%,white)] group-hover:bg-[var(--accent)]" style={{ height: `${d.revenue > 0 ? Math.max(3, (d.revenue / maxRev) * 100) : 0}%` }} />
                       </div>
                     ))}
                   </div>
@@ -220,13 +221,12 @@ export function Shopee() {
                     <span>Peak {fmtRp(maxRev)}</span>
                     <span>{fmtDay(days[days.length - 1].day)}</span>
                   </div>
-                </Panel>
+                </Nested>
 
                 <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                  <Panel className="overflow-hidden">
-                    <h2 className="border-b border-border px-3.5 py-3 text-sm font-semibold text-ink">Top products</h2>
+                  <Nested title="Top products" className="[&>div]:p-0">
                     {s.top_products.length === 0 ? (
-                      <p className="p-3.5 text-sm text-muted">No sales in this range.</p>
+                      <p className="p-3 text-sm text-muted">No sales in this range.</p>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -245,10 +245,9 @@ export function Shopee() {
                         </table>
                       </div>
                     )}
-                  </Panel>
-                  <Panel className="p-3.5">
-                    <h2 className="text-sm font-semibold text-ink">Orders by status</h2>
-                    <ul className="mt-3 space-y-2">
+                  </Nested>
+                  <Nested title="Orders by status">
+                    <ul className="space-y-2">
                       {s.statuses.map((x) => (
                         <li key={x.status} className="flex items-center justify-between gap-2 text-sm">
                           <Pill tone={STATUS_TONE[x.status] ?? "neutral"}>{statusLabel(x.status)}</Pill>
@@ -256,7 +255,7 @@ export function Shopee() {
                         </li>
                       ))}
                     </ul>
-                  </Panel>
+                  </Nested>
                 </div>
               </>
             ) : null}

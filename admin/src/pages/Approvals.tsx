@@ -13,7 +13,7 @@ import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { fmtDateTime } from "../lib/format";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
-import { Btn, Pill, Sheet, useNotify, type Tone } from "../components/kit";
+import { Btn, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
 import type { Asset } from "./Assets";
 
 type Status = "pending" | "approved" | "changes_requested";
@@ -323,7 +323,7 @@ export function TeamApprovals() {
       ) : rows.length === 0 ? (
         <EmptyState title={status ? "No requests with this status" : "No approval requests yet"} hint="Open a client and choose Approvals to create one." />
       ) : (
-        <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+        <RowList>
           {rows.map((r) => (
             <li key={r.id}>
               <Link to={`/c/${r.client_id}/approvals`} className="flex min-h-14 flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-surface2">
@@ -335,7 +335,7 @@ export function TeamApprovals() {
               </Link>
             </li>
           ))}
-        </ul>
+        </RowList>
       )}
     </div>
   );
