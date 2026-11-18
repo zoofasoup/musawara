@@ -209,8 +209,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       )}
 
       {/* toolbar: secondary pages on the left, date range on the right */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
+      <div className="mb-4 flex flex-col-reverse gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-2">
+        <div className="grid grid-cols-2 gap-2 md:flex [&>*]:w-full md:[&>*]:w-auto">
           {!share && user?.role === "admin" && (
             <Btn icon="refresh" loading={syncing} onClick={syncNow}>
               {syncing ? "Syncing…" : "Sync now"}
@@ -222,15 +222,16 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
             </Link>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
+        <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-x-3 md:gap-y-1.5">
           <DateRangePicker value={range} onChange={setRange} />
-          <label className="flex items-center gap-1.5 text-xs text-muted">
+          <label className="flex items-center justify-between gap-2 text-xs text-muted md:justify-start md:gap-1.5">
             Compare
             <NativeSelect
               size="sm"
               value={mode}
               onChange={(e) => setMode(e.target.value as CompareMode)}
               aria-label="Compare to"
+              className="flex-1 md:flex-none"
             >
               <option value="prev">Previous period</option>
               <option value="month">Previous month</option>
@@ -241,7 +242,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
           </label>
           {mode === "custom" && <DateRangePicker value={custom} onChange={setCustom} />}
           {compareOn && summary.data && (
-            <span className="tnum w-full text-right text-xs text-muted">
+            <span className="tnum w-full text-xs text-muted md:text-right">
               vs {fmtDayFull(summary.data.range.prevFrom)} – {fmtDayFull(summary.data.range.prevTo)}
             </span>
           )}

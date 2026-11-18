@@ -176,21 +176,22 @@ export function DateRangePicker({
         onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border2 bg-surface px-3 text-left text-xs text-ink hover:bg-surface2"
+        className="inline-flex min-h-11 w-full items-center gap-2 rounded-xl border border-border2 bg-surface px-3 text-left text-xs text-ink hover:bg-surface2 sm:w-auto"
       >
         <span aria-hidden className="text-muted">▦</span>
         <span className="font-medium">{value.key === "custom" ? "Custom" : value.label}</span>
-        <span className="tnum hidden text-muted sm:inline">{rangeText(value.from, value.to)}</span>
-        <span aria-hidden className="text-muted">▾</span>
+        <span className="tnum text-muted">{rangeText(value.from, value.to)}</span>
+        <span aria-hidden className="ml-auto text-muted sm:ml-0">▾</span>
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-30 bg-ink/30 sm:hidden" aria-hidden />
+          <div className="fixed inset-0 z-30 bg-ink/20 backdrop-blur-[2px] sm:hidden" aria-hidden />
           <div
             role="dialog"
             aria-label="Date range"
-            className="fixed inset-x-0 bottom-0 z-40 max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border bg-surface shadow-[var(--shadow-panel)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-[31rem] sm:rounded-xl lg:w-[46rem]"
+            data-glass=""
+            className="fixed inset-x-0 bottom-0 z-40 max-h-[90dvh] overflow-y-auto rounded-t-[28px] border border-white/80 bg-white/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-3xl backdrop-saturate-[1.8] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_-12px_40px_rgba(20,24,36,0.16)] sm:absolute sm:bg-surface sm:backdrop-blur-none sm:shadow-[var(--shadow-panel)] sm:border-border sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-[31rem] sm:rounded-xl lg:w-[46rem]"
           >
             <div className="flex flex-col sm:flex-row">
               {/* presets */}

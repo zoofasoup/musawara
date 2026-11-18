@@ -7,6 +7,7 @@ import { Icon, type IconName } from "./icons";
 import { Wordmark } from "./Layout";
 import { Avatar } from "./Avatar";
 import { Sheet } from "./kit";
+import { glassCls } from "../lib/glass";
 
 type Item = { to: string; label: string; icon: IconName; end?: boolean };
 const GROUPS: { label: string; items: Item[] }[] = [
@@ -39,7 +40,7 @@ const linkCls = (active: boolean) =>
 
 /** Name of the current area, for the slim phone top bar. */
 const PAGE_TITLE = (pathname: string) => {
-  if (pathname.startsWith("/c/")) return "Client";
+  if (pathname.startsWith("/c/")) return "Clients";
   const hit = GROUPS.flatMap((g) => g.items).find((i) => (i.to === "/" ? pathname === "/" : pathname === i.to || pathname.startsWith(i.to + "/")));
   return hit?.label ?? (pathname.startsWith("/settings") ? "Settings" : pathname.startsWith("/profile") ? "Profile" : "");
 };
@@ -105,7 +106,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     await logout();
     navigate("/login");
   };
-  const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
+  const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/") || (to === "/clients" && pathname.startsWith("/c/")));
   const moreActive = !PHONE_TABS.some((t) => onTab(t.to));
 
   return (
@@ -151,25 +152,25 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Phone: slim top bar with the page name */}
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-surface/95 px-4 py-2 backdrop-blur md:hidden">
+      <header data-glass className={`sticky top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-4 md:hidden ${glassCls}`}>
         <NavLink to="/" aria-label="Overview" className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{PAGE_TITLE(pathname)}</span>
       </header>
 
       <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">
         <Crumb pathname={pathname} />
-        <main className="mx-auto max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 md:px-6 md:pb-8 md:pt-4">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pb-8 md:pt-4">{children}</main>
       </div>
 
       {/* Phone: four daily tabs plus More */}
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5">
+      <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 md:hidden ${glassCls}`}>
+        <div className="grid grid-cols-5">
           {PHONE_TABS.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.end}
-              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
+              className={({ isActive }) => `press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${isActive || onTab(t.to) ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
             >
               <Icon name={t.icon} className="h-5 w-5" />
               <span className="leading-none">{t.label}</span>
@@ -179,7 +180,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setMore(true)}
             aria-haspopup="dialog"
-            className={`press flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${moreActive ? "text-musawara-ink" : "text-ink2"}`}
+            className={`press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${moreActive ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
           >
             <Icon name="menu" className="h-5 w-5" />
             <span className="leading-none">More</span>

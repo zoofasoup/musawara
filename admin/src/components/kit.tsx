@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet as UiSheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { glassThickCls } from "../lib/glass";
 
 export type Notify = (text: string, kind?: "ok" | "err") => void;
 
@@ -18,7 +19,7 @@ export function useNotify() {
     else toast.success(text, { duration: 3500 });
   }, []);
   // Phones: lift toasts above the bottom tab bar.
-  const node = <Toaster position="bottom-right" offset={16} mobileOffset={{ bottom: 88, left: 16, right: 16 }} />;
+  const node = <Toaster position="bottom-right" offset={16} mobileOffset={{ bottom: 100, left: 16, right: 16 }} />;
   return { notify, node };
 }
 
@@ -80,8 +81,10 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     <UiSheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side={phone ? "bottom" : "right"}
-        className={cn("overflow-y-auto bg-background p-4", phone ? "max-h-[90vh] rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]" : "sm:max-w-md")}
+        data-glass={phone ? "" : undefined}
+        className={cn("overflow-y-auto bg-background p-4", phone ? `max-h-[90dvh] rounded-t-[28px] pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 ${glassThickCls}` : "sm:max-w-md")}
       >
+        {phone && <span aria-hidden className="absolute left-1/2 top-2 h-1 w-9 -translate-x-1/2 rounded-full bg-ink/20" />}
         <SheetTitle className="sr-only">{title}</SheetTitle>
         <SheetDescription className="sr-only">{title}</SheetDescription>
         {children}

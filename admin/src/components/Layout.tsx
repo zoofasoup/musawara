@@ -4,6 +4,7 @@ import { ASSET_BASE } from "../lib/api";
 import { Icon, type IconName } from "./icons";
 import { AdminShell } from "./AdminShell";
 import { Avatar } from "./Avatar";
+import { glassCls } from "../lib/glass";
 
 export function Wordmark({ compact = false, tagline = true }: { compact?: boolean; tagline?: boolean }) {
   return (
@@ -54,7 +55,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
+      <header data-glass className={`sticky top-0 z-20 border-x-0 border-t-0 ${glassCls}`}>
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-1 px-4 sm:gap-4">
           <NavLink to={`/c/${user?.client_id}`} className="inline-flex min-h-11 min-w-11 shrink-0 items-center">
             <span className="sm:hidden"><Wordmark compact /></span><span className="hidden sm:inline"><Wordmark /></span>
@@ -93,17 +94,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-6 sm:pb-6">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-6 sm:pb-6">{children}</main>
 
       {/* Phones: tab bar at the bottom, within thumb reach. */}
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden">
-        <div className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
+      <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 sm:hidden ${glassCls}`}>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
           {links.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               end={isEnd(l.to)}
-              className={({ isActive }) => `press flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${isActive ? "text-musawara-ink" : "text-ink2"}`}
+              className={({ isActive }) => `press flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${isActive ? "bg-white/90 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]" : "text-ink2"}`}
             >
               <Icon name={l.icon} className="h-5 w-5" />
               <span className="leading-none">{l.short ?? l.label}</span>

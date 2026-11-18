@@ -13,6 +13,7 @@ import { ClientAvatar } from "./Layout";
 import type { Alert } from "./AlertFeed";
 import { CardSkeleton } from "./ui";
 import { Icon } from "./icons";
+import { glassCls } from "../lib/glass";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type Meta = {
@@ -102,8 +103,8 @@ export function ClientFrame() {
           )}
         </div>
 
-        <nav aria-label="Client menu" className="mb-5 overflow-x-auto pb-1">
-          <div className="inline-flex min-w-max gap-0.5 rounded-full bg-surface3 p-0.5">
+        <nav aria-label="Client menu" className="sticky top-[4.25rem] z-10 -mx-1 mb-5 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:top-auto md:mx-0 md:px-0 md:py-0 md:pb-1">
+          <div data-glass className={`inline-flex min-w-max gap-0.5 rounded-full p-0.5 ${glassCls} md:border-0 md:bg-surface3 md:shadow-none md:backdrop-blur-none`}>
             {tabs.map((t) => (
               <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => tabCls(isActive)}>
                 {t.label}
