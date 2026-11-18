@@ -79,3 +79,6 @@ Sidebar = work that spans clients (Overview, Clients, Approvals queue, Planning,
 
 ## Feel (apple-design rules in use)
 Press feedback on touch-down (`.press`, 100 ms); the phone tab bars have one glass pill that glides to the active tab; bottom sheets drag to dismiss from the handle (1:1 tracking, rubber-band when pulled up, release velocity projected with the 0.998 deceleration form decides dismiss or settle); headings track tighter as they grow (index.css); glass turns solid for reduced transparency / more contrast, and animations shorten under reduced motion. Do not drive gestures with CSS keyframes; start any new animation from the element's live on-screen value.
+
+## Standard pieces (use these, do not hand-write)
+Banners: `Callout` (tone, title, `to` link, `action`, `compact`). Tables: `DataTable` (columns with `numeric`/`hideBelow`, `onRowClick`, `empty`); EntityTable and the sales data-grid are not on it yet. Labelled form controls: `FormField` + `FormGrid` (the CRM `Field` is the same component). Every one has a demo and its states in /styleguide.

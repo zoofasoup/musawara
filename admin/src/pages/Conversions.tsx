@@ -7,6 +7,8 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import { FormField } from "../components/FormField";
+import { Callout } from "../components/Callout";
 import { PageHeader } from "../components/PageHeader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, useApi } from "../lib/api";
@@ -385,12 +387,12 @@ export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
         <Panel className="space-y-3 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             {!fixedId && (
-              <label className="block text-xs text-muted">Client
-                <NativeSelect value={clientId} onChange={(e) => pickClient(e.target.value)} className="mt-1 w-full">
+              <FormField label="Client">
+                <NativeSelect value={clientId} onChange={(e) => pickClient(e.target.value)} className="w-full">
                   <option value="">Choose…</option>
                   {clientList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </NativeSelect>
-              </label>
+              </FormField>
             )}
             <div className="text-xs text-muted">
               <p>What should happen</p>
@@ -406,29 +408,26 @@ export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
           {mode === "meta" && (
             <div className="space-y-3 border-t border-border pt-3">
               {!tokenOk && !conf.loading ? (
-                <p className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn/5 px-3 py-2.5 text-xs text-warn">
-                  <Icon name="key" className="mt-0.5 h-4 w-4" />
-                  <span>No Meta token yet. Add it once in Settings, Meta connection. The same token is used here (it needs the ads_management permission).</span>
-                </p>
+                <Callout tone="warn" compact>No Meta token yet. Add it once in Settings, Meta connection. The same token is used here (it needs the ads_management permission).</Callout>
               ) : (
                 <p className="flex items-center gap-1.5 text-xs text-muted"><Icon name="key" className="h-3.5 w-3.5" /> Sends with the token from Settings, Meta connection (needs ads_management).</p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-xs text-muted">Dataset
+                <FormField label="Dataset">
                   {datasets.data?.datasets.length ? (
-                    <NativeSelect value={datasets.data.datasets.some((d) => d.id === datasetId) ? datasetId : ""} onChange={(e) => setDatasetId(e.target.value)} className="mt-1 w-full">
+                    <NativeSelect value={datasets.data.datasets.some((d) => d.id === datasetId) ? datasetId : ""} onChange={(e) => setDatasetId(e.target.value)} className="mb-2 w-full">
                       <option value="">Choose from this ad account…</option>
                       {datasets.data.datasets.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.id}</option>)}
                     </NativeSelect>
                   ) : null}
-                  <Input value={datasetId} onChange={(e) => setDatasetId(e.target.value.replace(/\D/g, ""))} placeholder="Dataset ID (Events Manager)" inputMode="numeric" className="mt-1 font-mono" />
-                </label>
-                <label className="block text-xs text-muted">Event
-                  <NativeSelect value={eventName} onChange={(e) => setEventName(e.target.value)} className="mt-1 w-full">{EVENTS.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
-                </label>
-                <label className="block text-xs text-muted">Where did the sale happen
-                  <NativeSelect value={actionSource} onChange={(e) => setActionSource(e.target.value)} className="mt-1 w-full">{SOURCES.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
-                </label>
+                  <Input value={datasetId} onChange={(e) => setDatasetId(e.target.value.replace(/\D/g, ""))} placeholder="Dataset ID (Events Manager)" inputMode="numeric" className="font-mono" />
+                </FormField>
+                <FormField label="Event">
+                  <NativeSelect value={eventName} onChange={(e) => setEventName(e.target.value)} className="w-full">{EVENTS.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
+                </FormField>
+                <FormField label="Where did the sale happen">
+                  <NativeSelect value={actionSource} onChange={(e) => setActionSource(e.target.value)} className="w-full">{SOURCES.map((e) => <option key={e.v} value={e.v}>{e.l}</option>)}</NativeSelect>
+                </FormField>
                 <div className="text-xs text-muted">
                   <p>Mode</p>
                   <div role="radiogroup" aria-label="Test or live" className="mt-1 inline-flex rounded-full bg-surface3 p-0.5">

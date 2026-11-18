@@ -11,6 +11,7 @@ import { fmtDay, fmtDayFull, fmtDateTime, fmtNum, fmtPct, fmtRp, hoursSince } fr
 import { useAuth } from "../context/AuthContext";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
+import { Callout } from "../components/Callout";
 import { KpiCard } from "../components/KpiCard";
 import { MetricTrend, type TrendDay } from "../components/MetricTrend";
 import { EntityTable } from "../components/EntityTable";
@@ -62,14 +63,10 @@ function StaleBanner({ accounts }: { accounts: Meta["accounts"] }) {
   if (accounts.length === 0 || stale.length === 0) return null;
   const oldest = stale[0];
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl border border-warn/40 bg-warn/10 px-3.5 py-2.5 text-[13px] text-warn">
-      <span aria-hidden>⚠️</span>
-      <span>
-        Data may be stale — {oldest.account_name ?? "an account"}{" "}
-        {oldest.last_sync ? `last synced ${fmtDateTime(oldest.last_sync)}` : "has not synced yet"}
-        {oldest.last_sync_status === "failed" ? " and the last sync failed" : ""}.
-      </span>
-    </div>
+    <Callout tone="warn" className="mb-4">
+      Data may be stale: {oldest.account_name ?? "an account"} {oldest.last_sync ? `last synced ${fmtDateTime(oldest.last_sync)}` : "has not synced yet"}
+      {oldest.last_sync_status === "failed" ? " and the last sync failed" : ""}.
+    </Callout>
   );
 }
 
@@ -251,21 +248,16 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
       {meta.data && <StaleBanner accounts={meta.data.accounts} />}
 
-      {!share && (() => {
-        const open = alerts.data?.alerts.filter((a) => !a.acknowledged).length ?? 0;
-        return open > 0 ? (
-          <Link to={`/c/${clientId}/alerts`} className="mb-4 flex min-h-11 items-center justify-between gap-2 rounded-2xl bg-crit/8 px-4 py-2.5 text-[13px] text-crit hover:bg-crit/12">
-            <span>{open === 1 ? "1 open alert" : `${open} open alerts`}</span>
-            <span className="font-medium">Review</span>
-          </Link>
-        ) : null;
-      })()}
+      {!share && (alerts.data?.alerts.filter((a) => !a.acknowledged).length ?? 0) > 0 && (
+        <Callout tone="crit" to={`/c/${clientId}/alerts`} className="mb-4">
+          {(() => { const n = alerts.data!.alerts.filter((a) => !a.acknowledged).length; return n === 1 ? "1 open alert, review it" : `${n} open alerts, review them`; })()}
+        </Callout>
+      )}
 
       {(pendingApprovals.data?.requests.length ?? 0) > 0 && (
-        <Link to={`/c/${clientId}/approvals`} className="mb-4 flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--accent)]/40 bg-surface px-3.5 py-2.5 text-[13px] text-ink hover:bg-surface2">
-          <span>{pendingApprovals.data!.requests.length === 1 ? "1 item is" : `${pendingApprovals.data!.requests.length} items are`} waiting for your approval.</span>
-          <span className="font-medium text-musawara-ink">Review</span>
-        </Link>
+        <Callout tone="accent" to={`/c/${clientId}/approvals`} className="mb-4">
+          {pendingApprovals.data!.requests.length === 1 ? "1 item is" : `${pendingApprovals.data!.requests.length} items are`} waiting for your approval.
+        </Callout>
       )}
 
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}

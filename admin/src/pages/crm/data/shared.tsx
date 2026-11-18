@@ -161,15 +161,7 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
 
 /* ---------- small UI helpers ---------- */
 
-export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
-  return (
-    <label className="block text-xs text-muted">
-      <span className="font-medium text-ink2">{label}</span>
-      <span className="mt-1 block">{children}</span>
-      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
-    </label>
-  );
-}
+export { FormField as Field } from "../../../components/FormField";
 
 export function TagChip({ children }: { children: ReactNode }) {
   return <span className="inline-flex items-center rounded-md bg-surface3 px-1.5 py-0.5 text-xs text-ink2">{children}</span>;

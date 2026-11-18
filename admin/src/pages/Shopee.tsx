@@ -7,6 +7,7 @@ import { api, useApi } from "../lib/api";
 import { addDays, todayJakarta } from "../lib/dates";
 import { fmtDay, fmtNum, fmtRp } from "../lib/format";
 import { CardSkeleton, ErrorState } from "../components/ui";
+import { DataTable } from "../components/DataTable";
 import { Btn, ConfirmBtn, Empty, Nested, Panel, Pill, useNotify, type Tone } from "../components/kit";
 import { PageHeader } from "../components/PageHeader";
 import { NeedsClient } from "../components/NeedsClient";
@@ -224,26 +225,19 @@ export function Shopee() {
                 </Nested>
 
                 <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                  <Nested title="Top products" className="[&>div]:p-0">
+                  <Nested title="Top products">
                     {s.top_products.length === 0 ? (
                       <p className="p-3 text-sm text-muted">No sales in this range.</p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                          <thead className="text-xs text-muted">
-                            <tr><th className="px-3.5 py-2 font-medium">Product</th><th className="px-3.5 py-2 text-right font-medium">Units</th><th className="px-3.5 py-2 text-right font-medium">Revenue</th></tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {s.top_products.map((p) => (
-                              <tr key={p.item_id}>
-                                <td className="max-w-[18rem] truncate px-3.5 py-2.5 text-ink" title={p.name}>{p.name || `Item ${p.item_id}`}</td>
-                                <td className="px-3.5 py-2.5 text-right tabular-nums text-ink">{fmtNum(p.units)}</td>
-                                <td className="px-3.5 py-2.5 text-right tabular-nums text-ink">{fmtRp(p.revenue)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      <DataTable
+                        rows={s.top_products}
+                        getKey={(p) => p.item_id}
+                        columns={[
+                          { key: "name", header: "Product", className: "max-w-[18rem] truncate", cell: (p) => <span title={p.name}>{p.name || `Item ${p.item_id}`}</span> },
+                          { key: "units", header: "Units", numeric: true, cell: (p) => fmtNum(p.units) },
+                          { key: "revenue", header: "Revenue", numeric: true, cell: (p) => fmtRp(p.revenue) },
+                        ]}
+                      />
                     )}
                   </Nested>
                   <Nested title="Orders by status">

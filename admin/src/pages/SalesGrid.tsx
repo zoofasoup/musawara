@@ -9,6 +9,7 @@ import { useTable, type ColumnDef, type PaginationState, type SortingState, type
 import { Columns3, Download, Pencil } from "lucide-react";
 import { csvCell } from "../lib/csv";
 import { fmtDayFull, fmtNum, fmtRp } from "../lib/format";
+import { FormField } from "../components/FormField";
 import { Btn, ConfirmBtn, Panel, Pill, Sheet, type Notify, type Tone } from "../components/kit";
 import { DataGrid, DataGridContainer, dataGridFeatures, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
@@ -212,9 +213,9 @@ function SaleEditor({ sale, notify, onClose, onChanged }: { sale: SavedSale; not
   };
 
   const field = (label: string, k: keyof typeof f, props: Record<string, unknown> = {}, locked = false) => (
-    <label className="block text-xs text-muted">{label}
-      <Input value={f[k]} onChange={set(k)} disabled={locked} className="mt-1 disabled:opacity-60" {...props} />
-    </label>
+    <FormField label={label}>
+      <Input value={f[k]} onChange={set(k)} disabled={locked} className="disabled:opacity-60" {...props} />
+    </FormField>
   );
 
   return (
@@ -234,11 +235,11 @@ function SaleEditor({ sale, notify, onClose, onChanged }: { sale: SavedSale; not
         {field("Package", "package_name")}
         {field("Room", "room_type")}
         {field("DP (Rp)", "down_payment", { type: "number", inputMode: "numeric", min: 0 })}
-        <label className="block text-xs text-muted">Status
-          <NativeSelect value={f.pay_status} onChange={set("pay_status")} className="mt-1 w-full sm:w-auto">
+        <FormField label="Status">
+          <NativeSelect value={f.pay_status} onChange={set("pay_status")} className="w-full sm:w-auto">
             {PAY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </NativeSelect>
-        </label>
+        </FormField>
         <div className="col-span-2">{field("Source", "source")}</div>
       </div>
       {sale.edited_at && <p className="mt-3 text-xs text-muted">Edited by hand. A later upload of the original file will not overwrite this.</p>}

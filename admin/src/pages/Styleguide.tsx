@@ -2,6 +2,9 @@
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useMemo, useState, type ReactNode } from "react";
 import { AlignCenter, AlignLeft, AlignRight, PanelLeft } from "lucide-react";
+import { Callout } from "../components/Callout";
+import { DataTable } from "../components/DataTable";
+import { FormField, FormGrid } from "../components/FormField";
 import { AskBtn, Chip, DashedBtn, FilterBtn, GlowBtn, IconTile, RaisedBtn, SearchField, Segmented, StatusPill, StepperAction } from "../components/Controls";
 import { Bubble } from "./crm/inbox/ThreadView";
 import type { Msg } from "./crm/inbox/util";
@@ -170,6 +173,48 @@ export function Styleguide() {
 
       <Section title="Specialised Controls v2" note="Wadah cekung (recessed wells) menampung pilihan; tombol interaktif terangkat (raised tiles); kontrol segmented, filter, dan chip khusus.">
         <ControlsDemo />
+      </Section>
+
+      <Section title="Callout" note="One banner for things worth knowing: stale data, open alerts, something waiting, a service down. Tinted fill, no border. Pass `to` to make the whole banner a link, `action` for a button, `compact` inside a card.">
+        <div className="max-w-2xl space-y-3">
+          <Callout tone="info" title="Heads up">Numbers refresh after every sync, at about 02:00 WIB.</Callout>
+          <Callout tone="good">Sync finished. 1.240 rows updated.</Callout>
+          <Callout tone="warn">Data may be stale: Musafar Ads last synced 15 Nov, 02.00.</Callout>
+          <Callout tone="crit" title="Cannot reach the WhatsApp gateway" action={<Btn icon="refresh" onClick={() => notify("Retrying (demo)")}>Try again</Btn>}>The server that runs WhatsApp did not answer. This page keeps trying and recovers on its own.</Callout>
+          <Callout tone="crit" to="/styleguide">2 open alerts, review them</Callout>
+          <Callout tone="accent" to="/styleguide">3 items are waiting for your approval.</Callout>
+          <Callout tone="warn" compact>Compact, for use inside a card or a form.</Callout>
+        </div>
+      </Section>
+
+      <Section title="Table" note="Tinted header, hairline rows, numbers right-aligned in tabular figures, optional clickable row, an empty row, and secondary columns that drop on narrow screens (`hideBelow`). Wide tables scroll inside their own box.">
+        <div className="space-y-4">
+          <DataTable
+            rows={[{ id: 1, n: "Musafar Dummy", spend: 17333250, leads: 338, cpa: 666663 }, { id: 2, n: "NurAlive", spend: 9876543, leads: 210, cpa: 823000 }, { id: 3, n: "Padel DRGI", spend: 4200000, leads: 90, cpa: 0 }]}
+            getKey={(r) => r.id}
+            onRowClick={(r) => notify(`Opened ${r.n} (demo)`)}
+            columns={[
+              { key: "n", header: "Client", cell: (r) => <span className="font-medium">{r.n}</span> },
+              { key: "spend", header: "Spend", numeric: true, cell: (r) => `Rp ${r.spend.toLocaleString("id-ID")}` },
+              { key: "leads", header: "Leads", numeric: true, hideBelow: "md", cell: (r) => r.leads },
+              { key: "cpa", header: "CPA", numeric: true, cell: (r) => (r.cpa ? `Rp ${r.cpa.toLocaleString("id-ID")}` : "–") },
+            ]}
+          />
+          <DataTable rows={[]} getKey={() => 0} columns={[{ key: "a", header: "Product", cell: () => null }, { key: "b", header: "Revenue", numeric: true, cell: () => null }]} empty="No sales in this range." />
+        </div>
+      </Section>
+
+      <Section title="Form field" note="Label above the control, then a hint or an error. The label wraps the control so tapping it focuses the field. Fields sit in a FormGrid: one column on phones, two from tablet.">
+        <Panel className="p-5">
+          <FormGrid>
+            <FormField label="Name"><Input placeholder="Full name" aria-label="Name" /></FormField>
+            <FormField label="Email" hint="We only use it to sign you in."><Input placeholder="you@example.com" aria-label="Email" /></FormField>
+            <FormField label="Phone" optional><Input placeholder="62…" aria-label="Phone" /></FormField>
+            <FormField label="Budget" error="Enter a number above 0."><Input aria-invalid defaultValue="-1" aria-label="Budget" /></FormField>
+            <FormField label="Role"><NativeSelect className="w-full" aria-label="Role"><option>Team</option><option>Client</option></NativeSelect></FormField>
+            <FormField label="Notes" className="sm:col-span-2"><Textarea placeholder="Anything else" aria-label="Notes" /></FormField>
+          </FormGrid>
+        </Panel>
       </Section>
 
       <Section title="Pills & Badges v2" note="Status bertitik semantik dengan kontras lembut, rounded-xl tanpa border kaku.">

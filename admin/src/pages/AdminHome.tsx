@@ -10,6 +10,7 @@ import { AlertFeed, type Alert } from "../components/AlertFeed";
 import { ClientAvatar } from "../components/Layout";
 import { StatTile } from "../components/StatTile";
 import { Input } from "@/components/ui/input";
+import { DataTable } from "../components/DataTable";
 import { Bento } from "../components/kit";
 import { HatchBars, SegmentGauge, TickBar } from "../components/OverviewWidgets";
 import { CardSkeleton, EmptyState, ErrorState } from "../components/ui";
@@ -175,39 +176,29 @@ export function AdminHome() {
                 </div>
               </div>
             </header>
-            <div className="overflow-x-auto rounded-2xl border border-border/70">
-              <table className="w-full min-w-[26rem] text-left text-sm">
-                <thead className="bg-surface2/70 text-xs text-muted">
-                  <tr>
-                    <th className="px-4 py-2.5 font-medium">Client</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Spend</th>
-                    <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">Leads</th>
-                    <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">Purchases</th>
-                    <th className="px-3 py-2.5 font-medium">CPA</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
-                  {rows.map((c) => (
-                    <tr key={c.id} onClick={() => nav(`/c/${c.id}`)} className="cursor-pointer hover:bg-surface2/50">
-                      <td className="px-4 py-3">
-                        <Link to={`/c/${c.id}`} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-center gap-2.5 font-medium text-ink">
-                          <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
-                          <span className="truncate">{c.name}</span>
-                          {c.unacknowledged_alerts > 0 && <span className="tnum shrink-0 rounded-full bg-crit/10 px-2 py-0.5 text-xs font-semibold text-crit" title="Open alerts">{c.unacknowledged_alerts}</span>}
-                        </Link>
-                      </td>
-                      <td className="tnum whitespace-nowrap px-3 py-3 text-right text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</td>
-                      <td className="tnum hidden px-3 py-3 text-right text-ink md:table-cell">{c.totals.leads ? fmtNum(c.totals.leads) : "–"}</td>
-                      <td className="tnum hidden px-3 py-3 text-right text-ink md:table-cell">{c.totals.purchases ? fmtNum(c.totals.purchases) : "–"}</td>
-                      <td className="whitespace-nowrap px-3 py-3"><CpaChip cpa={c.totals.cpa} target={c.target_cpa} /></td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-muted">No clients match.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              rows={rows}
+              getKey={(c) => c.id}
+              onRowClick={(c) => nav(`/c/${c.id}`)}
+              empty="No clients match."
+              columns={[
+                {
+                  key: "client",
+                  header: "Client",
+                  cell: (c) => (
+                    <Link to={`/c/${c.id}`} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-center gap-2.5 font-medium text-ink">
+                      <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
+                      <span className="truncate">{c.name}</span>
+                      {c.unacknowledged_alerts > 0 && <span className="tnum shrink-0 rounded-full bg-crit/10 px-2 py-0.5 text-xs font-semibold text-crit" title="Open alerts">{c.unacknowledged_alerts}</span>}
+                    </Link>
+                  ),
+                },
+                { key: "spend", header: "Spend", numeric: true, cell: (c) => (c.totals.spend ? fmtRp(c.totals.spend) : "–") },
+                { key: "leads", header: "Leads", numeric: true, hideBelow: "md", cell: (c) => (c.totals.leads ? fmtNum(c.totals.leads) : "–") },
+                { key: "purchases", header: "Purchases", numeric: true, hideBelow: "md", cell: (c) => (c.totals.purchases ? fmtNum(c.totals.purchases) : "–") },
+                { key: "cpa", header: "CPA", className: "whitespace-nowrap", cell: (c) => <CpaChip cpa={c.totals.cpa} target={c.target_cpa} /> },
+              ]}
+            />
           </Bento>
 
           {/* spend share */}

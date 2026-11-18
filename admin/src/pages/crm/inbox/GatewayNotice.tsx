@@ -1,5 +1,5 @@
-import { Btn, Panel } from "../../../components/kit";
-import { Icon } from "../../../components/icons";
+import { Btn } from "../../../components/kit";
+import { Callout } from "../../../components/Callout";
 import { classify } from "./util";
 
 /** Plain-language explanation for a failed gateway call, including the proxy's 503 and 502 cases. */
@@ -20,21 +20,14 @@ export function GatewayNotice({ error, onRetry, compact }: { error: unknown; onR
           ? { title: "WhatsApp is not connected", body: p.message }
           : { title: "Something went wrong", body: p.message };
   return (
-    <Panel className={`border-crit/30 bg-crit/5 ${compact ? "p-3" : "p-6"}`}>
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 text-crit">
-          <Icon name="alert" className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1" role="alert">
-          <p className="text-sm font-medium text-ink">{copy.title}</p>
-          <p className="mt-1 text-xs text-ink2">{copy.body}</p>
-          {onRetry && (
-            <Btn className="mt-3 min-h-11" icon="refresh" onClick={onRetry}>
-              Try again
-            </Btn>
-          )}
-        </div>
-      </div>
-    </Panel>
+    <Callout
+      tone="crit"
+      title={copy.title}
+      compact={compact}
+      className={compact ? "" : "p-6"}
+      action={onRetry && <Btn icon="refresh" onClick={onRetry}>Try again</Btn>}
+    >
+      {copy.body}
+    </Callout>
   );
 }
