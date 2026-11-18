@@ -94,3 +94,6 @@ One rule in `lib/rank.ts` (tested): judge against the client's own typical cost 
 
 ## Guards (src/lib/uiStandard.test.ts)
 The test file fails the build on: raw `<input>`, `<select>`, `<textarea>`; raw `<button>` outside the allowlist; old flat cards; hand-written `<label className="block …">` (use `FormField`); hand-written status tints `bg-good/1x` etc. (use `TONE`, `Pill`, `Callout`); the underline Tabs variant and hand-made radiogroups (use `Tabs` for panels, `Segmented` for a chosen value). If a guard blocks you, use the standard piece rather than adding to the allowlist.
+
+## Deploy (production)
+From the repo root with Node 24: rebuild the SPA into `out/` (`rm -rf out/admin/assets && (cd admin && npx vite build && cp -R dist/. ../out/admin/)`), then `npx wrangler deploy -c wrangler.noR2.jsonc` (the config is tracked; it is `wrangler.jsonc` without the R2 binding, until R2 is enabled). New migrations: `npx wrangler d1 migrations apply musawara-ads --remote -c wrangler.noR2.jsonc`. Check afterwards that app., portal. and go. answer 200 and `/api/auth/me` answers 401 logged out. Route guards: `src/lib/routes.test.ts` fails if a team page becomes public.

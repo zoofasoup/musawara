@@ -1,0 +1,53 @@
+// Config used for production deploys WHILE R2 IS NOT ENABLED on the Cloudflare account: identical to wrangler.jsonc
+// minus the MEDIA R2 binding. Deploy with `npx wrangler deploy -c wrangler.noR2.jsonc`; migrations with
+// `npx wrangler d1 migrations apply musawara-ads --remote -c wrangler.noR2.jsonc`. Once R2 is on, create the
+// bucket, switch to wrangler.jsonc and delete this file. No secrets live here (they are Worker secrets).
+{
+  // musawara.id — Worker aset statis.
+  //
+  // "directory" menunjuk ke ./out, bukan ./public: situs ini Next.js static
+  // export, jadi yang dilayani adalah hasil build. Isi ./public tetap ikut
+  // tersalin ke ./out saat build, termasuk kalkulator dan logo.
+  //
+  // "main" dipakai hanya untuk /api/*. Karena "run_worker_first" dibatasi ke
+  // /api/*, permintaan halaman biasa tetap dilayani langsung dari aset tanpa
+  // menjalankan kode Worker, jadi tidak terhitung sebagai invokasi.
+  //
+  // Nama = Worker produksi yang memegang domain musawara.id dan semua secret
+  // (JWT_SECRET, SHEET_SYNC_TOKEN). Jangan diganti tanpa memindahkan keduanya:
+  // nama baru membuat Worker kosong tanpa secret, dan cron-nya gagal tiap jam.
+  "name": "musawara-id",
+  "compatibility_date": "2026-08-01",
+  "main": "worker/index.ts",
+
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/admin/*"],
+    // "auto-trailing-slash" membuat /nuralive/price-calculator dilayani dari
+    // /nuralive/price-calculator/index.html tanpa perlu menulis .html di URL.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "musawara-ads",
+      "migrations_dir": "./admin/migrations",
+      "database_id": "1b93c912-9d32-4c47-a310-0a2ada2ff98c"
+    }
+  ],
+  // Publish: uploaded post media. Private; served only through /api/clients/:id/publish/media.
+  // The bucket must exist before `wrangler deploy`: npx wrangler r2 bucket create musawara-media
+
+  // 20:00 UTC = 03:00 WIB. Sinkronisasi Meta malam hari (admin/worker/lib/sync.ts).
+  "triggers": { "crons": ["0 * * * *"] },
+
+  "vars": { "APP_NAME": "Musawara Admin" },
+
+  // Secret: JWT_SECRET (wajib), META_ACCESS_TOKEN (opsional), ditambah secret
+  // situs di worker/apply.ts. Set dengan `wrangler secret put`; lokal lewat .dev.vars.
+
+  "observability": { "enabled": true }
+}

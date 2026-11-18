@@ -119,16 +119,6 @@ export function App() {
             <Route path="/invite/:token" element={<Invite />} />
             <Route path="/share/:token" element={<ShareView />} />
             <Route path="/share/:token/report" element={<ShareReport />} />
-            <Route
-              path="/styleguide"
-              element={
-                <div className="mx-auto max-w-7xl p-6 sm:p-8">
-                  <Suspense fallback={<CardSkeleton lines={4} />}>
-                    <Styleguide />
-                  </Suspense>
-                </div>
-              }
-            />
 
             {/* Signed in: one persistent frame */}
             <Route element={<ProtectedLayout />}>
