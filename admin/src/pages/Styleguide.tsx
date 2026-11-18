@@ -5,6 +5,23 @@ import { AlignCenter, AlignLeft, AlignRight, PanelLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PillNav, pillTabCls } from "../components/PillNav";
 import { StatusBadge } from "../components/ui";
+import { Bento, Section as StepSection } from "../components/kit";
+import { StatTile } from "../components/StatTile";
+import { KpiCard } from "../components/KpiCard";
+import { Sparkline, SectionTitle } from "../components/ui";
+import { MetricTrend } from "../components/MetricTrend";
+import { HatchBars, SegmentGauge, TickBar } from "../components/OverviewWidgets";
+import { AlertFeed, type Alert } from "../components/AlertFeed";
+import { DateRangePicker } from "../components/DateRangePicker";
+import { presetByKey, type DateRange } from "../lib/dates";
+import { Avatar } from "../components/Avatar";
+import { ClientAvatar } from "../components/Layout";
+import { glassCls } from "../lib/glass";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { raisedCls } from "../components/Controls";
 import { Callout } from "../components/Callout";
 import { DataTable } from "../components/DataTable";
 import { FormField, FormGrid } from "../components/FormField";
@@ -94,6 +111,138 @@ function ControlsDemo() {
         <RaisedBtn disabled>Disabled</RaisedBtn>
         <GlowBtn disabled>Disabled</GlowBtn>
       </div>
+    </div>
+  );
+}
+
+
+/** 30 days of made-up numbers so the charts and tiles have something to show. */
+const DAYS = Array.from({ length: 30 }, (_, i) => {
+  const d = new Date(Date.UTC(2026, 10, 1 + i)).toISOString().slice(0, 10);
+  const wave = 0.6 + 0.4 * Math.sin(i / 3) ** 2;
+  return { date: d, spend: Math.round(950000 * wave + (i % 5) * 40000), leads: Math.round(10 + 14 * wave), purchases: i % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0 };
+});
+const DAYS_PREV = DAYS.map((d, i) => ({ ...d, date: new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10), spend: Math.round(d.spend * 0.86), leads: Math.max(0, d.leads - 2) }));
+const ALERTS: Alert[] = [
+  { id: 1, type: "cpr_spike", severity: "critical", message: "CPA naik 22% dibanding periode lalu", date: "2026-11-17", acknowledged: 0, created_at: "2026-11-17 09:00:00", client_name: "Musafar" },
+  { id: 2, type: "creative_fatigue", severity: "warning", message: "Foto Hotel Madinah frekuensi 3,8, mulai jenuh", date: "2026-11-16", acknowledged: 0, created_at: "2026-11-16 09:00:00", client_name: "Musafar" },
+  { id: 3, type: "sync_failure", severity: "warning", message: "Sync kemarin gagal, sudah pulih", date: "2026-11-15", acknowledged: 1, created_at: "2026-11-15 09:00:00", client_name: "NurAlive" },
+];
+
+function DashboardDemo() {
+  return (
+    <div className="space-y-6 rounded-3xl bg-surface2 p-6">
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted">StatTile: one headline number, icon top right, a footer line. `dense` shrinks the number when any in the row is long; `loading` shows a skeleton.</p>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatTile dense label="Total spend" icon="spend" value="Rp 17.333.250">across 3 clients</StatTile>
+          <StatTile dense label="Leads" icon="users" value="338">avg Rp 51.282 per lead</StatTile>
+          <StatTile dense label="Purchases" icon="chart" value="26" loading />
+          <StatTile dense label="Open alerts" icon="alert" value="2">1 client affected</StatTile>
+        </div>
+      </div>
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted">KpiCard: label, number, change against the comparison period (green good, red bad, grey neutral), an optional note. `bare` inside a shared card.</p>
+        <Bento title="Key numbers">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 sm:grid-cols-4">
+            {[
+              { label: "Spend", value: "Rp 17.333.250", cur: 17.3, prev: 16.2, dir: "neutral" as const },
+              { label: "Leads", value: "338", cur: 338, prev: 317, dir: "higher-better" as const },
+              { label: "CPA", value: "Rp 666.663", cur: 666, prev: 578, dir: "lower-better" as const, note: { text: "33% over target Rp 500.000", tone: "crit" as const } },
+              { label: "ROAS", value: "54,8x", cur: 54.8, prev: 66.5, dir: "higher-better" as const, note: { text: "Above the 19,5x needed", tone: "good" as const } },
+            ].map((k) => (
+              <div key={k.label} className="min-w-0 bg-surface px-4 py-3.5"><KpiCard bare label={k.label} value={k.value} current={k.cur} previous={k.prev} direction={k.dir} note={k.note} previousText="prev." /></div>
+            ))}
+          </div>
+        </Bento>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Bento title="Spend overview" subtitle="Hatched bars, the peak day solid" right={<Pill tone="accent" size="sm" dot={false}>Peak Rp 1,4 jt</Pill>}>
+          <HatchBars days={DAYS.map((d) => ({ date: d.date, value: d.spend }))} />
+        </Bento>
+        <Bento title="Gauge and ticks" subtitle="Share of something, as segments">
+          <SegmentGauge value={67} label="2 of 3 clients" />
+          <div className="mt-4 space-y-3">
+            <TickBar pct={52} color="var(--color-chart-1)" />
+            <TickBar pct={30} color="var(--color-chart-4)" />
+            <TickBar pct={13} color="var(--color-chart-2)" />
+          </div>
+          <div className="mt-4 flex items-center gap-4"><span className="text-xs text-muted">Sparkline</span><div className="w-32"><Sparkline points={DAYS.map((d) => d.spend)} /></div></div>
+        </Bento>
+      </div>
+      <Bento title="Daily trend" subtitle="Spend, leads and purchases, one metric at a time, with the comparison period dashed">
+        <MetricTrend days={DAYS} compare={DAYS_PREV} />
+      </Bento>
+    </div>
+  );
+}
+
+function PageStructureDemo() {
+  return (
+    <div className="space-y-6 rounded-3xl bg-surface2 p-6">
+      <div className="rounded-2xl bg-surface p-5">
+        <PageHeader title="Page title" subtitle="One line of context under the title." actions={<><Btn tone="secondary" icon="refresh">Sync now</Btn><Btn tone="primary" icon="plus">Add</Btn></>} />
+        <SectionTitle right={<span className="text-xs font-medium text-musawara-ink">All creatives</span>}>Section title</SectionTitle>
+      </div>
+      <StepSection id="demo-step" step={2} icon="database" title="Upload your file" hint="A numbered step in a long flow; done turns green." action={<Pill tone="good" size="sm">Ready</Pill>}>
+        <Panel className="p-4 text-sm text-ink2">Content of the step.</Panel>
+      </StepSection>
+      <div className="flex flex-wrap items-center gap-4">
+        <Avatar name="Zufar QA" size={28} /><Avatar name="Ella Moore" size={40} />
+        <ClientAvatar name="Musafar" logoUrl={null} color="var(--color-chart-1)" size={10} /><ClientAvatar name="NurAlive" logoUrl={null} color="var(--color-chart-3)" size={10} />
+        <span className="text-xs text-muted">Avatar: a person. ClientAvatar: a client, tinted by its brand colour.</span>
+      </div>
+    </div>
+  );
+}
+
+function OverlaysDemo({ notify }: { notify: (t: string, k?: "ok" | "err") => void }) {
+  const [dialog, setDialog] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [range, setRange] = useState<DateRange>(presetByKey("month"));
+  return (
+    <div className="space-y-5 rounded-3xl bg-surface2 p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <RaisedBtn onClick={() => setDialog(true)}>Dialog</RaisedBtn>
+        <RaisedBtn onClick={() => setConfirm(true)}>Confirm dialog</RaisedBtn>
+        <DropdownMenu>
+          <DropdownMenuTrigger className={`press inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-medium md:min-h-10 ${raisedCls}`}>Menu</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => notify("Opened (demo)")}>Open</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => notify("Duplicated (demo)")}>Duplicate</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => notify("Deleted (demo)")}>Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Popover>
+          <PopoverTrigger className={`press inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-medium md:min-h-10 ${raisedCls}`}>Popover</PopoverTrigger>
+          <PopoverContent>
+            <PopoverHeader><PopoverTitle>Small panel</PopoverTitle><PopoverDescription>For a few controls anchored to a button.</PopoverDescription></PopoverHeader>
+          </PopoverContent>
+        </Popover>
+        <DateRangePicker value={range} onChange={setRange} />
+      </div>
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted">Glass: floating chrome only (phone top bar, tab bar, sheets, popups), over content. Solid when the device asks for less transparency.</p>
+        <div className="relative overflow-hidden rounded-2xl p-5" style={{ background: "linear-gradient(135deg in oklch, var(--color-chart-1), var(--color-chart-4), var(--color-chart-2))" }}>
+          <div data-glass className={`mx-auto flex max-w-sm items-center justify-between rounded-full px-5 py-3 text-sm font-semibold text-ink ${glassCls}`}><span>Top bar</span><span className="text-ink2">Menu</span></div>
+          <div data-glass className={`mx-auto mt-10 grid max-w-sm grid-cols-4 rounded-full p-1 text-center text-[11px] font-medium text-ink2 ${glassCls}`}>
+            <span className="rounded-full bg-white/90 py-3 text-musawara-ink shadow-[0_2px_10px_rgba(20,24,36,0.12)]">Overview</span><span className="py-3">Clients</span><span className="py-3">Approvals</span><span className="py-3">CRM</span>
+          </div>
+        </div>
+      </div>
+      <Dialog open={dialog} onOpenChange={setDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Dialog</DialogTitle><DialogDescription>A centred window for one decision or a short form.</DialogDescription></DialogHeader>
+          <DialogFooter><Btn tone="ghost" onClick={() => setDialog(false)}>Cancel</Btn><Btn tone="primary" onClick={() => setDialog(false)}>Save</Btn></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete this client?</AlertDialogTitle><AlertDialogDescription>This cannot be undone. Use only for irreversible actions.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Keep</AlertDialogCancel><AlertDialogAction onClick={() => notify("Deleted (demo)")}>Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -343,6 +492,25 @@ export function Styleguide() {
 
       <Section title="Chat" note="WhatsApp-style messages in the CRM inbox. Incoming on the left in white, ours on the right in the client's tint. Images enlarge on tap, voice notes have a waveform, documents show type, name and size. Ticks: clock sending, one sent, two delivered, blue two read, red failed.">
         <ChatDemo />
+      </Section>
+
+      <Section title="Page structure" note="The frame every page uses: PageHeader (title, one line, actions), SectionTitle for a block, numbered Section for a step in a flow, and the two avatars.">
+        <PageStructureDemo />
+      </Section>
+
+      <Section title="Dashboard tiles and charts" note="Bento is the white tile every dashboard widget sits in. Numbers go in StatTile (headline) or KpiCard (with change); charts show one unit at a time. Long numbers: shrink every number in the row together, never truncate one.">
+        <DashboardDemo />
+      </Section>
+
+      <Section title="Alerts" note="Open alerts first, acknowledged ones fade. `inCard` drops the surface when it already sits in a card; pass `onAck` to show the Ack button (team only).">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AlertFeed alerts={ALERTS} showClient onAck={async () => notify("Acknowledged (demo)")} />
+          <Bento title="In a card"><AlertFeed alerts={ALERTS.slice(0, 2)} inCard /></Bento>
+        </div>
+      </Section>
+
+      <Section title="Dialogs, menus and glass">
+        <OverlaysDemo notify={notify} />
       </Section>
 
       <Section title="Overlays and feedback">
