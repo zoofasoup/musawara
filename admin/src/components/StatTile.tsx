@@ -19,7 +19,7 @@ export function StatTile({ label, icon, value, dense, loading, children }: { lab
         {loading ? (
           <Skeleton className="h-7 w-24" />
         ) : (
-          <p className={`tnum font-semibold leading-tight text-ink ${dense ? "text-base sm:text-xl" : "text-2xl sm:text-3xl"}`} title={value}>{value}</p>
+          <p key={value} className={`swap-in tnum font-semibold leading-tight text-ink ${dense ? "text-base sm:text-xl" : "text-2xl sm:text-3xl"}`} title={value}>{value}</p>
         )}
         {!loading && children && <div className="mt-2 text-xs text-muted">{children}</div>}
       </div>

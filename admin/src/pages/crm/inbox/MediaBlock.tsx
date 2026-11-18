@@ -116,7 +116,7 @@ function VoicePlayer({ src, seed, label, onError }: { src: string; seed: string;
     a.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur;
   };
   return (
-    <div className="flex min-w-56 items-center gap-2.5">
+    <div className="flex min-w-56 items-center gap-2.5 px-2 py-1">
       <button type="button" onClick={toggle} aria-label={playing ? `Pause ${label.toLowerCase()}` : `Play ${label.toLowerCase()}`} className="press inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)]">
         {playing ? <Pause className="h-4 w-4" fill="currentColor" /> : <Play className="h-4 w-4 translate-x-px" fill="currentColor" />}
       </button>
@@ -158,7 +158,7 @@ export function MediaBlock({ m, pending, demo }: { m: Msg; pending: boolean; dem
   // A message still being sent has no file on the server yet; a failed load shows the plain label.
   if (pending || failed || !["image", "sticker", "video", "audio", "ptt"].includes(type)) {
     return (
-      <div className="flex flex-wrap items-center gap-x-3 text-ink">
+      <div className="flex flex-wrap items-center gap-x-3 px-2 py-1 text-ink">
         <span className="text-xs font-medium">{failed ? `${label} (preview unavailable)` : label}</span>
         {!pending && <Links href={href} />}
       </div>
@@ -169,8 +169,8 @@ export function MediaBlock({ m, pending, demo }: { m: Msg; pending: boolean; dem
     const sticker = type === "sticker";
     return (
       <>
-        <button type="button" onClick={() => setZoom(true)} aria-label={`Enlarge ${label.toLowerCase()}`} className="press block min-h-0 min-w-0 overflow-hidden rounded-xl">
-          <img src={href} alt={label} loading="lazy" decoding="async" onError={() => setFailed(true)} className={sticker ? "h-32 w-32 object-contain" : "max-h-72 w-full min-w-40 object-cover"} />
+        <button type="button" onClick={() => setZoom(true)} aria-label={`Enlarge ${label.toLowerCase()}`} className={`press block min-h-0 min-w-0 overflow-hidden rounded-xl ${sticker ? "" : "w-[min(18rem,72vw)]"}`}>
+          <img src={href} alt={label} loading="lazy" decoding="async" onError={() => setFailed(true)} className={sticker ? "h-32 w-32 object-contain" : "max-h-72 w-full object-cover"} />
         </button>
         <Dialog open={zoom} onOpenChange={setZoom}>
           <DialogContent showCloseButton className="max-w-[min(96vw,64rem)] bg-black/90 p-2 ring-0 sm:max-w-[min(96vw,64rem)]">
@@ -185,9 +185,11 @@ export function MediaBlock({ m, pending, demo }: { m: Msg; pending: boolean; dem
 
   if (type === "video") {
     return (
-      <video src={href} controls playsInline preload="metadata" onError={() => setFailed(true)} className="max-h-80 w-full min-w-48 rounded-xl bg-black">
-        <track kind="captions" />
-      </video>
+      <div className="w-[min(18rem,72vw)] overflow-hidden rounded-xl bg-surface3">
+        <video src={href} controls playsInline preload="metadata" onError={() => setFailed(true)} className="max-h-72 w-full object-cover">
+          <track kind="captions" />
+        </video>
+      </div>
     );
   }
 

@@ -258,7 +258,8 @@ function ChatDemo() {
       <Day>Today</Day>
       <Bubble m={msg("g1", { body: "Halo kak, invoicenya sudah masuk ya?", ts: T0 })} />
       <Bubble m={msg("g2", { from_me: 1, body: "Sudah kak, terima kasih. Ini fotonya ya.", ack: 3, ts: T0 + 60 })} />
-      <Bubble m={msg("g3", { from_me: 1, media_type: "image", body: "pic with description", ack: 3, ts: T0 + 120 })} demo={{ src: PIC }} />
+      <Bubble m={msg("g3", { from_me: 1, media_type: "image", ack: 3, ts: T0 + 110 })} demo={{ src: PIC }} />
+      <Bubble m={msg("g3b", { from_me: 1, media_type: "image", body: "pic with description", ack: 3, ts: T0 + 120 })} demo={{ src: PIC }} />
       <Bubble m={msg("g4", { from_me: 1, media_type: "document", ack: 2, ts: T0 + 180 })} demo={{ src: "/none.pdf", meta: { name: "Invoice-Grabsite-Edo.pdf", size: 168_000, type: "application/pdf" } }} />
       <Bubble m={msg("g5", { media_type: "ptt", ts: T0 + 240 })} demo={{ src: tone }} />
       <Bubble m={msg("g6", { media_type: "sticker", ts: T0 + 300 })} demo={{ src: PIC }} />
@@ -341,7 +342,7 @@ export function Styleguide() {
           <div>
             <p className="mb-2 text-xs font-medium text-muted">PillNav, route tabs</p>
             <PillNav label="Demo menu">
-              {["Overview", "Ads", "Sales", "Alerts"].map((t, i) => <Link key={t} to="/styleguide" className={pillTabCls(i === 0)}>{t}</Link>)}
+              {["Overview", "Ads", "Sales", "Alerts"].map((t, i) => <Link key={t} to="/styleguide" data-active={i === 0} className={pillTabCls(i === 0)}>{t}</Link>)}
             </PillNav>
           </div>
         </div>

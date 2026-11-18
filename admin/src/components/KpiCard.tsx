@@ -43,7 +43,7 @@ export function KpiCard({
   ) : (
     <>
       {/* never truncate a number: long amounts get a smaller size, and may wrap after "Rp" on narrow cards */}
-      <p className={`tnum font-semibold leading-tight text-ink ${dense ? "text-base" : value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
+      <p key={value} className={`swap-in tnum font-semibold leading-tight text-ink ${dense ? "text-base" : value.length > 15 ? "text-base" : value.length > 12 ? "text-lg" : "text-xl"}`} title={value}>
         {value}
       </p>
       {compare && (

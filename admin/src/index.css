@@ -164,12 +164,30 @@ h3 { letter-spacing: -0.006em; }
 .sheet-body { animation: sheet-in 320ms cubic-bezier(0.32, 0.72, 0, 1); }
 @media (min-width: 640px) { @keyframes sheet-in { from { transform: scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } } }
 
-/* Press feedback: respond on touch-down, not on release. */
-:where(button, [role="tab"], a.press):not(:disabled) {
-  transition: transform 100ms ease-out;
+/* Motion. Punchy springs for things that appear or are pressed, a short blur for anything that changes, so change is felt. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.5, 0.64, 1);
 }
-:where(button, [role="tab"], a.press):not(:disabled):active {
-  transform: scale(0.97);
+@keyframes pop-in { from { opacity: 0; transform: scale(0.9) translateY(8px); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes pop-out { from { opacity: 1; filter: blur(0); } to { opacity: 0; transform: scale(0.96); filter: blur(6px); } }
+@keyframes swap-in { from { opacity: 0; transform: translateY(4px) scale(0.985); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+.pop-in { animation: pop-in 260ms var(--ease-spring) both; }
+.swap-in { animation: swap-in 280ms var(--ease-out) both; }
+
+/* Press feedback: respond on touch-down, spring back on release. Listing the properties here keeps colour and shadow changes
+   animating too, wherever a component sets its own transition. */
+button:not(:disabled), [role="tab"], [role="radio"], a.press, .press {
+  transition-property: transform, background-color, color, border-color, box-shadow, opacity, filter;
+  transition-duration: 280ms;
+  transition-timing-function: var(--ease-spring);
+}
+button:not(:disabled):active, [role="tab"]:active, [role="radio"]:active, a.press:active, .press:active {
+  transform: scale(0.94);
+  transition-duration: 60ms;
+  transition-timing-function: ease-out;
 }
 
 /* Pointer cursor on every interactive element that isn't disabled or plain text. */

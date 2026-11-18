@@ -30,12 +30,12 @@ function Chips({ tags }: { tags: string[] }) {
   return (
     <span className="mt-1 flex flex-wrap gap-1">
       {sorted.slice(0, TAG_MAX).map((t) => (
-        <span key={t} className="max-w-[10rem] truncate rounded-md bg-surface3 px-1.5 py-0.5 text-xs text-ink2">
+        <span key={t} className="max-w-[10rem] truncate rounded-lg bg-surface3 px-2 py-0.5 text-xs text-ink2">
           {t}
         </span>
       ))}
       {rest.length > 0 && (
-        <span title={rest.join(", ")} className="rounded-md bg-surface3 px-1.5 py-0.5 text-xs text-ink2">
+        <span title={rest.join(", ")} className="rounded-lg bg-surface3 px-2 py-0.5 text-xs text-ink2">
           +{rest.length}
         </span>
       )}
@@ -100,7 +100,7 @@ export function ConversationList({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="space-y-2 border-b border-border p-3">
+      <div className="space-y-2 p-3 shadow-[0_8px_24px_-20px_rgba(20,24,36,0.25)]">
         <div className="flex gap-2">
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search conversations</span>
@@ -120,7 +120,7 @@ export function ConversationList({
             aria-label="New chat by number"
             aria-expanded={newChatOpen}
             title="New chat by number"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-ink2 hover:bg-surface2 hover:text-ink"
+            className="press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)]"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -130,7 +130,7 @@ export function ConversationList({
             disabled={!canSync || syncing || sync?.running}
             aria-label="Sync history from WhatsApp"
             title={canSync ? "Pull earlier messages from WhatsApp" : "Connect WhatsApp to sync history"}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-ink2 hover:bg-surface2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${sync?.running || syncing ? "animate-spin" : ""}`} />
           </button>
@@ -151,7 +151,7 @@ export function ConversationList({
               aria-label="Phone number"
              
             />
-            <button type="submit" disabled={!newChat.trim()} className="min-h-11 shrink-0 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground disabled:opacity-50">
+            <button type="submit" disabled={!newChat.trim()} className="press min-h-11 shrink-0 rounded-2xl bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_6px_16px_-6px_color-mix(in_srgb,var(--accent)_60%,transparent)] hover:brightness-105 px-4 text-xs font-semibold disabled:opacity-50">
               Open
             </button>
           </form>
@@ -207,7 +207,7 @@ export function ConversationList({
                   type="button"
                   onClick={() => onOpen(c.phone)}
                   aria-current={c.phone === activePhone ? "true" : undefined}
-                  className={`block min-h-14 w-full border-b border-border px-3 py-2.5 text-left hover:bg-surface2 ${c.phone === activePhone ? "bg-surface2" : ""}`}
+                  className={`block min-h-14 w-full border-b border-border/60 px-3 py-2.5 text-left hover:bg-surface2/70 ${c.phone === activePhone ? "bg-[color-mix(in_srgb,var(--accent)_8%,white)]" : ""}`}
                 >
                   <span className="flex items-baseline justify-between gap-2">
                     <span className={`min-w-0 truncate text-sm ${c.unread ? "font-bold text-ink" : "font-medium text-ink"}`}>{convTitle(c)}</span>

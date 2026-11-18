@@ -90,6 +90,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
+  // moving between sections blurs the new page in; moving between one client's own tabs keeps the client frame still
+  const sectionKey = /^\/c\/\d+/.exec(pathname)?.[0] ?? pathname.split("/").slice(0, 2).join("/");
   const clientRoute = /^\/c\/(\d+)(\/|$)/.exec(pathname);
   const clientMeta = useApi<{ client: { name: string } }>(clientRoute ? `/clients/${clientRoute[1]}/meta` : null);
   const title = clientRoute ? clientMeta.data?.client.name ?? "Client" : PAGE_TITLE(pathname);
@@ -172,7 +174,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">
         <Crumb pathname={pathname} />
-        <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pb-8 md:pt-4">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pb-8 md:pt-4"><div key={sectionKey} className="swap-in">{children}</div></main>
       </div>
 
       {/* Phone: four daily tabs plus More */}

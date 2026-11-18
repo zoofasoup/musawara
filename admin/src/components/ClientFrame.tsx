@@ -109,7 +109,7 @@ export function ClientFrame() {
             ))}
             {more.length > 0 && (
               <DropdownMenu>
-                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} aria-label="More client pages">
+                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} data-active={!!moreOn} aria-label="More client pages">
                   {moreOn ? moreOn.label : "More"}
                   <Icon name="chevronDown" className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
@@ -126,9 +126,11 @@ export function ClientFrame() {
         </PillNav>
 
         {/* its own boundary: a page that is still loading must not take the header and menu bar down with it */}
-        <Suspense fallback={<CardSkeleton lines={4} />}>
-          <Outlet />
-        </Suspense>
+        <div key={pathname} className="swap-in">
+          <Suspense fallback={<CardSkeleton lines={4} />}>
+            <Outlet />
+          </Suspense>
+        </div>
       </div>
     </ClientScopeOverride>
   );

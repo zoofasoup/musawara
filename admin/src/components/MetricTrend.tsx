@@ -53,7 +53,7 @@ export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: Tre
                 <span className="inline-block h-2 w-2 rounded-full" style={{ background: x.color }} />
                 {x.label}
               </span>
-              <span className="tnum mt-1 block text-sm font-semibold text-ink sm:truncate sm:text-base" title={x.fmt(total)}>
+              <span key={String(total)} className="swap-in tnum mt-1 block text-sm font-semibold text-ink sm:truncate sm:text-base" title={x.fmt(total)}>
                 {x.key === "spend" ? (
                   <>
                     <span className="sm:hidden">Rp {fmtCompact(total)}</span>

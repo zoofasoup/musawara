@@ -7,6 +7,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { ChevronsUpDown, CloudUpload, Filter, Search, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./Avatar";
+import { SlidingTrack } from "./SlidingTrack";
 
 const base = "press inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium outline-none transition-[box-shadow,background-color,color] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 disabled:pointer-events-none disabled:opacity-50 md:min-h-10";
 export const raisedCls = "bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)]";
@@ -93,7 +94,7 @@ export function Chip({ label, avatar, onRemove, className }: { label: string; av
  */
 export function Segmented<T extends string>({ value, onChange, options, label, fill }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: string; icon?: ReactNode; iconOnly?: boolean; badge?: ReactNode }>; label: string; fill?: boolean }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("gap-1 rounded-2xl p-1", recessedCls, fill ? "grid w-full" : "inline-flex")} style={fill ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}>
+    <SlidingTrack role="radiogroup" aria-label={label} className={cn("gap-1 rounded-2xl p-1", recessedCls, fill ? "grid w-full" : "inline-flex")} style={fill ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -104,15 +105,15 @@ export function Segmented<T extends string>({ value, onChange, options, label, f
             aria-checked={on}
             aria-label={o.iconOnly ? o.label : undefined}
             onClick={() => onChange(o.value)}
-            className={cn("press inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium transition-[box-shadow,background-color,color] md:min-h-9", on ? "bg-surface text-ink shadow-[var(--shadow-soft)]" : "text-ink2 hover:text-ink")}
+            className={cn("press relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium md:min-h-9", on ? "text-ink" : "text-ink2 hover:text-ink")}
           >
             {o.icon}
             {!o.iconOnly && o.label}
-            {o.badge !== undefined && <span className="tnum text-muted">{o.badge}</span>}
+            {o.badge !== undefined && <span key={String(o.badge)} className="tnum swap-in text-muted">{o.badge}</span>}
           </button>
         );
       })}
-    </div>
+    </SlidingTrack>
   );
 }
 
