@@ -1,12 +1,13 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, Download, ExternalLink, Paperclip, SendHorizontal, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, Paperclip, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { crmUpload } from "../crmApi";
 
 import { Skeleton } from "../../../components/ui";
 import { GatewayNotice } from "./GatewayNotice";
-import { classify, convTitle, dayKey, fmtClock, fmtDayLabel, fmtPhone, mediaLabel, useLive, type Msg, type Thread, type WaState } from "./util";
+import { MediaBlock } from "./MediaBlock";
+import { classify, convTitle, dayKey, fmtClock, fmtDayLabel, fmtPhone, useLive, type Msg, type Thread, type WaState } from "./util";
 
 const PENDING = "pending-";
 
@@ -20,8 +21,6 @@ function Ticks({ m }: { m: Msg }) {
   return <Clock3 className={cls} aria-label="Waiting to send" />;
 }
 
-const mediaHref = (waId: string) => `/api/crm/media/${encodeURIComponent(waId)}`;
-const linkCls = "inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-medium underline underline-offset-2";
 
 function Bubble({ m }: { m: Msg }) {
   const mine = Boolean(m.from_me);
@@ -29,22 +28,8 @@ function Bubble({ m }: { m: Msg }) {
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-3 py-2 sm:max-w-[70%] ${mine ? "rounded-br-md bg-[color-mix(in_srgb,var(--accent)_14%,white)]" : "rounded-bl-md border border-border bg-surface"} ${pending ? "opacity-70" : ""}`}>
-        {m.media_type && (
-          <div className="flex flex-wrap items-center gap-x-3 text-ink">
-            <span className="text-xs font-medium">{mediaLabel(m.media_type)}</span>
-            {!pending && (
-              <>
-                <a className={linkCls} href={mediaHref(m.wa_id)} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5" /> Open
-                </a>
-                <a className={linkCls} href={mediaHref(m.wa_id)} download>
-                  <Download className="h-3.5 w-3.5" /> Save
-                </a>
-              </>
-            )}
-          </div>
-        )}
-        {m.body && <p className="whitespace-pre-wrap break-words text-sm text-ink">{m.body}</p>}
+        <MediaBlock m={m} pending={pending} />
+        {m.body && <p className={`whitespace-pre-wrap break-words text-sm text-ink ${m.media_type ? "mt-1.5" : ""}`}>{m.body}</p>}
         <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-muted">
           {fmtClock(m.ts)}
           {mine && <Ticks m={m} />}

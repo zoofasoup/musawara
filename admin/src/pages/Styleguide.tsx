@@ -1,6 +1,7 @@
 // The living style guide: every shared component in every state it can be in. Team only, not in the menu.
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
 import { useState, type ReactNode } from "react";
+import { MediaBlock } from "./crm/inbox/MediaBlock";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Nested, Panel, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
@@ -32,6 +33,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
+
+const PIC = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='320' height='240'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='violet'/><stop offset='1' stop-color='skyblue'/></linearGradient></defs><rect width='320' height='240' fill='url(#g)'/></svg>");
 
 export function Styleguide() {
   const { notify, node } = useNotify();
@@ -107,6 +110,21 @@ export function Styleguide() {
               <option value="a">Small</option>
               <option value="b">Select</option>
             </NativeSelect>
+          </Row>
+          <Row label="Chat media">
+            <div className="flex w-full max-w-sm flex-col gap-2 rounded-2xl bg-surface2 p-3">
+              {([
+                ["image", PIC],
+                ["sticker", PIC],
+                ["ptt", "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="],
+                ["video", "/nope.mp4"],
+                ["document", ""],
+              ] as const).map(([t, src]) => (
+                <div key={t} className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-surface px-3 py-2">
+                  <MediaBlock m={{ wa_id: "demo-" + t, phone: "", from_me: 0, body: "", media_type: t, ack: 0, is_read: 1, ts: 0 }} pending={false} src={src} />
+                </div>
+              ))}
+            </div>
           </Row>
           <Row label="Textarea">
             <Textarea placeholder="Longer text" aria-label="Demo textarea" className="sm:max-w-md" />

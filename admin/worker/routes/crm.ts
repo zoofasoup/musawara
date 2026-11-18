@@ -25,6 +25,8 @@ crm.all("/*", async (c) => {
   const type = c.req.header("content-type");
   if (type) headers.set("content-type", type); // keeps the multipart boundary for uploads
   headers.set("authorization", `Bearer ${c.env.WA_GATEWAY_TOKEN}`);
+  const range = c.req.header("range");
+  if (range && /^bytes=\d*-\d*(,\s*\d*-\d*)*$/.test(range)) headers.set("range", range); // lets video seek and play on Safari
   const account = c.req.header("x-wa-account");
   if (account && /^\d+$/.test(account)) headers.set("x-wa-account", account); // which WhatsApp number (multi-account gateway)
   headers.set("x-platform-user", c.get("user").email); // audit trail on the gateway side
@@ -38,7 +40,7 @@ crm.all("/*", async (c) => {
       signal: AbortSignal.timeout(25_000),
     });
     const out = new Headers();
-    for (const h of ["content-type", "content-disposition", "cache-control"]) {
+    for (const h of ["content-type", "content-disposition", "cache-control", "content-range", "accept-ranges", "content-length"]) {
       const v = res.headers.get(h);
       if (v) out.set(h, v);
     }

@@ -55,7 +55,7 @@ test("no hardcoded hex colours in screens (use the theme tokens), except a clien
 test("every raw <button> is a deliberate custom control (tabs, chips, icon buttons), kept to a known list", () => {
   // Buttons should be Btn. Files below hold custom interactive widgets that are not plain buttons.
   const allowed = new Set([
-    "components/AdminShell.tsx", "components/Kanban.tsx", "components/Layout.tsx", "components/kit.tsx", "components/ui.tsx", "components/MetricTrend.tsx",
+    "components/AdminShell.tsx", "components/Kanban.tsx", "components/Layout.tsx", "components/kit.tsx", "components/ui.tsx", "components/MetricTrend.tsx", "pages/crm/inbox/MediaBlock.tsx",
     "components/DateRangePicker.tsx", "components/EntityTable.tsx", "components/AlertFeed.tsx", "pages/AdminHome.tsx",
     "pages/Planning.tsx", "pages/Approvals.tsx", "pages/Assets.tsx", "pages/Organic.tsx", "pages/BrandKnowledge.tsx", "pages/Conversions.tsx",
     "pages/SalesGrid.tsx", "pages/Login.tsx", "pages/Invite.tsx", "pages/Shopee.tsx", "pages/settings/MetaSection.tsx", "pages/settings/TeamSection.tsx",
