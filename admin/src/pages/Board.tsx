@@ -2,6 +2,7 @@
 // by changing its status select (no drag and drop).
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { Callout } from "../components/Callout";
 import { Input } from "@/components/ui/input";
 import { ClientFilter } from "../components/ClientFilter";
 import { PageHeader } from "../components/PageHeader";
@@ -79,7 +80,7 @@ export function Board() {
         <Input className="w-auto" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} aria-label="Due date" />
         <Btn tone="secondary" type="submit">Add task</Btn>
       </form>
-      {error && <p role="alert" className="text-xs text-crit">{error}</p>}
+      {error && <Callout tone="crit" compact>{error}</Callout>}
 
       {tasks.loading && !tasks.data ? (
         <CardSkeleton lines={5} />
@@ -94,7 +95,7 @@ export function Board() {
                 <SectionTitle right={<span className="tnum text-xs text-muted">{items.length}</span>}>{col.label}</SectionTitle>
                 <div className="space-y-2">
                   {items.map((t) => (
-                    <div key={t.id} className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3">
+                    <div key={t.id} className="rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-3">
                       <p className="text-sm font-medium text-ink">{t.title}</p>
                       <p className="mt-0.5 text-xs text-ink2">
                         {t.client_name}

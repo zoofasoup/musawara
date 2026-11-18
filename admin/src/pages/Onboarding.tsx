@@ -2,6 +2,7 @@
 // they happen; the brand knowledge line links to where that item is done.
 
 import { buttonVariants } from "@/components/ui/button";
+import { Callout } from "../components/Callout";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -57,7 +58,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
       ) : (
         <div>
           <SectionTitle right={<span className="tnum text-xs text-muted">{done} of {data.items.length} done</span>}>Checklist</SectionTitle>
-          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+          <ul className="divide-y divide-border rounded-2xl bg-surface shadow-[var(--shadow-soft)]">
             {data.items.map((i) => (
               <li key={i.id}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2.5">
@@ -80,7 +81,7 @@ export function Onboarding({ clientId }: { clientId: number }) {
           Open brand knowledge
         </Link>
       </p>
-      {actionError && <p role="alert" className="text-xs text-crit">{actionError}</p>}
+      {actionError && <Callout tone="crit" compact>{actionError}</Callout>}
     </div>
   );
 }

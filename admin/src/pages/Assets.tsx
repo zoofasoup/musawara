@@ -1,6 +1,8 @@
 // Asset library for one client (team only). Files live on Google Drive: we store the link, never the file.
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { Callout } from "../components/Callout";
+import { FormField } from "../components/FormField";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "../components/PageHeader";
@@ -48,30 +50,24 @@ function AssetForm({ clientId, asset, onClose, onSaved }: { clientId: number; as
     <Sheet title={asset ? "Edit asset" : "Add asset"} onClose={onClose}>
       <form onSubmit={save} className="space-y-3">
         <h2 className="text-base font-semibold text-ink">{asset ? "Edit asset" : "Add asset"}</h2>
-        <label className="block text-xs text-ink2">
-          Title
-          <Input required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className="mt-1" />
-        </label>
-        <label className="block text-xs text-ink2">
-          Type
-          <NativeSelect value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Asset["kind"] })} className="mt-1 w-full">
+        <FormField label="Title">
+            <Input required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
+          </FormField>
+        <FormField label="Type">
+            <NativeSelect value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Asset["kind"] })} className="w-full">
             {KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
           </NativeSelect>
-        </label>
-        <label className="block text-xs text-ink2">
-          Google Drive link
-          <Input required type="url" inputMode="url" placeholder="https://drive.google.com/file/d/..." value={f.drive_url} onChange={(e) => setF({ ...f, drive_url: e.target.value })} aria-invalid={urlBad} className="mt-1" />
-          <span className={`mt-1 block ${urlBad ? "text-crit" : "text-muted"}`}>{urlBad ? "Only https links on drive.google.com or docs.google.com." : "Set sharing so the client can open it."}</span>
-        </label>
-        <label className="block text-xs text-ink2">
-          Tags (comma separated)
-          <Input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="reel, padel, 11.11" className="mt-1" />
-        </label>
-        <label className="block text-xs text-ink2">
-          Notes
-          <Textarea rows={3} maxLength={2000} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} className="mt-1 py-2" />
-        </label>
-        {error && <p role="alert" className="text-xs text-crit">{error}</p>}
+          </FormField>
+        <FormField label="Google Drive link" hint="Set sharing so the client can open it." error={urlBad ? "Only https links on drive.google.com or docs.google.com." : undefined}>
+          <Input required type="url" inputMode="url" placeholder="https://drive.google.com/file/d/..." value={f.drive_url} onChange={(e) => setF({ ...f, drive_url: e.target.value })} aria-invalid={urlBad} />
+        </FormField>
+        <FormField label="Tags (comma separated)">
+            <Input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="reel, padel, 11.11" />
+          </FormField>
+        <FormField label="Notes">
+            <Textarea rows={3} maxLength={2000} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+          </FormField>
+        {error && <Callout tone="crit" compact>{error}</Callout>}
         <div className="flex gap-2">
           <Btn type="submit" tone="primary" loading={saving} disabled={urlBad}>{asset ? "Save changes" : "Add asset"}</Btn>
           <Btn type="button" tone="ghost" onClick={onClose}>Cancel</Btn>
@@ -117,7 +113,7 @@ export function Assets({ clientId }: { clientId: number }) {
         subtitle={<Link to={`/c/${clientId}`} className="hover:text-ink hover:underline">{meta.data?.client.name ?? "Client"}</Link>}
         actions={
           <>
-            <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Approvals</Link>
+            <Link to={`/c/${clientId}/approvals`} className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Approvals</Link>
             <Btn tone="primary" icon="plus" onClick={() => setEditing("new")}>Add asset</Btn>
           </>
         }
@@ -146,7 +142,7 @@ export function Assets({ clientId }: { clientId: number }) {
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shown.map((a) => (
-            <li key={a.id} className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
+            <li key={a.id} className="rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-4">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 text-ink2"><Icon name={KIND_ICON[a.kind]} className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1">

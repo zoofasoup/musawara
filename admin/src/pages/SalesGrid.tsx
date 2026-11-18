@@ -346,10 +346,10 @@ export function SalesGrid({ rows, months, notify, onChanged }: { rows: SavedSale
         <p className="mb-1.5 text-xs font-medium text-ink">By closer{month ? ` · ${month}` : ""}</p>
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-left text-xs">
-            <thead className="border-b border-border/70 text-xs text-muted">
+            <thead className="bg-surface2 text-xs text-muted">
               <tr><th className="px-3 py-2">Closer</th><th className="px-3 py-2 text-right">Sales</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">Average</th><th className="px-3 py-2 text-right">Share</th></tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/70">
               {byCloser.map((c) => (
                 <tr key={c.name}>
                   <td className="px-3 py-2 font-medium text-ink">{c.name}</td>

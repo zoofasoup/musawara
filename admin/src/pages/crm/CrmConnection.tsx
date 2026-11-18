@@ -2,6 +2,7 @@
 // Each card polls /accounts/:id/status every 3 s while its number is not ready, every 15 s otherwise.
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { Callout } from "../../components/Callout";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState, type FormEvent } from "react";
 import { crm } from "./crmApi";
@@ -32,7 +33,7 @@ function QrBlock({ qr }: { qr: string | null }) {
   return (
     <div className="mt-4 flex flex-col items-center gap-4 border-t border-border pt-4 sm:flex-row sm:items-start">
       {qr ? (
-        <img src={qr} alt="WhatsApp QR code to scan" width={240} height={240} className="h-auto w-full max-w-[240px] rounded-lg border border-border bg-white" />
+        <img src={qr} alt="WhatsApp QR code to scan" width={240} height={240} className="h-auto w-full max-w-[240px] rounded-xl border border-border bg-white" />
       ) : (
         <Skeleton className="h-[240px] w-full max-w-[240px]" />
       )}
@@ -164,9 +165,7 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
       </dl>
 
       {err && status !== "ready" && (
-        <p className="mt-4 break-words rounded-lg bg-crit/10 px-3 py-2 text-xs text-crit" role="alert">
-          {err}
-        </p>
+        <Callout tone="crit" compact className="mt-4 break-words">{err}</Callout>
       )}
       {live.error != null && !live.data && <p className="mt-3 text-xs text-warn">Live status is unavailable right now. Showing the last known state.</p>}
 
@@ -217,7 +216,7 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
       </div>
 
       {delProblem && (
-        <div className="mt-4 rounded-lg border border-crit/30 bg-crit/5 p-3" role="alert">
+        <div className="mt-4 rounded-xl border border-crit/30 bg-crit/5 p-3" role="alert">
           <p className="text-sm font-medium text-ink">This number was not deleted</p>
           <p className="mt-1 break-words text-xs text-ink2">{delProblem}</p>
           <p className="mt-2 text-xs text-ink2">
@@ -280,9 +279,7 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
           <BrandSelect id="new-brand" value={client} clients={clients} onChange={setClient} />
         </div>
         {problem && (
-          <p className="break-words rounded-lg bg-crit/10 px-3 py-2 text-xs text-crit" role="alert">
-            {problem}
-          </p>
+          <Callout tone="crit" compact className="break-words">{problem}</Callout>
         )}
         <div className="flex flex-wrap gap-2">
           <Btn tone="primary" type="submit" icon="plus" loading={saving} disabled={!name.trim()}>

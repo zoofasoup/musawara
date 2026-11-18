@@ -2,6 +2,8 @@
 // Team only. Ideas are planning cards, not Publish posts: nothing here schedules or publishes.
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { Callout } from "../components/Callout";
+import { Segmented } from "../components/Segmented";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMemo, useState } from "react";
@@ -90,9 +92,9 @@ export function Planning() {
       <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><NotionSync onDone={reload} notify={notify} /></>} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
-        <TabsList variant="line" className="h-auto w-full justify-start border-b border-border">
-          <TabsTrigger value="calendar" className="min-h-11 flex-none px-4 text-sm">Calendar</TabsTrigger>
-          <TabsTrigger value="board" className="min-h-11 flex-none px-4 text-sm">Board</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="calendar" className="flex-none px-4">Calendar</TabsTrigger>
+          <TabsTrigger value="board" className="flex-none px-4">Board</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -103,11 +105,7 @@ export function Planning() {
             <Btn onClick={() => setCursor(todayJakarta())}>Today</Btn>
             <Btn onClick={() => step(1)} aria-label="Next">›</Btn>
             <h2 className="ml-1 text-base font-semibold text-ink">{title}</h2>
-            <span className="ml-auto inline-flex gap-1">
-              {(["month", "week"] as const).map((v) => (
-                <Btn key={v} tone={view === v ? "primary" : "secondary"} onClick={() => setView(v)}>{v === "month" ? "Month" : "Week"}</Btn>
-              ))}
-            </span>
+            <span className="ml-auto"><Segmented label="Calendar view" value={view} onChange={setView} options={[{ value: "month", label: "Month" }, { value: "week", label: "Week" }]} /></span>
           </div>
           <Legend />
           {cal.loading && !cal.data ? <div className="mt-4"><CardSkeleton lines={6} /></div>
@@ -155,7 +153,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
   const byDay = (d: string) => ({ posts: data.posts.filter((p) => p.day === d), cards: data.cards.filter((c) => c.planned_date === d) });
   const max = view === "week" ? 20 : 3;
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+    <div className="mt-4 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-soft)]">
       <div className="grid grid-cols-7 border-b border-border bg-surface2 text-center text-[11px] font-medium uppercase tracking-wide text-muted">
         {DOW.map((d) => <div key={d} className="py-1.5">{d}</div>)}
       </div>
@@ -182,7 +180,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                     const s = POST_STATUS[p.status] ?? POST_STATUS.draft;
                     return (
                       <button key={"p" + p.id} type="button" onClick={() => onPick({ type: "post", post: p })}
-                        className={`flex w-full items-center gap-1.5 rounded-lg border px-1.5 py-1 text-left text-[11px] leading-tight hover:brightness-95 ${KIND_TINT[p.kind] ?? "border-border bg-bg"}`}>
+                        className={`flex w-full items-center gap-1.5 rounded-xl border px-1.5 py-1 text-left text-[11px] leading-tight hover:brightness-95 ${KIND_TINT[p.kind] ?? "border-border bg-bg"}`}>
                         <i className={`h-2 w-2 shrink-0 rounded-full ${TONE[s.tone].dot}`} aria-label={s.label} />
                         <span className="shrink-0 tabular-nums text-muted">{fmtTime(p.scheduled_at)}</span>
                         <span className="truncate text-ink">{showClient ? `${p.client_name}: ` : ""}{p.caption || KIND_NAME[p.kind]}</span>
@@ -191,7 +189,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
                   })}
                   {cards.slice(0, Math.max(0, max - posts.length)).map((c) => (
                     <button key={"c" + c.id} type="button" onClick={() => onPick({ type: "card", id: c.id })}
-                      className={`flex w-full items-center gap-1.5 rounded-lg border border-dashed px-1.5 py-1 text-left text-[11px] leading-tight text-ink2 hover:brightness-95 ${KIND_TINT[c.kind] ?? "border-border2"}`}>
+                      className={`flex w-full items-center gap-1.5 rounded-xl border border-dashed px-1.5 py-1 text-left text-[11px] leading-tight text-ink2 hover:brightness-95 ${KIND_TINT[c.kind] ?? "border-border2"}`}>
                       <span className="truncate">{showClient ? `${c.client_name}: ` : ""}{c.title}</span>
                     </button>
                   ))}
@@ -207,7 +205,7 @@ function CalendarGrid({ view, cursor, data, onPick, showClient }: { view: "month
 }
 
 function ItemRow({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left text-sm hover:bg-surface2">{children}</button>;
+  return <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center gap-2 rounded-2xl bg-surface shadow-[var(--shadow-soft)] px-3 py-2 text-left text-sm hover:bg-surface2">{children}</button>;
 }
 
 function DaySheet({ day, clients, clientId, owners, items, onPick, onClose, onSaved, notify }: {
@@ -282,7 +280,7 @@ function PostSheet({ post, onClose, onChanged, notify }: { post: CalPost; onClos
       <h2 className="mt-3 text-lg font-semibold text-ink">{post.client_name}</h2>
       <p className="text-sm text-ink2">{fmtDayLong(post.day)}, {fmtTime(post.scheduled_at)} WIB</p>
       <p className="mt-3 whitespace-pre-wrap text-sm text-ink">{post.caption || "No caption yet."}</p>
-      {post.last_error && <p className="mt-3 rounded-lg bg-crit/10 px-3 py-2 text-xs text-crit">{post.last_error}</p>}
+      {post.last_error && <Callout tone="crit" compact className="mt-3">{post.last_error}</Callout>}
       <p className="mt-4 text-xs text-muted">Edit, reschedule or retry this post in Publish. This page never changes a post.</p>
       {post.card_id == null && <Btn className="mt-3 min-h-11" onClick={addToBoard} loading={busy}>Add to board</Btn>}
     </Sheet>
@@ -366,7 +364,7 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
           const idx = MANUAL_STAGES.indexOf(c.stage);
           const ps = c.post_status ? POST_STATUS[c.post_status] : null;
           return (
-            <article className="rounded-xl border border-border bg-surface shadow-[var(--shadow-soft)]">
+            <article className="rounded-2xl bg-surface shadow-[var(--shadow-soft)]">
               <button type="button" onClick={() => onOpen(c.id)} className="block w-full text-left">
                 <span className="block border-b border-border px-3 py-1.5 text-[11px] text-muted">Client: <span className="text-ink2">{c.client_name}</span></span>
                 <span className="block px-3 pt-2 text-sm font-medium text-ink">{c.title}</span>

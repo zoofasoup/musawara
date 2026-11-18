@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { TONE } from "../../lib/tone";
 import { useState } from "react";
 import { api, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
@@ -48,7 +49,7 @@ export function MetaSection({ state, notify }: { state: ReturnType<typeof useApi
           <div className="flex items-center gap-3">
             <span
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
-                loading ? "bg-surface3 text-muted" : valid ? "bg-good/12 text-good" : configured ? "bg-crit/10 text-crit" : "bg-warn/12 text-warn"
+                loading ? TONE.neutral.soft : valid ? TONE.good.soft : configured ? TONE.crit.soft : TONE.warn.soft
               }`}
             >
               <Icon name={loading ? "refresh" : valid ? "checkCircle" : configured ? "xCircle" : "alert"} className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />

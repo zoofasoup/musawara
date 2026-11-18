@@ -175,7 +175,7 @@ export function AdminHome() {
                     <Link to={`/c/${c.id}`} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-center gap-2.5 font-medium text-ink">
                       <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} />
                       <span className="truncate">{c.name}</span>
-                      {c.unacknowledged_alerts > 0 && <span className="tnum shrink-0 rounded-full bg-crit/10 px-2 py-0.5 text-xs font-semibold text-crit" title="Open alerts">{c.unacknowledged_alerts}</span>}
+                      {c.unacknowledged_alerts > 0 && <span className="shrink-0" title="Open alerts"><Pill tone="crit" size="sm" dot={false}>{c.unacknowledged_alerts}</Pill></span>}
                     </Link>
                   ),
                 },

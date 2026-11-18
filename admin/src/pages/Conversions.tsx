@@ -5,6 +5,7 @@
 // Identifiers are hashed in the browser; only hashes reach the server and Meta.
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { TONE } from "../lib/tone";
 import { Segmented } from "../components/Segmented";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ function Step({ n, title, hint, children, done }: { n: number; title: string; hi
   return (
     <section className="space-y-3">
       <div className="flex items-start gap-3">
-        <span className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${done ? "bg-good/12 text-good" : "bg-surface3 text-ink2"}`}>
+        <span className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${done ? TONE.good.soft : TONE.neutral.soft}`}>
           {done ? <Icon name="check" className="h-4 w-4" /> : n}
         </span>
         <div>
@@ -491,7 +492,7 @@ export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
                 </label>
               ))}
             </div>
-            {mode === "meta" && !map.group && <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn"><Icon name="info" className="mt-0.5 h-3.5 w-3.5" />No booking column: each person is sent to Meta as a separate purchase, and only people with a phone or email can be sent.</p>}
+            {mode === "meta" && !map.group && <Callout tone="warn" compact className="mt-3">No booking column: each person is sent to Meta as a separate purchase, and only people with a phone or email can be sent.</Callout>}
             <div className="mt-3 flex justify-end"><Btn tone="primary" disabled={!mapOk || busy !== null} loading={busy !== null} onClick={() => evaluate(selectedList, map)}>Check rows</Btn></div>
           </Panel>
         </Step>

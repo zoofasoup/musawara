@@ -2,6 +2,7 @@
 // (no websocket). List every 5 s, open thread every 3 s, connection status 3 s / 15 s.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Callout } from "../../components/Callout";
 import { useSearchParams } from "react-router-dom";
 import { crm } from "./crmApi";
 import { Btn, Empty, Panel } from "../../components/kit";
@@ -64,17 +65,10 @@ export function CrmInbox() {
   return (
     <div className="space-y-3">
       {convs.error != null && (
-        <p className="rounded-lg bg-warn/12 px-3 py-2 text-xs text-warn" role="status">
-          Lost contact with the WhatsApp gateway. Showing the last data loaded; retrying every few seconds.
-        </p>
+        <Callout tone="warn" compact>Lost contact with the WhatsApp gateway. Showing the last data loaded; retrying every few seconds.</Callout>
       )}
       {syncError && (
-        <p className="flex items-center justify-between gap-2 rounded-lg bg-crit/10 px-3 py-2 text-xs text-crit" role="alert">
-          <span>Sync failed: {syncError}</span>
-          <Btn tone="ghost" className="min-h-11" onClick={() => setSyncError(undefined)}>
-            Dismiss
-          </Btn>
-        </p>
+        <Callout tone="crit" compact action={<Btn tone="ghost" size="sm" onClick={() => setSyncError(undefined)}>Dismiss</Btn>}>Sync failed: {syncError}</Callout>
       )}
       <Panel className={`flex overflow-hidden ${height}`}>
         <div className={`${phone ? "hidden md:flex" : "flex"} min-h-0 w-full shrink-0 flex-col border-border md:w-[340px] md:border-r lg:w-[380px]`}>

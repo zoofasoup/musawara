@@ -1,4 +1,7 @@
 import { Input } from "@/components/ui/input";
+import { FormField } from "../components/FormField";
+import { Callout } from "../components/Callout";
+import { Btn } from "../components/kit";
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, useApi } from "../lib/api";
@@ -45,35 +48,30 @@ export function Invite() {
         ) : error ? (
           <ErrorState message={error} />
         ) : (
-          <form onSubmit={submit} className="space-y-3 rounded-2xl border border-border bg-surface p-6">
+          <form onSubmit={submit} className="space-y-4 rounded-3xl bg-surface p-6 shadow-[var(--shadow-soft)]">
             <h1 className="text-base font-semibold text-ink">Create your account</h1>
             <p className="text-xs text-ink2">
               {data!.invite.client_name
                 ? `You've been invited to view the ${data!.invite.client_name} dashboard.`
                 : "You've been invited to Musawara Ads Intelligence."}
             </p>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink2">Your name</span>
+            <FormField label="Your name">
               <Input
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink2">Email</span>
+            </FormField>
+            <FormField label="Email">
               <Input
                 type="email"
                 required={!data!.invite.email}
                 disabled={Boolean(data!.invite.email)}
                 value={data!.invite.email ?? email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara disabled:opacity-60"
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink2">Password (8+ characters)</span>
+            </FormField>
+            <FormField label="Password (8+ characters)">
               <Input
                 type="password"
                 required
@@ -81,17 +79,12 @@ export function Invite() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
               />
-            </label>
-            {submitError && <p className="text-xs text-crit">{submitError}</p>}
-            <button
-              type="submit"
-              disabled={busy}
-              className="min-h-11 w-full rounded-lg bg-musawara text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
+            </FormField>
+            {submitError && <Callout tone="crit" compact>{submitError}</Callout>}
+            <Btn tone="primary" type="submit" loading={busy} className="w-full">
               {busy ? "Creating…" : "Create account"}
-            </button>
+            </Btn>
           </form>
         )}
       </div>

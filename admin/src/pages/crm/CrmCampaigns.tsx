@@ -3,6 +3,8 @@
 // WhatsApp messages, so the final button states the recipient count and needs a connected WhatsApp.
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { TONE } from "../../lib/tone";
+import { Callout } from "../../components/Callout";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useMemo, useState } from "react";
@@ -63,9 +65,9 @@ function WaBanner({ wa, ready }: { wa?: WaState; ready: boolean }) {
   return ready ? (
     <p className="text-xs text-muted">WhatsApp connected{wa.me?.phone ? ` as ${fmtPhone(wa.me.phone)}` : ""}.</p>
   ) : (
-    <div role="status" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-xs text-ink">
-      <b className="text-warn">WhatsApp is not connected</b> (status: {wa.status}). Nothing can be sent until it reconnects; any running broadcast waits and resumes by itself. Connect it on the WhatsApp tab.
-    </div>
+    <Callout tone="warn" title="WhatsApp is not connected">
+      Status: {wa.status}. Nothing can be sent until it reconnects; any running broadcast waits and resumes by itself. Connect it on the WhatsApp tab.
+    </Callout>
   );
 }
 
@@ -159,7 +161,7 @@ function CampaignDetail({ id, ready, notify, onBack }: { id: number; ready: bool
           <div className="space-y-2">
             <div role="group" aria-label="Filter recipients" className="flex flex-wrap gap-1">
               {FILTERS.map(([k, l]) => (
-                <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setShown(100); }} className={`inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-medium ${filter === k ? "bg-surface3 text-ink" : "text-ink2 hover:text-ink"}`}>
+                <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setShown(100); }} className={`inline-flex min-h-11 items-center rounded-xl px-3 text-xs font-medium ${filter === k ? "bg-surface3 text-ink" : "text-ink2 hover:text-ink"}`}>
                   {l} <span className="tnum ml-1 text-muted">{fmtNum(count(k))}</span>
                 </button>
               ))}
@@ -296,7 +298,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
       <PageHead title="New broadcast" />
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEPS.map((s, i) => (
-          <li key={s} aria-current={i === step ? "step" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3 ${i === step ? "bg-[color-mix(in_srgb,var(--accent)_12%,white)] font-medium text-musawara-ink" : i < step ? "bg-good/12 text-good" : "bg-surface3 text-ink2"}`}>
+          <li key={s} aria-current={i === step ? "step" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3 ${i === step ? "bg-[color-mix(in_srgb,var(--accent)_12%,white)] font-medium text-musawara-ink" : i < step ? TONE.good.soft : TONE.neutral.soft}`}>
             {i + 1}. {s}
           </li>
         ))}
@@ -321,7 +323,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
                   {tagsQ.data!.map((t) => {
                     const on = tags.includes(t.tag);
                     return (
-                      <button key={t.tag} type="button" aria-pressed={on} onClick={() => setTags(on ? tags.filter((x) => x !== t.tag) : [...tags, t.tag])} className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium ${on ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,white)] text-musawara-ink" : "border-border bg-surface text-ink2 hover:bg-surface2"}`}>
+                      <button key={t.tag} type="button" aria-pressed={on} onClick={() => setTags(on ? tags.filter((x) => x !== t.tag) : [...tags, t.tag])} className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium ${on ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,white)] text-musawara-ink" : "border-border bg-surface text-ink2 hover:bg-surface2"}`}>
                         {t.tag} <span className="tnum text-muted">{fmtNum(t.count)}</span>
                       </button>
                     );
@@ -330,7 +332,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
               )}
             </div>
             {ids.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-surface2 px-3 py-2 text-xs text-ink2">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface2 px-3 py-2 text-xs text-ink2">
                 {fmtNum(ids.length)} contacts chosen on the Contacts page
                 <Btn tone="ghost" onClick={() => setIds([])}>Remove them</Btn>
               </div>
@@ -366,7 +368,7 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
               ))}
             </ul>
             <Field label="Attachment (optional)" hint={file ? `${file.name}, ${(file.size / 1048576).toFixed(1)} MB. With an attachment, the message becomes its caption. Max 64 MB.` : "Image, video or document, up to 64 MB. The message becomes its caption."}>
-              <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block min-h-11 w-full text-xs text-ink2 file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:text-xs" />
+              <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block min-h-11 w-full text-xs text-ink2 file:mr-3 file:min-h-11 file:rounded-xl file:border file:border-border file:bg-surface file:px-3 file:text-xs" />
             </Field>
             <div>
               <p className="mb-1 text-xs font-medium text-ink2">Pause between messages (seconds)</p>
@@ -394,13 +396,13 @@ function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }: { init
               <Bubble text={sample ?? ""} attachment={file?.name} />
               <p className="mt-1 text-xs text-muted">Spintax choices such as {"{Halo|Hai}"} differ per person.</p>
             </div>
-            <p className="rounded-lg bg-surface2 px-3 py-2 text-xs text-ink2">
+            <p className="rounded-xl bg-surface2 px-3 py-2 text-xs text-ink2">
               This sends real WhatsApp messages as soon as you confirm. Only message people who know your business; reports as spam can get the number blocked. You can pause or cancel from the broadcast page, but messages already sent cannot be recalled.
             </p>
           </div>
         )}
 
-        {problem && <p role="alert" className="text-xs text-crit">{problem}</p>}
+        {problem && <Callout tone="crit" compact>{problem}</Callout>}
 
         <div className="flex flex-wrap items-center gap-2">
           {step > 0 && <Btn onClick={() => { setProblem(undefined); setStep(step - 1); }} disabled={busy}>Back</Btn>}
@@ -458,7 +460,7 @@ export function CrmCampaigns() {
           ) : (
             <div className="space-y-3">
               {list.data!.map((c) => (
-                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block w-full min-h-11 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4 text-left hover:bg-surface2">
+                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block w-full min-h-11 rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-4 text-left hover:bg-surface2">
                   <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="min-w-0 break-words text-sm font-semibold text-ink">{c.name}</span>
                     <StatusPill status={c.status} />

@@ -4,6 +4,7 @@
 // Pages inside it render underneath and keep their own content only.
 
 import { Suspense } from "react";
+import { TONE } from "../lib/tone";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useApi } from "../lib/api";
 import { fmtDateTime } from "../lib/format";
@@ -24,7 +25,7 @@ type Tab = { to: string; label: string; end?: boolean; badge?: number; tone?: "c
 
 function Badge({ tab }: { tab: Tab }) {
   if (!tab.badge) return null;
-  return <span className={`tnum rounded-full px-1.5 text-[11px] font-semibold ${tab.tone === "crit" ? "bg-crit/12 text-crit" : "bg-[color-mix(in_srgb,var(--accent)_14%,white)] text-musawara-ink"}`}>{tab.badge}</span>;
+  return <span className={`tnum rounded-full px-1.5 text-[11px] font-semibold ${tab.tone === "crit" ? TONE.crit.soft : TONE.accent.soft}`}>{tab.badge}</span>;
 }
 
 export function ClientFrame() {

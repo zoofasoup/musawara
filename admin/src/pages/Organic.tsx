@@ -8,7 +8,7 @@ import { api, useApi } from "../lib/api";
 import { fmtCompact, fmtDay, fmtPct } from "../lib/format";
 import { labelPosts, type PostLabel } from "../lib/organicLabel";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
-import { Btn, ConfirmBtn, RowList, Sheet, Empty } from "../components/kit";
+import { Btn, ConfirmBtn, RowList, Sheet, Empty, Pill, type Tone } from "../components/kit";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Day = { day: string; count: number };
@@ -56,12 +56,12 @@ const SORTS: Record<string, [string, (p: Post, l: PostLabel | null | undefined) 
   share_rate: ["Share rate", (p) => rate(p.shares, p.reach)],
   watch: ["Avg watch time", (p) => p.avg_watch_ms],
 };
-const LABELS: Record<PostLabel, { text: string; cls: string }> = {
-  top: { text: "Top", cls: "bg-good text-white" },
-  good: { text: "Good", cls: "bg-good/15 text-good" },
-  average: { text: "Average", cls: "bg-surface3 text-ink2" },
-  weak: { text: "Weak", cls: "bg-crit/15 text-crit" },
-  new: { text: "New", cls: "bg-surface3 text-muted" },
+const LABELS: Record<PostLabel, { text: string; tone: Tone }> = {
+  top: { text: "Top", tone: "good" },
+  good: { text: "Good", tone: "good" },
+  average: { text: "Average", tone: "neutral" },
+  weak: { text: "Weak", tone: "crit" },
+  new: { text: "New", tone: "neutral" },
 };
 
 
@@ -80,7 +80,7 @@ function Thumb({ post, className = "" }: { post: Post; className?: string }) {
 function LabelChip({ label }: { label: PostLabel | null | undefined }) {
   if (!label) return null;
   const l = LABELS[label];
-  return <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${l.cls}`}>{l.text}</span>;
+  return <Pill tone={l.tone} size="sm" dot={false}>{l.text}</Pill>;
 }
 
 function StoryRow({ a }: { a: Account }) {
@@ -122,7 +122,7 @@ function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null 
     <Sheet title="Post detail" onClose={onClose}>
       <div>
         <div className="flex gap-3">
-          <Thumb post={post} className="h-28 w-28 shrink-0 rounded-lg" />
+          <Thumb post={post} className="h-28 w-28 shrink-0 rounded-xl" />
           <div className="min-w-0">
             <div className="flex items-center gap-2"><LabelChip label={label} /><span className="text-xs text-muted">{FORMAT_NAME[post.format]} · {fmtDay(post.day)}</span></div>
             <p className="mt-1 text-xs text-muted">@{post.ig_username}</p>
@@ -228,7 +228,7 @@ export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
           </>
         }
       />
-      {msg && <p className="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink2">{msg}</p>}
+      {msg && <p className="mt-3 rounded-2xl bg-surface shadow-[var(--shadow-soft)] px-3 py-2 text-xs text-ink2">{msg}</p>}
 
       {list.loading ? (
         <div className="mt-5"><CardSkeleton lines={4} /></div>
@@ -239,9 +239,9 @@ export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
       ) : (
         <>
           {!fixedId && <Tabs value={String(activeId)} onValueChange={(v) => setClientId(Number(v))} className="mt-5">
-            <TabsList variant="line" className="h-auto w-full flex-wrap justify-start border-b border-border">
+            <TabsList className="flex-wrap">
               {tabs.map((t) => (
-                <TabsTrigger key={t.id} value={String(t.id)} className="min-h-11 flex-none px-4 text-sm">
+                <TabsTrigger key={t.id} value={String(t.id)} className="flex-none px-4">
                   {t.name}
                 </TabsTrigger>
               ))}
@@ -275,9 +275,9 @@ export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                 {shown.map((p) => (
                   <button key={p.media_id} onClick={() => setOpen(p)} className="group text-left">
-                    <div className="relative overflow-hidden rounded-lg border border-border">
+                    <div className="relative overflow-hidden rounded-xl border border-border">
                       <Thumb post={p} className="aspect-square w-full" />
-                      <span className="absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">{FORMAT_NAME[p.format] ?? p.format}</span>
+                      <span className="absolute left-1.5 top-1.5 rounded-lg bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">{FORMAT_NAME[p.format] ?? p.format}</span>
                       <span className="absolute right-1.5 top-1.5"><LabelChip label={labels.get(p.media_id)} /></span>
                     </div>
                     <p className="tnum mt-1.5 text-xs text-ink2">

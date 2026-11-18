@@ -2,6 +2,9 @@
 // resubmits. TeamApprovals lists every request across clients with a status filter.
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { Segmented } from "../components/Segmented";
+import { Callout } from "../components/Callout";
+import { FormField } from "../components/FormField";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,11 +101,10 @@ function ResubmitSheet({ clientId, req, onClose, onDone }: { clientId: number; r
       <form onSubmit={go} className="space-y-3">
         <h2 className="text-base font-semibold text-ink">Resubmit "{req.title}"</h2>
         <p className="text-xs text-muted">This sends version {req.version + 1} to the client. Update the Drive files first if needed.</p>
-        <label className="block text-xs text-ink2">
-          Message to the client
-          <Textarea rows={4} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 py-2" />
-        </label>
-        {error && <p role="alert" className="text-xs text-crit">{error}</p>}
+        <FormField label="Message to the client">
+            <Textarea rows={4} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </FormField>
+        {error && <Callout tone="crit" compact>{error}</Callout>}
         <div className="flex gap-2">
           <Btn type="submit" tone="primary" loading={busy}>Resubmit</Btn>
           <Btn type="button" tone="ghost" onClick={onClose}>Cancel</Btn>
@@ -138,14 +140,12 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
     <Sheet title="New approval request" onClose={onClose}>
       <form onSubmit={go} className="space-y-3">
         <h2 className="text-base font-semibold text-ink">New approval request</h2>
-        <label className="block text-xs text-ink2">
-          Title
-          <Input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
-        </label>
-        <label className="block text-xs text-ink2">
-          Message to the client
-          <Textarea rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 py-2" />
-        </label>
+        <FormField label="Title">
+            <Input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+          </FormField>
+        <FormField label="Message to the client">
+            <Textarea rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </FormField>
         <fieldset className="min-w-0">
           <legend className="text-xs text-ink2">Assets to review</legend>
           {assets.loading && !assets.data ? (
@@ -155,10 +155,10 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
           ) : list.length === 0 ? (
             <p className="mt-1 text-xs text-muted">No assets yet. <Link to={`/c/${clientId}/assets`} className="text-musawara-ink underline">Add one in the library</Link> first.</p>
           ) : (
-            <ul className="mt-1 max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-border2 p-1">
+            <ul className="mt-1 max-h-56 space-y-0.5 overflow-y-auto rounded-xl border border-border2 p-1">
               {list.map((a) => (
                 <li key={a.id}>
-                  <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm text-ink hover:bg-surface2">
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-ink hover:bg-surface2">
                     <Checkbox checked={picked.includes(a.id)} onCheckedChange={(on) => setPicked(on ? [...picked, a.id] : picked.filter((x) => x !== a.id))} />
                     <span className="min-w-0 truncate">{a.title}</span>
                     <span className="ml-auto shrink-0 text-xs text-muted">{a.kind}</span>
@@ -169,15 +169,14 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
           )}
         </fieldset>
         {(posts.data?.posts.length ?? 0) > 0 && (
-          <label className="block text-xs text-ink2">
-            Publish post (optional)
-            <NativeSelect value={postId} onChange={(e) => setPostId(e.target.value)} className="mt-1 w-full">
+          <FormField label="Publish post (optional)">
+              <NativeSelect value={postId} onChange={(e) => setPostId(e.target.value)} className="w-full">
               <option value="">None</option>
               {posts.data!.posts.map((p) => <option key={p.id} value={p.id}>#{p.id} {p.kind} · {(p.caption || "No caption").slice(0, 40)}</option>)}
             </NativeSelect>
-          </label>
+            </FormField>
         )}
-        {error && <p role="alert" className="text-xs text-crit">{error}</p>}
+        {error && <Callout tone="crit" compact>{error}</Callout>}
         <div className="flex gap-2">
           <Btn type="submit" tone="primary" loading={busy} disabled={picked.length === 0}>Send for approval</Btn>
           <Btn type="button" tone="ghost" onClick={onClose}>Cancel</Btn>
@@ -208,7 +207,7 @@ function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: num
   }
 
   return (
-    <li className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-4">
+    <li className="rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-ink">{req.title}</h3>
@@ -221,10 +220,9 @@ function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: num
 
       {!team && req.status === "pending" && (
         <div className="mt-3 space-y-2">
-          <label className="block text-xs text-ink2">
-            Comment (required if you request changes)
-            <Textarea rows={2} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} className="mt-1 py-2" />
-          </label>
+          <FormField label="Comment (required if you request changes)">
+              <Textarea rows={2} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} />
+            </FormField>
           <div className="flex flex-wrap gap-2">
             <Btn tone="primary" icon="check" loading={busy === "approved"} disabled={!!busy} onClick={() => decide("approved")}>Approve</Btn>
             <Btn loading={busy === "changes_requested"} disabled={!!busy || !comment.trim()} onClick={() => decide("changes_requested")}>Request changes</Btn>
@@ -266,19 +264,14 @@ export function Approvals({ clientId }: { clientId: number }) {
         subtitle={team ? <Link to={`/c/${clientId}`} className="hover:text-ink hover:underline">{meta.data?.client.name ?? "Client"}</Link> : undefined}
         actions={team && (
           <>
-            <Link to={`/c/${clientId}/assets`} className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Asset library</Link>
+            <Link to={`/c/${clientId}/assets`} className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-xs font-medium text-ink2 hover:bg-surface hover:text-ink">Asset library</Link>
             <Btn tone="primary" icon="plus" onClick={() => setCreating(true)}>New request</Btn>
           </>
         )}
       />
 
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
-        {FILTERS.map(([k, label]) => (
-          <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}
-            className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-xs font-medium ${status === k ? "border-[var(--accent)] bg-surface2 text-ink" : "border-border text-ink2 hover:text-ink"}`}>
-            {label}
-          </button>
-        ))}
+      <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+        <Segmented label="Filter by status" value={status} onChange={setStatus} options={FILTERS.map(([k, label]) => ({ value: k, label }))} />
       </div>
 
       {list.loading && !list.data ? (

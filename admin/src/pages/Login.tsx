@@ -1,4 +1,7 @@
 import { Input } from "@/components/ui/input";
+import { FormField } from "../components/FormField";
+import { Callout } from "../components/Callout";
+import { Btn } from "../components/kit";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -32,38 +35,30 @@ export function Login() {
         <div className="mb-6 text-center">
           <Wordmark />
         </div>
-        <form onSubmit={submit} className="space-y-3 rounded-2xl border border-border bg-surface p-6">
+        <form onSubmit={submit} className="space-y-4 rounded-3xl bg-surface p-6 shadow-[var(--shadow-soft)]">
           <h1 className="text-base font-semibold text-ink">Sign in</h1>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-ink2">Email</span>
-            <Input
+          <FormField label="Email">
+              <Input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-ink2">Password</span>
-            <Input
+            </FormField>
+          <FormField label="Password">
+              <Input
               type="password"
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="min-h-11 w-full rounded-lg border border-border2 bg-surface px-3 text-sm text-ink outline-none focus:border-musawara"
             />
-          </label>
-          {error && <p className="text-xs text-crit">{error}</p>}
-          <button
-            type="submit"
-            disabled={busy}
-            className="min-h-11 w-full rounded-lg bg-musawara text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
+            </FormField>
+          {error && <Callout tone="crit" compact>{error}</Callout>}
+          <Btn tone="primary" type="submit" loading={busy} className="w-full">
+              {busy ? "Signing in…" : "Sign in"}
+            </Btn>
         </form>
         <p className="mt-4 text-center text-xs text-muted">
           Access is by invitation from Musawara Creative.

@@ -3,6 +3,7 @@
 // If a file cannot be loaded the bubble falls back to the plain label with Open / Save.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TONE } from "../../../lib/tone";
 import { Download, ExternalLink, FileText, Pause, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { mediaLabel, type Msg } from "./util";
@@ -62,7 +63,7 @@ const extOf = (name: string | null, type: string | null) => {
   const t = (type ?? "").split(";")[0].split("/")[1];
   return t ? t.replace(/^vnd\..*\./, "").slice(0, 5) : "file";
 };
-const TILE: Record<string, string> = { pdf: "bg-crit/12 text-crit", doc: "bg-chart-4/12 text-chart-4", docx: "bg-chart-4/12 text-chart-4", xls: "bg-good/12 text-good", xlsx: "bg-good/12 text-good", csv: "bg-good/12 text-good", ppt: "bg-warn/12 text-warn", pptx: "bg-warn/12 text-warn", zip: "bg-surface3 text-ink2" };
+const TILE: Record<string, string> = { pdf: TONE.crit.soft, doc: TONE.info.soft, docx: TONE.info.soft, xls: TONE.good.soft, xlsx: TONE.good.soft, csv: TONE.good.soft, ppt: TONE.warn.soft, pptx: TONE.warn.soft, zip: TONE.neutral.soft };
 
 function DocCard({ href, pending, meta }: { href: string; pending: boolean; meta: DocMeta | null }) {
   const ext = extOf(meta?.name ?? null, meta?.type ?? null);

@@ -21,7 +21,7 @@ function Tile({ href, icon, label, value, sub, tone }: { href: string; icon: Ico
         e.preventDefault();
         document.querySelector(href)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
       }}
-      className="group flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)] p-3 hover:border-border2 hover:bg-surface2"
+      className="group flex min-h-11 items-center gap-3 rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-3 hover:border-border2 hover:bg-surface2"
     >
       <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tileTone(tone)}`}>
         <Icon name={icon} className="h-5 w-5" />

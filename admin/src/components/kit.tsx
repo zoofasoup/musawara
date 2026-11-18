@@ -297,7 +297,7 @@ export function CopyBtn({ text, label }: { text: string; label?: string }) {
       className={cn(
         "press inline-flex min-h-11 md:min-h-10 select-none items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium transition-[box-shadow,background-color,color] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40",
         done
-          ? "bg-good/12 text-good shadow-[var(--shadow-soft)]"
+          ? `${TONE.good.soft} shadow-[var(--shadow-soft)]`
           : "bg-surface text-ink2 shadow-[var(--shadow-soft)] hover:text-ink hover:shadow-[var(--shadow-panel)]"
       )}
     >

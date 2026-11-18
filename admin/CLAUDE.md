@@ -91,3 +91,6 @@ Tokens in index.css: `--ease-spring` (punchy, small overshoot) and `--ease-out`.
 
 ## Winners and boncos
 One rule in `lib/rank.ts` (tested): judge against the client's own typical cost per lead, the median of items with leads. 20% or more below = Winning, up to 20% above = On par, up to 50% above = Watch, beyond that or no leads = Weak. `CampaignRanking` (campaigns by spend, with one budget suggestion; team and client) and `CreativeQuadrant` (every ad as a dot, team only, Ads tab) both use it, so colours and labels agree everywhere. Add new "good or bad" views on top of `rank()`, not with new thresholds.
+
+## Guards (src/lib/uiStandard.test.ts)
+The test file fails the build on: raw `<input>`, `<select>`, `<textarea>`; raw `<button>` outside the allowlist; old flat cards; hand-written `<label className="block …">` (use `FormField`); hand-written status tints `bg-good/1x` etc. (use `TONE`, `Pill`, `Callout`); the underline Tabs variant and hand-made radiogroups (use `Tabs` for panels, `Segmented` for a chosen value). If a guard blocks you, use the standard piece rather than adding to the allowlist.

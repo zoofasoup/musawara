@@ -7,15 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { Avatar } from "../components/Avatar";
 import { PageHeader } from "../components/PageHeader";
 import { Btn, Panel, Pill, useNotify } from "../components/kit";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-xs font-medium text-ink2">{label}</span>
-      {children}
-    </label>
-  );
-}
+import { FormField as Field } from "../components/FormField";
 
 export function Profile() {
   const { user, client, setSession, logout } = useAuth();

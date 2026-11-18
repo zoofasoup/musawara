@@ -65,7 +65,7 @@ export function AccountSwitcher() {
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-border2 bg-surface px-3 py-1.5 hover:bg-surface2"
+        className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border2 bg-surface px-3 py-1.5 hover:bg-surface2"
       >
         <Dot status={current.status} />
         <Label a={current} brand={brand(current)} />
@@ -73,7 +73,7 @@ export function AccountSwitcher() {
         <span className="sr-only">Change WhatsApp number</span>
       </button>
       {open && (
-        <ul role="listbox" aria-label="WhatsApp numbers" className="absolute left-0 right-0 z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-surface p-1 shadow-lg">
+        <ul role="listbox" aria-label="WhatsApp numbers" className="absolute left-0 right-0 z-30 mt-1 max-h-80 overflow-y-auto rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-1 shadow-lg">
           {accounts.map((a) => (
             <li key={a.id} role="option" aria-selected={a.id === current.id}>
               <button
@@ -82,7 +82,7 @@ export function AccountSwitcher() {
                   setOpen(false);
                   if (a.id !== current.id) select(a.id);
                 }}
-                className={`flex min-h-11 w-full items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface2 ${a.id === current.id ? "bg-surface2" : ""}`}
+                className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface2 ${a.id === current.id ? "bg-surface2" : ""}`}
               >
                 <Dot status={a.status} />
                 <Label a={a} brand={brand(a)} />
@@ -91,7 +91,7 @@ export function AccountSwitcher() {
             </li>
           ))}
           <li>
-            <Link to="/crm/connection" onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-md px-2 text-xs font-medium text-musawara-ink hover:bg-surface2">
+            <Link to="/crm/connection" onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-musawara-ink hover:bg-surface2">
               Manage numbers
             </Link>
           </li>

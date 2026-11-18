@@ -4,7 +4,7 @@ import { PageHeader } from "../components/PageHeader";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtRp } from "../lib/format";
 import { ClientAvatar } from "../components/Layout";
-import { Bento, Empty } from "../components/kit";
+import { Bento, Empty, Pill } from "../components/kit";
 import { CardSkeleton, ErrorState } from "../components/ui";
 
 type Row = { id: number; name: string; logo_url: string | null; brand_color: string; totals: { spend: number; leads: number; purchases: number }; unacknowledged_alerts: number };
@@ -26,7 +26,7 @@ export function Clients() {
                 <div className="flex items-center gap-3">
                   <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={10} />
                   <p className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{c.name}</p>
-                  {c.unacknowledged_alerts > 0 && <span className="tnum rounded-full bg-crit/10 px-2 py-0.5 text-xs font-semibold text-crit" title="Open alerts">{c.unacknowledged_alerts}</span>}
+                  {c.unacknowledged_alerts > 0 && <span title="Open alerts"><Pill tone="crit" size="sm" dot={false}>{c.unacknowledged_alerts}</Pill></span>}
                 </div>
                 <dl className="tnum mt-4 grid grid-cols-3 gap-2 text-sm">
                   <div className="min-w-0"><dt className="text-xs text-muted">Spend</dt><dd className="truncate font-semibold text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</dd></div>

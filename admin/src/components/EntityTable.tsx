@@ -263,7 +263,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
   );
 
   return (
-    <div className={bare ? "overflow-hidden rounded-2xl border border-border/70" : "overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]"}>
+    <div className={bare ? "overflow-hidden rounded-2xl border border-border/70 bg-surface shadow-[var(--shadow-soft)]" : "overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-soft)]"}>
       {/* filters, like the Ads Manager tabs + search */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 p-3">
         <Segmented label="Delivery filter" value={show} onChange={setShow} options={chips.map((c) => ({ value: c.k, label: c.l, badge: c.n }))} />
@@ -284,7 +284,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
-                <tr className="bg-surface2/60">
+                <tr className="bg-surface2">
                   <th
                     className="cursor-pointer select-none px-3 py-2 text-left text-xs font-medium text-muted hover:text-ink2"
                     onClick={() => {
@@ -315,7 +315,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
                   const isOpen = expanded.has(c.entity_id);
                   return (
                     <Fragment key={c.entity_id}>
-                      <tr className="border-t border-border hover:bg-surface2/60">
+                      <tr className="border-t border-border/70 hover:bg-surface2/50">
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2">
                             <button
@@ -364,7 +364,7 @@ export function EntityTable({ clientId, from, to, compare, bare }: { clientId: n
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-border bg-surface2/60 text-[13px] font-medium">
+                <tr className="border-t border-border/70 bg-surface2 text-[13px] font-medium">
                   <td className="px-3 py-2.5 text-ink" colSpan={2}>
                     Results from {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"}
                   </td>

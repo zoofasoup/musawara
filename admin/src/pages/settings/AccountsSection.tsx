@@ -1,4 +1,5 @@
 import { NativeSelect } from "@/components/ui/native-select";
+import { Callout } from "../../components/Callout";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, useApi } from "../../lib/api";
@@ -27,7 +28,7 @@ type Plan = { from: string; to: string; chunks: PlanChunk[]; covered: number; re
 
 function Stat({ icon, label, value, sub }: { icon: Parameters<typeof Icon>[0]["name"]; label: string; value: string; sub?: string }) {
   return (
-    <div className="min-w-0 rounded-lg bg-surface2 px-3 py-2.5">
+    <div className="min-w-0 rounded-xl bg-surface2 px-3 py-2.5">
       <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted">
         <Icon name={icon} className="h-3.5 w-3.5" />
         {label}
@@ -40,11 +41,11 @@ function Stat({ icon, label, value, sub }: { icon: Parameters<typeof Icon>[0]["n
 
 function SyncHistory({ id }: { id: number }) {
   const jobs = useApi<{ jobs: any[] }>(`/admin/accounts/${id}/sync-jobs`);
-  if (jobs.loading) return <div className="h-12 skeleton rounded-lg" />;
+  if (jobs.loading) return <div className="h-12 skeleton rounded-xl" />;
   if (jobs.error) return <p className="text-xs text-crit">{jobs.error}</p>;
   if (!jobs.data?.jobs.length) return <p className="text-xs text-muted">No runs yet.</p>;
   return (
-    <ul className="divide-y divide-border rounded-lg border border-border">
+    <ul className="divide-y divide-border rounded-xl border border-border">
       {jobs.data.jobs.map((j) => (
         <li key={j.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2 text-xs">
           <Icon name={j.status === "success" ? "checkCircle" : j.status === "failed" ? "xCircle" : "clock"} className={`h-3.5 w-3.5 ${j.status === "success" ? "text-good" : j.status === "failed" ? "text-crit" : "text-warn"}`} />
@@ -163,7 +164,7 @@ function AccountCard({ a, notify, reload }: { a: any; notify: Notify; reload: ()
         </div>
 
         {health.key === "failed" && a.last_error && (
-          <p className="mt-3 flex items-start gap-2 rounded-lg bg-crit/5 px-3 py-2 text-xs text-crit">
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-crit/5 px-3 py-2 text-xs text-crit">
             <Icon name="alert" className="mt-0.5 h-3.5 w-3.5" />
             <span className="break-words">{a.last_error}</span>
           </p>
@@ -286,10 +287,7 @@ export function AccountsSection({
       }
     >
       {!tokenOk && (
-        <p className="mb-3 flex items-start gap-2 rounded-xl bg-warn/10 px-3.5 py-2.5 text-xs text-warn">
-          <Icon name="alert" className="mt-0.5 h-4 w-4" />
-          Connect Meta in step 1 first, otherwise accounts cannot be checked or synced.
-        </p>
+        <Callout tone="warn" compact className="mb-3">Connect Meta in step 1 first, otherwise accounts cannot be checked or synced.</Callout>
       )}
       {adding && (
         <form onSubmit={connect} className="mb-3 space-y-2 rounded-xl border border-[var(--accent)]/30 bg-surface p-3">

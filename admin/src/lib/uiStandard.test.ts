@@ -69,3 +69,19 @@ test("every raw <button> is a deliberate custom control (tabs, chips, icon butto
 test("cards use the soft panel look (rounded-2xl with the soft shadow), not the old flat rounded-xl card", () => {
   assert.deepEqual(offenders(/rounded-xl border border-border bg-surface(?! shadow)/g), []);
 });
+
+test("labelled form controls use FormField, not hand-written <label className=\"block …\"> markup", () => {
+  assert.deepEqual(offenders(/<label className="block/g), []);
+});
+
+test("status colours come from lib/tone (Pill, Callout, TONE), not hand-written tint strings", () => {
+  // kit.tsx keeps the Btn danger hover and the step badge; ThreadView floats a notice over the thread.
+  const allowed = ["components/kit.tsx", "pages/crm/inbox/ThreadView.tsx"];
+  const hits = offenders(/bg-(?:good|warn|crit)\/1\d\b/g).filter((h) => !allowed.some((a) => h.startsWith(a)));
+  assert.deepEqual(hits, []);
+});
+
+test("in-page tabs use the pill Tabs (no underline variant) and chosen-value pickers use Segmented", () => {
+  assert.deepEqual(offenders(/variant="line"/g), []);
+  assert.deepEqual(offenders(/role="radiogroup"/g, () => false).filter((h) => !h.startsWith("components/Segmented.tsx")), []);
+});
