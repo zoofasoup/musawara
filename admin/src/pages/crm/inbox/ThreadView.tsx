@@ -6,7 +6,7 @@ import { crmUpload } from "../crmApi";
 
 import { Skeleton } from "../../../components/ui";
 import { GatewayNotice } from "./GatewayNotice";
-import { MediaBlock } from "./MediaBlock";
+import { MediaBlock, type MediaDemo } from "./MediaBlock";
 import { classify, convTitle, dayKey, fmtClock, fmtDayLabel, fmtPhone, useLive, type Msg, type Thread, type WaState } from "./util";
 
 const PENDING = "pending-";
@@ -22,13 +22,13 @@ function Ticks({ m }: { m: Msg }) {
 }
 
 
-function Bubble({ m }: { m: Msg }) {
+export function Bubble({ m, demo }: { m: Msg; demo?: MediaDemo }) {
   const mine = Boolean(m.from_me);
   const pending = m.wa_id.startsWith(PENDING);
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-3 py-2 sm:max-w-[70%] ${mine ? "rounded-br-md bg-[color-mix(in_srgb,var(--accent)_14%,white)]" : "rounded-bl-md border border-border bg-surface"} ${pending ? "opacity-70" : ""}`}>
-        <MediaBlock m={m} pending={pending} />
+        <MediaBlock m={m} pending={pending} demo={demo} />
         {m.body && <p className={`whitespace-pre-wrap break-words text-sm text-ink ${m.media_type ? "mt-1.5" : ""}`}>{m.body}</p>}
         <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-muted">
           {fmtClock(m.ts)}

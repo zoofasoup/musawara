@@ -1,7 +1,8 @@
 // The living style guide: every shared component in every state it can be in. Team only, not in the menu.
 // Rule of this app: build a screen from these, and if a state is missing here, add it here first.
-import { useState, type ReactNode } from "react";
-import { MediaBlock } from "./crm/inbox/MediaBlock";
+import { useMemo, useState, type ReactNode } from "react";
+import { Bubble } from "./crm/inbox/ThreadView";
+import type { Msg } from "./crm/inbox/util";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Nested, Panel, Pill, RowList, Sheet, useNotify, type Tone } from "../components/kit";
@@ -35,6 +36,41 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const PIC = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='320' height='240'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='violet'/><stop offset='1' stop-color='skyblue'/></linearGradient></defs><rect width='320' height='240' fill='url(#g)'/></svg>");
+
+/** A 3 second 440 Hz tone as a WAV, so the voice-note player has something real to play in the demo. */
+function toneUrl() {
+  const rate = 8000, n = rate * 3;
+  const buf = new ArrayBuffer(44 + n);
+  const v = new DataView(buf);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128 + Math.round(40 * Math.sin((2 * Math.PI * 440 * i) / rate) * Math.min(1, (n - i) / 800)));
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+const T0 = Math.floor(new Date("2026-11-18T11:46:00+07:00").getTime() / 1000);
+const msg = (id: string, o: Partial<Msg>): Msg => ({ wa_id: id, phone: "6281234567890", from_me: 0, body: "", media_type: null, ack: 3, is_read: 1, ts: T0, ...o });
+
+function ChatDemo() {
+  const tone = useMemo(toneUrl, []);
+  const Day = ({ children }: { children: ReactNode }) => <div className="my-1 flex justify-center"><span className="rounded-full bg-surface3 px-3 py-1 text-xs text-ink2">{children}</span></div>;
+  return (
+    <div className="flex w-full max-w-md flex-col gap-2 rounded-2xl bg-surface2 p-3">
+      <Day>Today</Day>
+      <Bubble m={msg("g1", { body: "Halo kak, invoicenya sudah masuk ya?", ts: T0 })} />
+      <Bubble m={msg("g2", { from_me: 1, body: "Sudah kak, terima kasih. Ini fotonya ya.", ack: 3, ts: T0 + 60 })} />
+      <Bubble m={msg("g3", { from_me: 1, media_type: "image", body: "pic with description", ack: 3, ts: T0 + 120 })} demo={{ src: PIC }} />
+      <Bubble m={msg("g4", { from_me: 1, media_type: "document", ack: 2, ts: T0 + 180 })} demo={{ src: "/none.pdf", meta: { name: "Invoice-Grabsite-Edo.pdf", size: 168_000, type: "application/pdf" } }} />
+      <Bubble m={msg("g5", { media_type: "ptt", ts: T0 + 240 })} demo={{ src: tone }} />
+      <Bubble m={msg("g6", { media_type: "sticker", ts: T0 + 300 })} demo={{ src: PIC }} />
+      <Bubble m={msg("g7", { media_type: "video", body: "Video loads, or says so", ts: T0 + 360 })} demo={{ src: "/none.mp4" }} />
+      <Bubble m={msg("g8", { from_me: 1, body: "Delivered, not yet read", ack: 2, ts: T0 + 420 })} />
+      <Bubble m={msg("g9", { from_me: 1, body: "Sent", ack: 1, ts: T0 + 480 })} />
+      <Bubble m={msg("pending-1", { from_me: 1, body: "Sending…", ack: 0, ts: T0 + 540 })} />
+      <Bubble m={msg("g10", { from_me: 1, body: "Failed to send", ack: -1, ts: T0 + 600 })} />
+    </div>
+  );
+}
 
 export function Styleguide() {
   const { notify, node } = useNotify();
@@ -111,21 +147,6 @@ export function Styleguide() {
               <option value="b">Select</option>
             </NativeSelect>
           </Row>
-          <Row label="Chat media">
-            <div className="flex w-full max-w-sm flex-col gap-2 rounded-2xl bg-surface2 p-3">
-              {([
-                ["image", PIC],
-                ["sticker", PIC],
-                ["ptt", "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="],
-                ["video", "/nope.mp4"],
-                ["document", ""],
-              ] as const).map(([t, src]) => (
-                <div key={t} className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-surface px-3 py-2">
-                  <MediaBlock m={{ wa_id: "demo-" + t, phone: "", from_me: 0, body: "", media_type: t, ack: 0, is_read: 1, ts: 0 }} pending={false} src={src} />
-                </div>
-              ))}
-            </div>
-          </Row>
           <Row label="Textarea">
             <Textarea placeholder="Longer text" aria-label="Demo textarea" className="sm:max-w-md" />
           </Row>
@@ -178,6 +199,10 @@ export function Styleguide() {
           renderCard={(c) => <div className="rounded-lg border border-border bg-surface p-2.5 text-sm font-medium text-ink">{c.title}</div>}
           className="lg:grid-cols-3"
         />
+      </Section>
+
+      <Section title="Chat" note="WhatsApp-style messages in the CRM inbox. Incoming on the left in white, ours on the right in the client's tint. Images enlarge on tap, voice notes have a waveform, documents show type, name and size. Ticks: clock sending, one sent, two delivered, blue two read, red failed.">
+        <ChatDemo />
       </Section>
 
       <Section title="Overlays and feedback">
