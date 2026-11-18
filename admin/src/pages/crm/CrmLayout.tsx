@@ -7,6 +7,7 @@ import { GatewayNotice } from "./inbox/GatewayNotice";
 import { useLive } from "./inbox/util";
 import { useApi } from "../../lib/api";
 import { Empty } from "../../components/kit";
+import { PillNav, pillTabCls } from "../../components/PillNav";
 import { Skeleton } from "../../components/ui";
 import { Link } from "react-router-dom";
 
@@ -88,19 +89,13 @@ export function CrmLayout({ children }: { children: ReactNode }) {
     <AccountsContext.Provider value={ctx}>
       <div className="space-y-4">
         {list.data && accounts.length > 0 && <AccountSwitcher />}
-        <nav aria-label="CRM" className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <PillNav label="CRM" className="mb-1">
           {TABS.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              className={({ isActive }) =>
-                `inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3 text-[13px] font-medium ${isActive ? "bg-surface2 text-ink" : "text-ink2 hover:text-ink"}`
-              }
-            >
+            <NavLink key={t.to} to={t.to} className={({ isActive }) => pillTabCls(isActive)}>
               {t.label}
             </NavLink>
           ))}
-        </nav>
+        </PillNav>
         {body}
       </div>
     </AccountsContext.Provider>

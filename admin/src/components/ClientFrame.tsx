@@ -13,7 +13,7 @@ import { ClientAvatar } from "./Layout";
 import type { Alert } from "./AlertFeed";
 import { CardSkeleton } from "./ui";
 import { Icon } from "./icons";
-import { glassCls } from "../lib/glass";
+import { PillNav, pillTabCls } from "./PillNav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type Meta = {
@@ -21,9 +21,6 @@ type Meta = {
   accounts: Array<{ last_sync: string | null }>;
 };
 type Tab = { to: string; label: string; end?: boolean; badge?: number; tone?: "crit" | "accent" };
-
-const tabCls = (on: boolean) =>
-  `press inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${on ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`;
 
 function Badge({ tab }: { tab: Tab }) {
   if (!tab.badge) return null;
@@ -103,17 +100,16 @@ export function ClientFrame() {
           )}
         </div>
 
-        <nav aria-label="Client menu" className="sticky top-[4.25rem] z-10 -mx-1 mb-5 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:top-auto md:mx-0 md:px-0 md:py-0 md:pb-1">
-          <div data-glass className={`inline-flex min-w-max gap-0.5 rounded-full p-0.5 ${glassCls} md:border-0 md:bg-surface3 md:shadow-none md:backdrop-blur-none`}>
+        <PillNav label="Client menu" className="mb-5">
             {tabs.map((t) => (
-              <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => tabCls(isActive)}>
+              <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => pillTabCls(isActive)}>
                 {t.label}
                 <Badge tab={t} />
               </NavLink>
             ))}
             {more.length > 0 && (
               <DropdownMenu>
-                <DropdownMenuTrigger className={tabCls(!!moreOn)} aria-label="More client pages">
+                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} aria-label="More client pages">
                   {moreOn ? moreOn.label : "More"}
                   <Icon name="chevronDown" className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
@@ -127,8 +123,7 @@ export function ClientFrame() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
-        </nav>
+        </PillNav>
 
         {/* its own boundary: a page that is still loading must not take the header and menu bar down with it */}
         <Suspense fallback={<CardSkeleton lines={4} />}>

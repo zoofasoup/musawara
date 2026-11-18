@@ -70,7 +70,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
 
       {adding && (
         <form onSubmit={create} className="mb-3 space-y-3 rounded-xl border border-[var(--accent)]/30 bg-surface p-3.5">
-          <div role="radiogroup" aria-label="Role" className="inline-flex rounded-lg bg-surface3 p-0.5">
+          <div role="radiogroup" aria-label="Role" className="inline-flex rounded-full bg-surface3 p-0.5">
             {(["client", "admin"] as const).map((r) => (
               <button
                 key={r}
@@ -78,7 +78,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                 role="radio"
                 aria-checked={role === r}
                 onClick={() => setRole(r)}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium lg:min-h-9 ${role === r ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium lg:min-h-9 ${role === r ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
               >
                 <Icon name={r === "admin" ? "shield" : "user"} className="h-3.5 w-3.5" />
                 {r === "admin" ? "Admin" : "Client viewer"}

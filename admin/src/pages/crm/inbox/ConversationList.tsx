@@ -170,14 +170,14 @@ export function ConversationList({
           {noTag > 0 && <option value={NO_TAG}>Contacts without a tag ({noTag})</option>}
           {notContact > 0 && <option value={NOT_CONTACT}>Not in contacts ({notContact})</option>}
         </NativeSelect>
-        <div role="group" aria-label="Status" className="grid grid-cols-3 gap-1 rounded-lg bg-surface2 p-1">
+        <div role="group" aria-label="Status" className="grid grid-cols-3 gap-0.5 rounded-full bg-surface3 p-0.5">
           {STATUS.map((s) => (
             <button
               key={s.v}
               type="button"
               aria-pressed={filters.status === s.v}
               onClick={() => setFilters({ ...filters, status: s.v })}
-              className={`min-h-11 rounded-md px-2 text-xs font-medium ${filters.status === s.v ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
+              className={`press min-h-11 rounded-full px-2 text-xs font-medium ${filters.status === s.v ? "bg-surface text-ink shadow-sm" : "text-ink2 hover:text-ink"}`}
             >
               {s.label}
             </button>

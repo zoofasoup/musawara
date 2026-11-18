@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useApi } from "../lib/api";
 import { Icon, type IconName } from "./icons";
 import { Wordmark } from "./Layout";
 import { Avatar } from "./Avatar";
@@ -30,7 +31,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
   },
 ];
 const SETTINGS: Item = { to: "/settings", label: "Settings", icon: "sliders" };
-/** The four destinations used all day get a phone tab; everything else lives behind More. */
+/** The four destinations used all day get a phone tab; everything else is in the menu at the top right. */
 const PHONE_TABS: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[1].items[1]];
 
 const linkCls = (active: boolean) =>
@@ -89,6 +90,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
+  const clientRoute = /^\/c\/(\d+)(\/|$)/.exec(pathname);
+  const clientMeta = useApi<{ client: { name: string } }>(clientRoute ? `/clients/${clientRoute[1]}/meta` : null);
+  const title = clientRoute ? clientMeta.data?.client.name ?? "Client" : PAGE_TITLE(pathname);
   const [hover, setHover] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("ma_sidebar") === "1"; } catch { return false; }
@@ -107,8 +111,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
   const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/") || (to === "/clients" && pathname.startsWith("/c/")));
-  const tabIdx = PHONE_TABS.findIndex((t) => onTab(t.to));
-  const activeIdx = tabIdx >= 0 ? tabIdx : 4; // anything not in the four daily tabs lives behind More
+  const activeIdx = PHONE_TABS.findIndex((t) => onTab(t.to)); // -1 (Planning, Board, Spend, Settings...) hides the pill; those live in the menu at the top right
 
   return (
     <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
@@ -153,9 +156,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Phone: slim top bar with the page name */}
-      <header data-glass className={`sticky top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-4 md:hidden ${glassCls}`}>
+      <header data-glass className={`sticky top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 md:hidden ${glassCls}`}>
         <NavLink to="/" aria-label="Overview" className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{PAGE_TITLE(pathname)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{title}</span>
+        <button
+          type="button"
+          onClick={() => setMore(true)}
+          aria-haspopup="dialog"
+          aria-label="Menu"
+          className="press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-white/70"
+        >
+          <Icon name="menu" className="h-5 w-5" />
+        </button>
       </header>
 
       <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">
@@ -165,11 +177,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Phone: four daily tabs plus More */}
       <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 md:hidden ${glassCls}`}>
-        <div className="relative grid grid-cols-5">
+        <div className="relative grid grid-cols-4">
           {/* one glass pill that glides to the active tab instead of each tab lighting up on its own */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/5 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
             style={{ transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
           />
           {PHONE_TABS.map((t, i) => (
@@ -183,15 +195,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <span className="leading-none">{t.label}</span>
             </NavLink>
           ))}
-          <button
-            type="button"
-            onClick={() => setMore(true)}
-            aria-haspopup="dialog"
-            className={`press relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors ${activeIdx === 4 ? "text-musawara-ink" : "text-ink2"}`}
-          >
-            <Icon name="menu" className="h-5 w-5" />
-            <span className="leading-none">More</span>
-          </button>
         </div>
       </nav>
 
