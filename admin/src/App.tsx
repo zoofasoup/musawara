@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { ClientFrame } from "./components/ClientFrame";
-import { ClientScopeProvider } from "./context/ClientScope";
+import { ClientScopeProvider, useClientScope } from "./context/ClientScope";
 import { CardSkeleton } from "./components/ui";
 
 // Pages
@@ -17,11 +17,11 @@ const ShareView = lazy(() => import("./pages/ShareView").then((m) => ({ default:
 const AdminSettings = lazy(() => import("./pages/AdminSettings").then((m) => ({ default: m.AdminSettings })));
 const BrandKnowledge = lazy(() => import("./pages/BrandKnowledge").then((m) => ({ default: m.BrandKnowledge })));
 const Onboarding = lazy(() => import("./pages/Onboarding").then((m) => ({ default: m.Onboarding })));
+const Clients = lazy(() => import("./pages/Clients").then((m) => ({ default: m.Clients })));
 const Spend = lazy(() => import("./pages/Spend").then((m) => ({ default: m.Spend })));
 const Board = lazy(() => import("./pages/Board").then((m) => ({ default: m.Board })));
 const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ default: m.Conversions })));
 const Planning = lazy(() => import("./pages/Planning").then((m) => ({ default: m.Planning })));
-const AssetsEntry = lazy(() => import("./pages/AssetsEntry").then((m) => ({ default: m.AssetsEntry })));
 const Styleguide = lazy(() => import("./pages/Styleguide").then((m) => ({ default: m.Styleguide })));
 const Profile = lazy(() => import("./pages/Profile").then((m) => ({ default: m.Profile })));
 const Shopee = lazy(() => import("./pages/Shopee").then((m) => ({ default: m.Shopee })));
@@ -67,6 +67,15 @@ function CrmFrame() {
   );
 }
 
+/** Old address of a page that now lives under a client (/shopee, /organic ...): go to the chosen client's page, or pick a client. */
+function ScopedRedirect({ to }: { to: string }) {
+  const { loading, singleId, clientId } = useClientScope();
+  const { search } = useLocation();
+  if (loading && clientId === null) return <CardSkeleton lines={3} />;
+  const id = clientId ?? singleId;
+  return <Navigate to={id ? `/c/${id}/${to}${search}` : "/clients"} replace />;
+}
+
 /** Reads :id from the path so each client page receives a numeric clientId. */
 function ClientRoute({ page: Page }: { page: React.ComponentType<{ clientId: number }> }) {
   const clientId = Number(useParams().id);
@@ -84,7 +93,7 @@ function RootRedirect() {
 const PAGES = [
   () => import("./pages/AdminHome"), () => import("./pages/ClientDashboard"), () => import("./pages/CreativeView"), () => import("./pages/ClientAlerts"),
   () => import("./pages/Approvals"), () => import("./pages/Assets"), () => import("./pages/BrandKnowledge"), () => import("./pages/ClientReport"),
-  () => import("./pages/Onboarding"), () => import("./pages/Spend"), () => import("./pages/SalesGrid"), () => import("./pages/Conversions"),
+  () => import("./pages/Onboarding"), () => import("./pages/Spend"), () => import("./pages/SalesGrid"), () => import("./pages/Conversions"), () => import("./pages/Clients"),
   () => import("./pages/Planning"), () => import("./pages/Board"), () => import("./pages/Shopee"), () => import("./pages/Organic"),
   () => import("./pages/AdminSettings"), () => import("./pages/Profile"), () => import("./pages/crm/CrmInbox"), () => import("./pages/crm/CrmContacts"),
 ];
@@ -126,20 +135,24 @@ export function App() {
                 <Route element={<AdminOnly />}>
                   <Route path="onboarding" element={<ClientRoute page={Onboarding} />} />
                   <Route path="assets" element={<ClientRoute page={Assets} />} />
+                  <Route path="sales" element={<ClientRoute page={Conversions} />} />
+                  <Route path="organic" element={<ClientRoute page={Organic} />} />
+                  <Route path="shopee" element={<ClientRoute page={Shopee} />} />
                 </Route>
               </Route>
 
               {/* Team only */}
               <Route element={<AdminOnly />}>
                 <Route path="/settings" element={<AdminSettings />} />
-                <Route path="/assets" element={<AssetsEntry />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/assets" element={<ScopedRedirect to="assets" />} />
                 <Route path="/styleguide" element={<Styleguide />} />
-                <Route path="/shopee" element={<Shopee />} />
+                <Route path="/shopee" element={<ScopedRedirect to="shopee" />} />
                 <Route path="/planning" element={<Planning />} />
                 <Route path="/board" element={<Board />} />
                 <Route path="/spend" element={<Spend />} />
-                <Route path="/conversions" element={<Conversions />} />
-                <Route path="/organic" element={<Organic />} />
+                <Route path="/conversions" element={<ScopedRedirect to="sales" />} />
+                <Route path="/organic" element={<ScopedRedirect to="organic" />} />
                 <Route path="/approvals" element={<TeamApprovals />} />
                 <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
                 <Route element={<CrmFrame />}>

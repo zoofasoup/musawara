@@ -216,6 +216,11 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
               {syncing ? "Syncing…" : "Sync now"}
             </Btn>
           )}
+          {!share && (
+            <Link to={`/c/${clientId}/report`} className="inline-flex min-h-11 items-center rounded-full border border-border2 bg-surface px-4 text-xs font-medium text-ink hover:bg-surface2 lg:min-h-9">
+              Report
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
           <DateRangePicker value={range} onChange={setRange} />

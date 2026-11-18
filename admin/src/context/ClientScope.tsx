@@ -70,3 +70,10 @@ export function ClientScopeProvider({ children }: { children: ReactNode }) {
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+
+/** Inside a client's own pages the client is the route's, whatever the team last picked as a filter elsewhere. */
+export function ClientScopeOverride({ clientId, children }: { clientId: number; children: ReactNode }) {
+  const parent = useClientScope();
+  const value = useMemo<Scope>(() => ({ ...parent, clientId, singleId: clientId }), [parent, clientId]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}

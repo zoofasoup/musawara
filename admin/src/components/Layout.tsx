@@ -42,6 +42,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ? [
             { to: `/c/${user.client_id}`, label: "Dashboard", icon: "chart" },
             { to: `/c/${user.client_id}/creatives`, label: "Creatives", icon: "image" },
+            { to: `/c/${user.client_id}/alerts`, label: "Alerts", icon: "alert" },
             { to: `/c/${user.client_id}/report`, label: "Report", icon: "chart" },
             { to: `/c/${user.client_id}/approvals`, label: "Approvals", icon: "checkCircle" },
             { to: `/c/${user.client_id}/brand`, label: "Brand", icon: "building" },

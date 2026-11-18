@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ClientFilter } from "../components/ClientFilter";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
@@ -311,9 +312,12 @@ export function TeamApprovals() {
         title="Approvals"
         subtitle="Requests waiting on clients, and what they answered."
         actions={
-          <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
-            {FILTERS.map(([k, label]) => <option key={k} value={k}>{k ? label : "All statuses"}</option>)}
-          </NativeSelect>
+          <>
+            <ClientFilter />
+            <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
+              {FILTERS.map(([k, label]) => <option key={k} value={k}>{k ? label : "All statuses"}</option>)}
+            </NativeSelect>
+          </>
         }
       />
       {list.loading && !list.data ? (

@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "../components/PageHeader";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { Icon } from "../components/icons";
 import { fmtAgo, fmtDayFull, fmtDateTime, fmtNum, fmtRp } from "../lib/format";
@@ -174,11 +174,11 @@ const DASH: Record<SaleRow["status"], { label: string; tone: Tone }> = {
 };
 type Filter = "all" | "new" | "saved" | "dup_in_file" | "invalid" | "meta_send" | "meta_none";
 
-export function Conversions() {
+export function Conversions({ clientId: fixedId }: { clientId?: number } = {}) {
   const { notify, node } = useNotify();
   const clients = useApi<{ clients: any[] }>("/admin/clients");
   const conf = useApi<Settings>("/admin/conversions/settings");
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(fixedId ? String(fixedId) : "");
   const [mode, setMode] = useState<Mode>("dashboard");
   const [datasetId, setDatasetId] = useState("");
   const [eventName, setEventName] = useState("Purchase");
@@ -216,6 +216,14 @@ export function Conversions() {
     setCurrency(s?.currency ?? "IDR");
     reset();
   };
+  // Inside a client's own Sales tab the client is fixed; load its saved destination once the settings arrive.
+  const settingsLoaded = useRef(false);
+  useEffect(() => {
+    if (fixedId && conf.data && !settingsLoaded.current) {
+      settingsLoaded.current = true;
+      pickClient(String(fixedId));
+    }
+  }, [fixedId, conf.data]); // eslint-disable-line react-hooks/exhaustive-deps
   const reset = () => { setSheets([]); setSelected(new Set()); setMap(null); setRows(null); setUnits([]); setFileName(""); setConfirming(false); setLastRun(null); setFilter("all"); };
 
   const saveDestination = async () => {
@@ -373,15 +381,17 @@ export function Conversions() {
     <div className="max-w-4xl space-y-9 pb-24">
       <PageHeader title="Sales" subtitle="Upload real closings from a CSV or Excel file. They feed Purchases, CPA and ROAS on the dashboard, and can also be sent to Meta as offline conversions. Re-uploading never duplicates anything." />
 
-      <Step n={1} title="Client and what to do" hint="Dashboard only is the default. Sending to Meta is optional." done={ready}>
+      <Step n={1} title={fixedId ? "What to do" : "Client and what to do"} hint="Dashboard only is the default. Sending to Meta is optional." done={ready}>
         <Panel className="space-y-3 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs text-muted">Client
-              <NativeSelect value={clientId} onChange={(e) => pickClient(e.target.value)} className="mt-1 w-full">
-                <option value="">Choose…</option>
-                {clientList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </NativeSelect>
-            </label>
+            {!fixedId && (
+              <label className="block text-xs text-muted">Client
+                <NativeSelect value={clientId} onChange={(e) => pickClient(e.target.value)} className="mt-1 w-full">
+                  <option value="">Choose…</option>
+                  {clientList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </NativeSelect>
+              </label>
+            )}
             <div className="text-xs text-muted">
               <p>What should happen</p>
               <div role="radiogroup" aria-label="Destination" className="mt-1 inline-flex rounded-lg bg-surface3 p-0.5">

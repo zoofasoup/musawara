@@ -154,7 +154,7 @@ test("auth-url carries a signed state, and the callback connects only with a val
     const noAdmin = await call("GET", `/api/shopee/callback?code=C&shop_id=55&state=${state}`);
     assert.equal(noAdmin.status, 401);
     const ok = await call("GET", `/api/shopee/callback?code=C&shop_id=55&state=${state}`, admin);
-    assert.equal(ok.headers.get("location"), "/shopee?shopee=connected");
+    assert.equal(ok.headers.get("location"), "/c/1/shopee?shopee=connected");
     assert.equal((await DB.prepare(`SELECT shop_id FROM shopee_shops WHERE client_id=1`).first<any>()).shop_id, 55);
   } finally {
     globalThis.fetch = realFetch;

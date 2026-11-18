@@ -3,6 +3,7 @@
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import { ClientFilter } from "../components/ClientFilter";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useState } from "react";
@@ -64,7 +65,7 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Board" subtitle="Tasks across clients, in four columns." />
+      <PageHeader title="Board" subtitle="Tasks across clients, in four columns." actions={<ClientFilter />} />
 
       <form onSubmit={add} className="flex flex-wrap gap-2">
         <NativeSelect required value={form.client_id || clientFilter} onChange={(e) => setForm({ ...form, client_id: e.target.value })} aria-label="Client">

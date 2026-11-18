@@ -10,6 +10,7 @@ import { todayJakarta } from "../lib/dates";
 import { CardSkeleton, ErrorState } from "../components/ui";
 import { Btn, Empty, Pill, Sheet, ConfirmBtn, useNotify, type Tone } from "../components/kit";
 import { Icon } from "../components/icons";
+import { ClientFilter } from "../components/ClientFilter";
 import { PageHeader } from "../components/PageHeader";
 import { Kanban } from "../components/Kanban";
 import { Avatar } from "../components/Avatar";
@@ -86,7 +87,7 @@ export function Planning() {
   return (
     <div className="max-w-7xl">
       {node}
-      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<NotionSync onDone={reload} notify={notify} />} />
+      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><NotionSync onDone={reload} notify={notify} /></>} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
         <TabsList variant="line" className="h-auto w-full justify-start border-b border-border">

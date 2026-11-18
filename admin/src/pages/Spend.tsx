@@ -3,6 +3,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import { ClientFilter } from "../components/ClientFilter";
 import { PageHeader } from "../components/PageHeader";
 import { useClientScope } from "../context/ClientScope";
 import { useMemo, useState } from "react";
@@ -104,10 +105,13 @@ export function Spend() {
         title="Spend"
         subtitle="Ad spend and marketplace costs for the chosen client."
         actions={
-          <label className="inline-flex min-h-11 items-center gap-2 text-sm text-ink2">
-            <Checkbox checked={companyWide} onCheckedChange={(on) => setCompanyWide(on)} />
-            Company-wide only
-          </label>
+          <>
+            <ClientFilter />
+            <label className="inline-flex min-h-11 items-center gap-2 text-sm text-ink2">
+              <Checkbox checked={companyWide} onCheckedChange={(on) => setCompanyWide(on)} />
+              Company-wide only
+            </label>
+          </>
         }
       />
       <DateRangePicker value={range} onChange={setRange} />

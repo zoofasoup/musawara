@@ -1,10 +1,8 @@
 // The team's app frame: a grouped sidebar on desktop, a short tab bar with a "More" sheet on phones, and the
 // client switcher that scopes every page. Clients get a different, simpler frame (see Layout).
-import { NativeSelect } from "@/components/ui/native-select";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useClientScope } from "../context/ClientScope";
 import { Icon, type IconName } from "./icons";
 import { Wordmark } from "./Layout";
 import { Avatar } from "./Avatar";
@@ -16,53 +14,35 @@ const GROUPS: { label: string; items: Item[] }[] = [
     label: "Work",
     items: [
       { to: "/", label: "Overview", icon: "home", end: true },
+      { to: "/clients", label: "Clients", icon: "building" },
       { to: "/approvals", label: "Approvals", icon: "checkCircle" },
       { to: "/planning", label: "Planning", icon: "clock" },
       { to: "/board", label: "Board", icon: "board" },
     ],
   },
   {
-    label: "Performance",
+    label: "Tools",
     items: [
       { to: "/spend", label: "Spend", icon: "spend" },
-      { to: "/conversions", label: "Sales", icon: "tag" },
-      { to: "/shopee", label: "Shopee", icon: "chart" },
-      { to: "/organic", label: "Organic", icon: "camera" },
-    ],
-  },
-  {
-    label: "Clients",
-    items: [
-      { to: "/assets", label: "Assets", icon: "image" },
       { to: "/crm", label: "CRM", icon: "users" },
     ],
   },
 ];
 const SETTINGS: Item = { to: "/settings", label: "Settings", icon: "sliders" };
 /** The four destinations used all day get a phone tab; everything else lives behind More. */
-const PHONE_TABS: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[2].items[1]];
+const PHONE_TABS: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[1].items[1]];
 
 const linkCls = (active: boolean) =>
   `flex min-h-11 items-center gap-2.5 rounded-full px-3 text-[13px] font-medium md:min-h-9 ${
     active ? "bg-white text-ink shadow-[var(--shadow-soft)]" : "text-ink2 hover:bg-white/60 hover:text-ink"
   }`;
 
-function ClientSwitcher({ className = "" }: { className?: string }) {
-  const { clients, clientId, setClientId } = useClientScope();
-  return (
-    <label className={`block ${className}`}>
-      <span className="sr-only">Client</span>
-      <NativeSelect
-        value={clientId ?? ""}
-        onChange={(e) => setClientId(e.target.value ? Number(e.target.value) : null)}
-        className="w-full"
-      >
-        <option value="">All clients</option>
-        {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </NativeSelect>
-    </label>
-  );
-}
+/** Name of the current area, for the slim phone top bar. */
+const PAGE_TITLE = (pathname: string) => {
+  if (pathname.startsWith("/c/")) return "Client";
+  const hit = GROUPS.flatMap((g) => g.items).find((i) => (i.to === "/" ? pathname === "/" : pathname === i.to || pathname.startsWith(i.to + "/")));
+  return hit?.label ?? (pathname.startsWith("/settings") ? "Settings" : pathname.startsWith("/profile") ? "Profile" : "");
+};
 
 function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   return (
@@ -87,7 +67,7 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
 /** "Work › Planning": where you are, in a pill above the page (tablet and up). */
 function Crumb({ pathname }: { pathname: string }) {
   const hit = GROUPS.flatMap((g) => g.items.map((i) => ({ group: g.label, item: i }))).find(({ item }) => (item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(item.to + "/")));
-  const crumbs = hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : pathname.startsWith("/profile") ? ["Account", "Profile"] : [];
+  const crumbs = pathname.startsWith("/c/") ? ["Work", "Clients"] : hit ? [hit.group, hit.item.label] : pathname.startsWith("/settings") ? ["Settings"] : pathname.startsWith("/profile") ? ["Account", "Profile"] : [];
   if (!crumbs.length) return null;
   return (
     <nav aria-label="Breadcrumb" className="hidden px-6 pt-4 md:block">
@@ -105,7 +85,6 @@ function Crumb({ pathname }: { pathname: string }) {
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const { setClientId } = useClientScope();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
@@ -117,12 +96,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
       try { localStorage.setItem("ma_sidebar", c ? "0" : "1"); } catch { /* storage unavailable: the choice just won't persist */ }
       return !c;
     });
-
-  // Opening a client's own page (for example /c/3/approvals) makes that client the chosen one.
-  useEffect(() => {
-    const m = /^\/c\/(\d+)(\/|$)/.exec(pathname);
-    if (m) setClientId(Number(m[1]));
-  }, [pathname, setClientId]);
 
   const signOut = async () => {
     await logout();
@@ -148,7 +121,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Icon name="menu" className="h-4 w-4" />
           </button>
         </div>
-        {!collapsed && <ClientSwitcher />}
         <nav className="flex flex-1 flex-col gap-4">
           <NavGroups collapsed={collapsed} />
         </nav>
@@ -169,10 +141,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Phone: slim top bar with the client switcher */}
+      {/* Phone: slim top bar with the page name */}
       <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-surface/95 px-4 py-2 backdrop-blur md:hidden">
         <NavLink to="/" aria-label="Overview" className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
-        <ClientSwitcher className="min-w-0 flex-1" />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{PAGE_TITLE(pathname)}</span>
       </header>
 
       <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">

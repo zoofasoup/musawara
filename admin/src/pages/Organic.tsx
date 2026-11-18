@@ -145,7 +145,7 @@ function Detail({ post, label, onClose }: { post: Post; label: PostLabel | null 
   );
 }
 
-export function Organic() {
+export function Organic({ clientId: fixedId }: { clientId?: number } = {}) {
   const list = useApi<{ today: string; accounts: Account[] }>("/admin/organic");
   const posts = useApi<{ posts: Post[] }>("/admin/organic/posts");
   const clients = useApi<{ clients: { id: number; name: string }[] }>("/admin/clients");
@@ -164,7 +164,7 @@ export function Organic() {
     for (const a of accounts) if (!seen.has(a.client_id)) seen.set(a.client_id, a.client_name);
     return [...seen].map(([id, name]) => ({ id, name }));
   }, [accounts]);
-  const activeId = clientId != null && tabs.some((t) => t.id === clientId) ? clientId : tabs[0]?.id ?? null;
+  const activeId = fixedId ?? (clientId != null && tabs.some((t) => t.id === clientId) ? clientId : tabs[0]?.id ?? null);
   const clientAccounts = accounts.filter((a) => a.client_id === activeId);
 
   const allPosts = posts.data?.posts ?? [];
@@ -234,11 +234,11 @@ export function Organic() {
         <div className="mt-5"><CardSkeleton lines={4} /></div>
       ) : list.error ? (
         <div className="mt-5"><ErrorState message={list.error} onRetry={list.reload} /></div>
-      ) : !tabs.length ? (
+      ) : (fixedId ? !clientAccounts.length : !tabs.length) ? (
         <div className="mt-5"><EmptyState title="No account tracked yet" hint="Press Find accounts, then add the Instagram accounts to watch." /></div>
       ) : (
         <>
-          <Tabs value={String(activeId)} onValueChange={(v) => setClientId(Number(v))} className="mt-5">
+          {!fixedId && <Tabs value={String(activeId)} onValueChange={(v) => setClientId(Number(v))} className="mt-5">
             <TabsList variant="line" className="h-auto w-full flex-wrap justify-start border-b border-border">
               {tabs.map((t) => (
                 <TabsTrigger key={t.id} value={String(t.id)} className="min-h-11 flex-none px-4 text-sm">
@@ -246,7 +246,7 @@ export function Organic() {
                 </TabsTrigger>
               ))}
             </TabsList>
-          </Tabs>
+          </Tabs>}
 
           <div className="mt-4 grid gap-2">
             {clientAccounts.map((a) => <StoryRow key={a.id} a={a} />)}

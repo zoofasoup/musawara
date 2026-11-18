@@ -38,7 +38,8 @@ async function clientExists(c: Ctx, id: number) {
 
 // The callback is a plain browser redirect, so it answers with a redirect rather than JSON.
 shopee.get("/callback", requireAdmin, async (c) => {
-  const done = (result: string) => c.redirect(`/shopee?shopee=${result}`);
+  // lands on the client's own Shopee tab once we know which client it was for
+  const done = (result: string, forClient?: number) => c.redirect(`${forClient ? `/c/${forClient}/shopee` : "/shopee"}?shopee=${result}`);
   const cfg = shopeeCfg(c.env);
   if (!cfg) return done("unconfigured");
   const code = c.req.query("code");
@@ -57,9 +58,9 @@ shopee.get("/callback", requireAdmin, async (c) => {
     await connectShop(c.env, cfg, clientId, code, shopId);
   } catch (e) {
     console.error("shopee connect failed", e instanceof ShopeeError ? e.code : "unknown");
-    return done("failed");
+    return done("failed", clientId);
   }
-  return done("connected");
+  return done("connected", clientId);
 });
 
 shopee.use("*", requireAdmin);
