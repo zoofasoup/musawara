@@ -6,6 +6,8 @@ import { Layout } from "./components/Layout";
 import { ClientFrame } from "./components/ClientFrame";
 import { ClientScopeProvider, useClientScope } from "./context/ClientScope";
 import { CardSkeleton } from "./components/ui";
+import { SecurityCard } from "./components/SecurityCard";
+import { Btn } from "./components/kit";
 import { homePathFor, type Feature } from "../shared/permissions";
 import { userCan } from "./lib/can";
 
@@ -13,6 +15,7 @@ import { userCan } from "./lib/can";
 const AdminHome = lazy(() => import("./pages/AdminHome").then((m) => ({ default: m.AdminHome })));
 const ClientDashboard = lazy(() => import("./pages/ClientDashboard").then((m) => ({ default: m.ClientDashboard })));
 const CreativeView = lazy(() => import("./pages/CreativeView").then((m) => ({ default: m.CreativeView })));
+const Reset = lazy(() => import("./pages/Reset").then((m) => ({ default: m.Reset })));
 const Invite = lazy(() => import("./pages/Invite").then((m) => ({ default: m.Invite })));
 import { Login } from "./pages/Login";
 const ShareView = lazy(() => import("./pages/ShareView").then((m) => ({ default: m.ShareView })));
@@ -41,12 +44,24 @@ const CrmCampaigns = lazy(() => import("./pages/crm/CrmCampaigns").then((m) => (
 const CrmConnection = lazy(() => import("./pages/crm/CrmConnection").then((m) => ({ default: m.CrmConnection })));
 import { CrmLayout } from "./pages/crm/CrmLayout";
 
+function MfaRequired() {
+  const { logout } = useAuth();
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-4">
+      <SecurityCard required />
+      <Btn tone="ghost" onClick={() => void logout().then(() => (window.location.href = BASE + "/login"))}>Sign out</Btn>
+    </main>
+  );
+}
+
 /** Signed-in frame. It stays mounted while the page inside it changes, so moving between menus never redraws the sidebar. */
 function ProtectedLayout() {
   const { user, ready } = useAuth();
   usePrefetchPages(user?.role === "admin");
   if (!ready) return null;
   if (!user) return <Navigate to="/login" replace />;
+  // Team accounts that must have two-factor and do not yet: nothing else opens until it is set up.
+  if (user.mfa_required) return <MfaRequired />;
   return (
     <Layout>
       <Suspense fallback={<div className="space-y-4"><CardSkeleton lines={2} /><CardSkeleton lines={4} /></div>}>
@@ -147,6 +162,7 @@ export function App() {
             {/* Public */}
             <Route path="/login" element={<Login />} />
             <Route path="/invite/:token" element={<Invite />} />
+            <Route path="/reset/:token" element={<Reset />} />
             <Route path="/share/:token" element={<ShareView />} />
             <Route path="/share/:token/report" element={<ShareReport />} />
 

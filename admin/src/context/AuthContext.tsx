@@ -13,6 +13,10 @@ export type User = {
   staff_role: StaffRole | null;
   /** Client logins only: viewer (reads) or approver (decides on approvals). */
   client_role: ClientRole | null;
+  /** Has a second factor set up. */
+  two_factor?: boolean;
+  /** Two-factor is required for the team and this account has none yet: only the set-up screen opens. */
+  mfa_required?: boolean;
 };
 export type ClientInfo = { id: number; name: string; slug: string; logo_url: string | null; brand_color: string };
 
@@ -20,7 +24,11 @@ type AuthState = {
   user: User | null;
   client: ClientInfo | null; // set for client-role users
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Resolves with `{ twoFactor: true }` when a code is still needed (finish with verifyTwoFactor). */
+  login: (email: string, password: string) => Promise<{ twoFactor: true } | void>;
+  verifyTwoFactor: (code: string, backup?: boolean) => Promise<void>;
+  /** Re-read who is signed in (after setting up or turning off two-factor). */
+  refresh: () => Promise<void>;
   logout: () => Promise<void>;
   setSession: (user: User, client?: ClientInfo | null) => void;
 };
@@ -43,16 +51,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const d = await api<{ user?: User }>("/auth/login", { body: { email, password } });
-    if (!d.user) throw new Error("Invalid sign-in response");
+  const refresh = useCallback(async () => {
     clearApiCache();
-    setUser(d.user);
-    if (d.user.client_id) {
-      const me = await api<{ client: ClientInfo | null }>("/auth/me");
-      setClient(me.client);
-    }
+    const me = await api<{ user: User; client: ClientInfo | null }>("/auth/me");
+    setUser(me.user);
+    setClient(me.client);
   }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const d = await api<{ user?: User; twoFactor?: boolean }>("/auth/login", { body: { email, password } });
+    if (d.twoFactor) return { twoFactor: true as const };
+    if (!d.user) throw new Error("Invalid sign-in response");
+    await refresh();
+  }, [refresh]);
+
+  const verifyTwoFactor = useCallback(async (code: string, backup = false) => {
+    await api(`/auth/two-factor/${backup ? "verify-backup-code" : "verify-totp"}`, { body: { code: code.replace(/\s/g, "") } });
+    await refresh();
+  }, [refresh]);
 
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST", body: {} });
@@ -67,5 +83,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClient(c ?? null);
   }, []);
 
-  return <AuthContext.Provider value={{ user, client, ready, login, logout, setSession }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, client, ready, login, verifyTwoFactor, refresh, logout, setSession }}>{children}</AuthContext.Provider>;
 }

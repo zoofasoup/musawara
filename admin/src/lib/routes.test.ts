@@ -37,5 +37,5 @@ test("only the login, invite and share pages are public", () => {
   const protectedAt = app.indexOf("<Route element={<ProtectedLayout />}>");
   const before = app.slice(0, protectedAt);
   const publicPaths = [...before.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(publicPaths, ["/login", "/invite/:token", "/share/:token", "/share/:token/report"]);
+  assert.deepEqual(publicPaths, ["/login", "/invite/:token", "/reset/:token", "/share/:token", "/share/:token/report"]);
 });

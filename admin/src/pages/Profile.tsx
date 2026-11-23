@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { api } from "../lib/api";
 import { RolePill } from "../lib/roles";
+import { SecurityCard } from "../components/SecurityCard";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "../components/Avatar";
 import { PageHeader } from "../components/PageHeader";
@@ -77,6 +78,8 @@ export function Profile() {
           <Btn tone="primary" type="submit" loading={savingName} disabled={!name.trim() || name.trim() === user.name}>Save name</Btn>
         </form>
       </Panel>
+
+      <SecurityCard />
 
       <Panel className="p-5">
         <form onSubmit={savePassword} className="space-y-3">

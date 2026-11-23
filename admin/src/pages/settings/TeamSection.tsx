@@ -56,6 +56,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
   const [clientId, setClientId] = useState("");
   const [saving, setSaving] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
+  const [resetUrl, setResetUrl] = useState<{ name: string; url: string } | null>(null);
   // editing an existing team member's access
   const [editing, setEditing] = useState<number | null>(null);
   const [editRole, setEditRole] = useState<StaffRole>("ads");
@@ -123,6 +124,18 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
           <div className="flex items-center gap-2 rounded-lg border border-good/20 bg-surface px-3">
             <Input readOnly value={inviteUrl} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} className="min-h-11 min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none" />
             <CopyBtn text={inviteUrl} label="Copy link" />
+          </div>
+        </div>
+      )}
+
+      {resetUrl && (
+        <div className="mb-3 rounded-xl border border-good/30 bg-good/5 p-3.5">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-good">
+            <Icon name="checkCircle" className="h-4 w-4" /> Password link for {resetUrl.name}. Send it to them, it works once and lasts 24 hours.
+          </p>
+          <div className="flex items-center gap-2 rounded-lg border border-good/20 bg-surface px-3">
+            <Input readOnly value={resetUrl.url} aria-label="Password reset link" onFocus={(e) => e.currentTarget.select()} className="min-h-11 min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none" />
+            <CopyBtn text={resetUrl.url} label="Copy link" />
           </div>
         </div>
       )}
@@ -202,6 +215,29 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                     {editing === u.id ? "Cancel" : "Edit access"}
                   </Btn>
                 )}
+                <Btn tone="ghost" onClick={async () => {
+                  try {
+                    const r = await api<{ path: string }>(`/admin/users/${u.id}/reset-link`, { method: "POST", body: {} });
+                    setResetUrl({ name: u.name, url: homeOrigin(u.role) + r.path });
+                  } catch (err: any) {
+                    notify(err.message, "err");
+                  }
+                }}>New password link</Btn>
+                {u.two_factor_enabled ? (
+                  <ConfirmBtn
+                    label="Reset 2FA"
+                    confirmLabel="Remove their 2FA"
+                    onConfirm={async () => {
+                      try {
+                        await api(`/admin/users/${u.id}/reset-2fa`, { method: "POST", body: {} });
+                        reload();
+                        notify(`${u.name} was signed out and must set up two-factor again.`);
+                      } catch (err: any) {
+                        notify(err.message, "err");
+                      }
+                    }}
+                  />
+                ) : null}
                 <ConfirmBtn
                   label="Remove"
                   confirmLabel="Remove access"

@@ -619,7 +619,7 @@ admin.post("/alerts/:id/ack", async (c) => {
 // ---------------------------------------------------------------- users & invites (Owner only)
 admin.get("/users", async (c) => {
   const users = await c.env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.role, u.client_id, u.staff_role, u.client_role, u.created_at, c.name client_name,
+    `SELECT u.id, u.email, u.name, u.role, u.client_id, u.staff_role, u.client_role, u.two_factor_enabled, u.created_at, c.name client_name,
             (SELECT group_concat(uc.client_id) FROM user_clients uc WHERE uc.user_id=u.id) assigned
      FROM users u LEFT JOIN clients c ON c.id=u.client_id ORDER BY u.created_at`
   ).all<any>();
