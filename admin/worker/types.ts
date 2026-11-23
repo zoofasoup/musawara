@@ -4,6 +4,8 @@ export type Env = {
   /** Post media for Publish (private R2 bucket). */
   MEDIA: R2Bucket;
   JWT_SECRET: string;
+  /** Signs Better Auth cookies. Falls back to JWT_SECRET; set its own value to rotate them independently. */
+  AUTH_SECRET?: string;
   ADMIN_BOOTSTRAP_TOKEN?: string;
   META_ACCESS_TOKEN?: string;
   /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */
