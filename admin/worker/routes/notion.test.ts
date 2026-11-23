@@ -62,6 +62,18 @@ test("without a token nothing is called", async () => {
   await assert.rejects(() => syncNotion({ DB } as any, fakeNotion([])), /NOTION_TOKEN/);
 });
 
+test("imported snapshot cards are never pulled or pushed by legacy sync", async () => {
+  const { DB, env } = await setup();
+  const id = "0123456789abcdef0123456789abcdef";
+  await DB.prepare("INSERT INTO content_plans (client_id,title,source_notion_id) VALUES (1,'Snapshot',?)").bind(id).run();
+  const log: any[] = [];
+  const result = await syncNotion(env, fakeNotion([page("01234567-89ab-cdef-0123-456789abcdef", { title: "Source changed", client: "Nuralive" })], log));
+  assert.equal(result.pulled_new + result.pulled_updated + result.pushed_new + result.pushed_updated, 0);
+  assert.equal((await DB.prepare("SELECT COUNT(*) AS n FROM content_plans").first<any>())?.n, 1);
+  assert.equal((await DB.prepare("SELECT title FROM content_plans").first<any>())?.title, "Snapshot");
+  assert.equal(log.some((entry) => entry.path === "/v1/pages" || entry.method === "PATCH"), false);
+});
+
 test("a new app card is created in Notion with the board's own client name, then not duplicated", async () => {
   const { DB, env } = await setup();
   await DB.exec(`INSERT INTO content_plans (client_id,title,brief,kind,stage,planned_date) VALUES (1,'Reel padel','brief text','reel','drafting','2026-11-20')`);
@@ -72,11 +84,38 @@ test("a new app card is created in Notion with the board's own client name, then
   assert.equal(created.properties.Client.select.name, "Nuralive");
   assert.equal(created.properties.Progress.status.name, "Copy / Script");
   assert.equal(created.properties.Format.select.name, "Short-form video");
+  assert.equal(created.properties.Platform, undefined); // Do not invent a destination.
   assert.equal(created.properties["Target Post"].date.start, "2026-11-20");
   const row = await DB.prepare("SELECT notion_page_id FROM content_plans").first<any>();
   assert.equal(row.notion_page_id, "new-1");
   const again = await syncNotion(env, fakeNotion([], []));
   assert.equal(again.pushed_new + again.pushed_updated, 0);
+});
+
+test("pagination continues past 1,000 records without silently dropping later pages", async () => {
+  const { env } = await setup();
+  const base = fakeNotion([]);
+  let calls = 0;
+  const fetcher = (async (url: string, init: any = {}) => {
+    if (url.endsWith("/query")) {
+      calls++;
+      const records = calls <= 10 ? Array.from({ length: 100 }, (_, i) => page(`${calls}-${i}`, { title: "Skipped", client: "Unknown" })) : [page("last", { title: "Last record", client: "Nuralive" })];
+      return new Response(JSON.stringify({ results: records, has_more: calls <= 10, next_cursor: calls <= 10 ? `cursor-${calls}` : null }));
+    }
+    return base(url, init);
+  }) as unknown as typeof fetch;
+  const result = await syncNotion(env, fetcher);
+  assert.equal(calls, 11);
+  assert.equal(result.pulled_new, 1);
+});
+
+test("invalid pagination stops instead of claiming a complete sync", async () => {
+  const { env } = await setup();
+  const base = fakeNotion([]);
+  const fetcher = (async (url: string, init: any = {}) => url.endsWith("/query")
+    ? new Response(JSON.stringify({ results: [], has_more: true, next_cursor: null }))
+    : base(url, init)) as unknown as typeof fetch;
+  await assert.rejects(() => syncNotion(env, fetcher), /invalid pagination cursor/);
 });
 
 test("a Notion page for a known client becomes a card; unknown client, Projects, and Posted are skipped", async () => {

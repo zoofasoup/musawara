@@ -53,7 +53,7 @@ export function Invite() {
             <p className="text-xs text-ink2">
               {data!.invite.client_name
                 ? `You've been invited to view the ${data!.invite.client_name} dashboard.`
-                : "You've been invited to Musawara Ads Intelligence."}
+                : "You've been invited to Musawara."}
             </p>
             <FormField label="Your name">
               <Input

@@ -13,7 +13,7 @@ import type { LedgerRow } from '@/lib/types'
  */
 
 function Value({ value, note }: { value: string | null; note: string | null }) {
-  if (!value && !note) return <span className="text-paper/40">—</span>
+  if (!value && !note) return <span className="text-paper/60">—</span>
   return (
     <>
       {value ? <Figure className="text-[1.35em]">{value}</Figure> : null}
@@ -53,7 +53,7 @@ export function Ledger({ rows }: { rows: LedgerRow[] }) {
           Merek yang kami tangani beserta capaiannya
         </caption>
         <thead>
-          <tr className="u-label text-paper/45">
+          <tr className="u-label text-paper/60">
             <th scope="col" className="w-[18%] pb-3 font-semibold">
               Merek
             </th>
@@ -95,7 +95,7 @@ export function Ledger({ rows }: { rows: LedgerRow[] }) {
                 <td className={`pr-4 ${starts ? 'pb-4 pt-5' : 'pb-4'}`}>
                   <Value value={row.end_value} note={row.end_note} />
                 </td>
-                <td className={`u-label text-paper/45 ${starts ? 'pb-4 pt-5' : 'pb-4'}`}>
+                <td className={`u-label text-paper/60 ${starts ? 'pb-4 pt-5' : 'pb-4'}`}>
                   {row.period ?? <span aria-label="periode belum dikonfirmasi">—</span>}
                 </td>
               </tr>
@@ -117,22 +117,22 @@ export function Ledger({ rows }: { rows: LedgerRow[] }) {
               {starts ? (
                 <dt className="mb-3 flex flex-wrap items-baseline gap-x-3">
                   <span className="font-semibold">{row.client.name}</span>
-                  <span className="u-label text-paper/45">{row.client.category}</span>
+                  <span className="u-label text-paper/60">{row.client.category}</span>
                 </dt>
               ) : (
                 <dt className="sr-only">{row.client.name}</dt>
               )}
               <dd className="space-y-1.5 text-small">
                 <div>
-                  <span className="u-label mr-2 text-paper/45">Awal</span>
+                  <span className="u-label mr-2 text-paper/60">Awal</span>
                   <Value value={row.start_value} note={row.start_note} />
                 </div>
                 <div>
-                  <span className="u-label mr-2 text-paper/45">Kini</span>
+                  <span className="u-label mr-2 text-paper/60">Kini</span>
                   <Value value={row.end_value} note={row.end_note} />
                 </div>
                 {row.period ? (
-                  <div className="u-label pt-1 text-paper/45">{row.period}</div>
+                  <div className="u-label pt-1 text-paper/60">{row.period}</div>
                 ) : null}
               </dd>
             </div>

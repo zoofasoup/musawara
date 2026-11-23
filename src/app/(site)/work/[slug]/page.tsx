@@ -26,10 +26,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const study = await getCaseStudy(slug)
-  if (!study) return {}
+  if (!study) return { robots: { index: false, follow: true } }
   return {
     title: `${study.client.name} — ${study.title}`,
     description: study.summary ?? undefined,
+    alternates: { canonical: `/work/${study.slug}` },
   }
 }
 

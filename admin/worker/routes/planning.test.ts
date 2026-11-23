@@ -9,6 +9,8 @@ import admin from "./admin.ts";
 const SECRET = "test-secret";
 async function setup() {
   const DB = makeDb();
+  await DB.exec(`CREATE TRIGGER test_admin_mfa AFTER INSERT ON users WHEN NEW.role='admin'
+    BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   await DB.exec(`
     INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','tok1',1),(2,'Beta','beta','tok2',1);
     INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES
@@ -20,7 +22,7 @@ async function setup() {
   app.route("/api/admin", admin);
   const env: any = { DB, JWT_SECRET: SECRET };
   const cookie = async (id: number, role: string, client_id: number | null) =>
-    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
   const call = async (method: string, path: string, who: { cookie?: string; share?: string }, body?: unknown) =>
     app.request(path, {
       method,
@@ -43,6 +45,68 @@ test("client users and share links cannot read or write planning data", async ()
   // the all-clients mount is admin only
   assert.equal((await call("GET", "/api/admin/plan/board", client)).status, 403);
   assert.equal((await call("GET", "/api/admin/plan/board", {})).status, 401);
+});
+
+test("editorial details are saved without scheduling or publishing", async () => {
+  const { DB, call, cookie } = await setup();
+  const team = { cookie: await cookie(1, "admin", null) };
+  const created = await call("POST", "/api/clients/1/plan/cards", team, { title: "Project brief" });
+  const card = ((await created.json()) as any).card;
+  const response = await call("PATCH", `/api/clients/1/plan/cards/${card.id}`, team, {
+    progress: "Ready to Post", pillar: "Projects", campaign: "Campaign", platforms: "Meta Ads",
+    reference_url: "https://example.org/brief", final_url: "https://example.org/final", posted_date: "2026-11-20",
+  });
+  assert.equal(response.status, 200);
+  const updated = ((await response.json()) as any).card;
+  assert.equal(updated.progress, "Ready to Post");
+  assert.equal(updated.pillar, "Projects");
+  assert.equal(updated.stage, "idea");
+  assert.equal((await DB.prepare("SELECT COUNT(*) AS n FROM posts").first<any>())?.n, 0);
+  assert.equal((await call("PATCH", `/api/clients/1/plan/cards/${card.id}`, team, { progress: "unknown" })).status, 400);
+  assert.equal((await call("PATCH", `/api/clients/1/plan/cards/${card.id}`, team, { final_url: "javascript:alert(1)" })).status, 400);
+});
+
+test("planning comments and links are scoped to staff and validate links", async () => {
+  const { call, cookie } = await setup();
+  const team = { cookie: await cookie(1, "admin", null) };
+  const client = { cookie: await cookie(2, "client", 1) };
+  const created = await call("POST", "/api/clients/1/plan/cards", team, { title: "Brief" });
+  const id = ((await created.json()) as any).card.id;
+  const path = `/api/clients/1/plan/cards/${id}`;
+  assert.equal((await call("GET", `${path}/details`, client)).status, 403);
+  assert.equal((await call("POST", `${path}/comments`, team, { body: "  Feedback  " })).status, 201);
+  assert.equal((await call("POST", `${path}/links`, team, { title: "Unsafe", url: "javascript:alert(1)" })).status, 400);
+  assert.equal((await call("POST", `${path}/links`, team, { title: "Reference", url: "https://example.com/file" })).status, 201);
+  const result = await (await call("GET", `${path}/details`, team)).json() as any;
+  assert.equal(result.comments[0].body, "Feedback");
+  assert.equal(result.comments[0].author_name, "Admin");
+  assert.equal(result.links[0].url, "https://example.com/file");
+  assert.equal((await call("GET", `/api/clients/2/plan/cards/${id}/details`, team)).status, 404);
+});
+
+test("content notifications are visible and markable only by their recipient", async () => {
+  const { DB, call, cookie } = await setup();
+  await DB.exec("INSERT INTO users (id,email,password_hash,name,role) VALUES (4,'other@x','h','Other','admin'); INSERT INTO content_plans (id,client_id,title) VALUES (7,1,'Example'); INSERT INTO content_workflow_notifications (id,recipient_user_id,plan_id,message) VALUES (9,1,7,'Review needed'),(10,4,7,'Private');");
+  const team = { cookie: await cookie(1, "admin", null) };
+  const client = { cookie: await cookie(2, "client", 1) };
+  assert.equal((await call("GET", "/api/admin/plan/notifications", client)).status, 403);
+  const list = (await (await call("GET", "/api/admin/plan/notifications", team)).json()) as any;
+  assert.deepEqual(list.notifications.map((n: any) => n.id), [9]);
+  assert.equal((await call("POST", "/api/admin/plan/notifications/10/read", team)).status, 404);
+  assert.equal((await call("POST", "/api/admin/plan/notifications/9/read", team)).status, 200);
+  assert.ok((await DB.prepare("SELECT read_at FROM content_workflow_notifications WHERE id=9").first<any>())?.read_at);
+});
+
+test("unassigned imports are visible only to staff without inventing a client", async () => {
+  const { DB, call, cookie } = await setup();
+  await DB.prepare("INSERT INTO content_import_review(source_id,title,progress,source_url) VALUES(?,?,?,?)").bind("0123456789abcdef0123456789abcdef", "Untitled project", "Ideation", "https://www.notion.so/0123456789abcdef0123456789abcdef").run();
+  const client = { cookie: await cookie(2, "client", 1) };
+  const team = { cookie: await cookie(1, "admin", null) };
+  assert.equal((await call("GET", "/api/admin/plan/imports/review", client)).status, 403);
+  const result = await (await call("GET", "/api/admin/plan/imports/review", team)).json() as any;
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].title, "Untitled project");
+  assert.equal((await DB.prepare("SELECT COUNT(*) AS n FROM content_plans").first<any>())?.n, 0);
 });
 
 test("team can create, edit, move and delete cards, per client and across clients", async () => {

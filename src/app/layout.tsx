@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { TASA_Explorer, TASA_Orbiter } from 'next/font/google'
 
+import { SITE_URL, SITE_INDEXABLE } from '@/lib/site'
+
 import './globals.css'
 
 // Brand direction permits these two families and nothing else.
@@ -20,10 +22,10 @@ const explorer = TASA_Explorer({
   display: 'swap',
 })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: SITE_URL,
+  robots: { index: SITE_INDEXABLE, follow: true },
+  icons: { icon: '/logo/mark-purple.png' },
   title: {
     default: 'Musawara Creative — agensi yang menjalankan mereknya sendiri',
     template: '%s — Musawara Creative',
@@ -47,8 +49,6 @@ export default function RootLayout({
       lang="id"
       className={`${orbiter.variable} ${explorer.variable}`}
     >
-      {/* Header, nav, and footer live in the (site) route group, not here —
-          the holding page at / has none of them. */}
       <body className="flex min-h-screen flex-col">{children}</body>
     </html>
   )

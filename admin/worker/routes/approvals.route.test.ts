@@ -38,7 +38,7 @@ let db: DatabaseSync;
 let env: any;
 
 async function cookie(u: { id: number; role: "admin" | "client"; client_id: number | null; name?: string }) {
-  const token = await sign({ sub: u.id, email: `u${u.id}@x.test`, name: u.name ?? `User ${u.id}`, role: u.role, client_id: u.client_id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256");
+  const token = await sign({ sub: u.id, email: `u${u.id}@x.test`, name: u.name ?? `User ${u.id}`, role: u.role, client_id: u.client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256");
   return `ma_session=${token}`;
 }
 const ADMIN = { id: 1, role: "admin" as const, client_id: null };
@@ -63,6 +63,7 @@ beforeEach(() => {
            INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES
              (1,'a@x.test','x','Admin','admin',NULL),(2,'ca@x.test','x','Client A','client',1),(3,'cb@x.test','x','Client B','client',2);
            INSERT INTO posts (id,client_id,kind,caption) VALUES (10,1,'feed','hi'),(20,2,'feed','other');`);
+  db.exec("INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) SELECT id, 'test', 1, 1 FROM users WHERE role='admin'");
   env = { DB: d1(db), JWT_SECRET: SECRET, APP_NAME: "t" };
 });
 
@@ -184,8 +185,8 @@ describe("status transitions and history", () => {
     expect((await call(ADMIN, "POST", `/1/requests/${requestId}/resubmit`, {})).status).toBe(409);
     const hist = db.prepare("SELECT action, actor_name, comment FROM approval_history WHERE request_id=? ORDER BY id").all(requestId);
     expect(hist).toEqual([
-      { action: "submitted", actor_name: "User 1", comment: "Please review" },
-      { action: "approved", actor_name: "User 2", comment: "Looks great" },
+      { action: "submitted", actor_name: "Admin", comment: "Please review" },
+      { action: "approved", actor_name: "Client A", comment: "Looks great" },
     ]);
   });
 

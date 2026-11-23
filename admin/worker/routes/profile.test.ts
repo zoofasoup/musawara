@@ -9,12 +9,14 @@ import { hashPassword } from "../lib/auth.ts";
 const SECRET = "test-secret";
 async function setup() {
   const DB = makeDb();
+  await DB.exec(`CREATE TRIGGER test_admin_mfa AFTER INSERT ON users WHEN NEW.role='admin'
+    BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   const hash = await hashPassword("old-password-1");
   await DB.prepare("INSERT INTO users (id,email,password_hash,name,role) VALUES (1,'a@x',?,'Admin','admin'),(2,'b@x',?,'Other','admin')").bind(hash, hash).run();
   const app = new Hono<any>();
   app.route("/api/auth", auth);
   const env: any = { DB, JWT_SECRET: SECRET };
-  const cookie = async (id: number) => `ma_session=${await sign({ sub: id, email: "a@x", name: "Admin", role: "admin", client_id: null, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+  const cookie = async (id: number) => `ma_session=${await sign({ sub: id, email: "a@x", name: "Admin", role: "admin", client_id: null, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
   const call = (method: string, path: string, body?: unknown, ck?: string) =>
     app.request(`http://app.musawara.id/api/auth${path}`, { method, headers: { "content-type": "application/json", ...(ck ? { cookie: ck } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }, env);
   return { DB, call, cookie };

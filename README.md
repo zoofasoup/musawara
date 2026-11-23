@@ -3,97 +3,78 @@
 Public website for Musawara Creative (PT Musacreativa Digital Nusantara), the
 in-house creative team of MUSA Group.
 
-This is **Phase 1** of the build spec: the public site only. The internal
-brand-knowledge admin dashboard (Phases 2–4) is not built yet, but the database
-schema here is shaped so those tables hang off `clients` without a rewrite.
+## Platform
 
----
+| Host | Responsibility | Worker |
+| --- | --- | --- |
+| `musawara.id` | Next.js static export and platform API | `musawara-id` |
+| `app.musawara.id` | Internal team SPA | `musawara-portal` |
+| `portal.musawara.id` | Client SPA with tenant-scoped API access | `musawara-portal` |
+| `go.musawara.id` | Small public tools | `musawara-go` |
 
-## Stack
+The app and portal share the Vite frontend in `admin/`. Their Worker forwards
+requests to the main Worker through a Cloudflare service binding. The main
+Worker uses D1 for platform data and Supabase for public content and applications.
 
-Next.js 16 (App Router, Turbopack) · React 19 · Tailwind 4 · Supabase (Postgres)
-· **static export deployed to Cloudflare Pages**.
+## Development and verification
 
-> Next 16 has breaking changes against older App Router habits: `params` and
-> `searchParams` are Promises, Turbopack is the default bundler, and `middleware`
-> is now `proxy`. The bundled docs in `node_modules/next/dist/docs/` are the
-> source of truth — read them rather than relying on memory.
-
-## Running locally
+Use Node 22 or newer, then install both lockfiles.
 
 ```bash
-npm install && npm run dev
+npm ci
+npm ci --prefix admin
+npm run check
+npm test --prefix admin
+npm run build
 ```
 
-Without Supabase credentials `npm run dev` serves a **development fixture**
-(`src/lib/fixtures.ts`) so the site runs out of the box. The fixture contains
-unverified figures and invented salary ranges, and is only ever served in
-development: `src/lib/content.ts` keys on `NODE_ENV`, so any production build
-serves empty content instead. Pages fall back to their empty states rather than
-failing the build, which keeps genuinely static routes — notably the price
-calculator — deployable with no database at all.
+`npm run dev` serves the public site. Without Supabase credentials it uses
+development fixtures containing unverified figures. A production build with no
+Supabase credentials produces empty content and keeps the static pages available.
+See `.env.example` for build environment variables.
 
-To run against a real database, copy `.env.example` to `.env.local` and fill it
-in.
+To test the Workers locally, apply D1 migrations with
+`npx wrangler d1 migrations apply musawara-ads --local -c wrangler.noR2.jsonc`.
+Build the assets and run `wrangler dev --local` with the main, portal and Go
+configs in separate terminals and on different ports. Keep local secrets in
+`.dev.vars` and use only staging accounts and test data.
 
-## Deploying (Cloudflare Pages)
+## Deploying with Cloudflare Workers
 
-The site builds to a static export in `out/`. Connect the GitHub repo in
-Cloudflare Pages with:
+The Next.js site exports to `out/` and the build copies the Vite bundle into
+`out/admin/`. Publishing Supabase content requires a new site build.
+Set `NEXT_PUBLIC_SITE_URL=https://musawara.id` and enable
+`NEXT_PUBLIC_SITE_INDEXABLE` when the public content is approved.
 
-| Setting | Value |
-|---|---|
-| Build command | `npm run build` |
-| Output directory | `out` |
-| Node version | 20 or newer |
+Use `wrangler.jsonc` when the production Worker has its `MEDIA` binding.
+`wrangler.noR2.jsonc` is the production config for the account without that
+bucket. Check the active bindings and Worker versions before choosing. The
+portal and Go configurations are in their respective directories. Run
+`npx wrangler deploy --dry-run -c <config>` before a deployment. Keep the
+production Worker names, service binding and scheduled jobs intact.
 
-Environment variables (Settings → Environment variables). All are optional —
-without them the site still deploys, pages render their empty states, and the
-careers form reports honestly that it is not connected:
-
-```
-NEXT_PUBLIC_SUPABASE_URL       # read at build time to prerender content,
-NEXT_PUBLIC_SUPABASE_ANON_KEY  # and at runtime by the careers endpoint
-NEXT_PUBLIC_SITE_URL           # https://musawara.id
-RESEND_API_KEY                 # optional: careers email notifications
-CAREERS_NOTIFY_FROM
-CAREERS_NOTIFY_TO
-```
-
-Content is prerendered at build time, so **publishing a change in Supabase
-requires a redeploy**. Trigger one from the Pages dashboard, or add a Deploy
-Hook and call it after editing content.
-
-### What static export costs
-
-`output: 'export'` rules out Server Actions, rewrites, redirects, headers, ISR,
-and the default `next/image` loader. Concretely:
-
-- The careers form posts to a Cloudflare Pages Function
-  (`functions/api/apply.ts`) rather than a Server Action.
-- `/nuralive/price-calculator` resolves because Cloudflare Pages serves a
-  directory index; there is no rewrite. Verified against a directory-index
-  static server, not against Cloudflare itself — confirm on first deploy.
-- `/work/[slug]` falls back to the three known brand slugs when the database is
-  empty, because static export fails outright on a dynamic route with no params.
-
-Moving to `@opennextjs/cloudflare` on Workers would restore all of it, and will
-probably be necessary for the Phase 2 admin dashboard, which needs auth and SSR.
+The careers form needs `CAREERS_ENABLED=true` and an HTTPS
+`CAREERS_PRIVACY_URL` at build time. Set `CAREERS_ENABLED=true` in the deployed
+Worker config after the Supabase migration and staging checks. Configure
+`SUPABASE_URL` and `SUPABASE_SECRET_KEY` on the Worker. Optionally set
+`RESEND_API_KEY`, `CAREERS_NOTIFY_FROM`, and `CAREERS_NOTIFY_TO` for notifications.
 
 ## Database
 
 ```bash
 # In the Supabase SQL editor, in order:
 supabase/migrations/0001_public_site.sql   # schema + RLS
-supabase/seed.sql                          # clients, case studies, draft rows
+supabase/migrations/0002_worker_only_applications.sql
+supabase/seed.sql                          # optional seed for a fresh project
 ```
 
 `supabase/seed-preview.sql` publishes the draft figures for **local design
 review only**. Never run it against production — it marks unconfirmed numbers as
 verified.
 
-RLS is enabled on every table. Anonymous visitors can read only rows where
-`is_published` is true, and can insert into `job_applications` but never read it.
+RLS is enabled on every table. RLS controls published content reads. The careers Worker uses its server-only
+Supabase key when it stores applications. Anonymous and authenticated browser
+roles have no access to that table.
 
 ### Publishing figures
 
@@ -117,27 +98,23 @@ where id = '<row id>';
 
 ## Before launch
 
-Everything below is unconfirmed and will ship wrong if not corrected.
-
-- [ ] **Every ledger figure.** All seeded metrics are drafts from the spec. Confirm each against source data, then set `verified_at` and `is_published`.
-- [ ] **Company contact details** in `src/lib/company.ts` — office address, email, and WhatsApp number are placeholders marked `NEEDS CONFIRMATION`.
-- [ ] **Salary ranges** on both seeded roles.
-- [ ] **Editorial pass on all Bahasa copy.** Case studies, services, and about-page copy are drafts written from the spec, not from interviews.
-- [ ] **Domain** is musawara.id; set `NEXT_PUBLIC_SITE_URL` to match.
-- [ ] Resend credentials, or careers notifications silently no-op (applications still save).
-- [ ] Confirm the contact email domain — the Google Workspace account is on `musawaracreative.com`, not `musawara.id`.
+- Confirm the published portfolio, copy, company address, contact channels,
+  ledger figures, and any salary ranges with their owners.
+- Verify HTTPS redirects and the canonical host. Review staff MFA, client
+  isolation, invite and share-link access, and sensitive integration secrets.
+- Verify accessibility with keyboard and screen reader, including on mobile.
+- Verify alerting, cron health, backups and rollback on a staging environment.
 
 ## Design system
 
-Palette is sampled from the official logo artwork in `public/logo/`, and
-supersedes spec §6.3 where they conflict:
+The public site follows the app theme in `admin/src/index.css`:
 
 | Token | Hex | Use |
 |---|---|---|
-| `ink` | `#1F261F` | dark ground, body text |
-| `paper` | `#F2F2F2` | page ground |
-| `rule` | `#DCDBD7` | hairlines (derived, not sampled) |
-| `purple` | `#7B23D8` | the only accent — links, focus, active |
+| `ink` | `#141824` | dark ground, body text |
+| `paper` | `#FFFFFF` | page ground |
+| `rule` | `#E0E3EC` | hairlines |
+| `purple` | `#7A2DE3` | accent — links, focus, active |
 | lime | `#CDFE64` | **figures only** |
 
 Two rules the code enforces rather than documents:
@@ -149,7 +126,7 @@ Two rules the code enforces rather than documents:
    the light ground and to lime inside `.u-inverted`. This is why the home
    ledger sits on the dark ground.
 
-Type is TASA Orbiter (display, headings, figures) and TASA Explorer (body, UI),
+Type is TASA Explorer (display and headings) and TASA Orbiter (body, UI, figures),
 self-hosted via `next/font`. Neither family has an italic or a monospace, so
 `font-synthesis` is disabled and figures use `tabular-nums` for column alignment
 instead of a monospaced face.
@@ -166,13 +143,8 @@ under `prefers-reduced-motion`.
 - Logo artwork is PNG because that is what the brand folder contains. Swap in
   SVG when exported and drop the `width`/`height` props in `src/components/Logo.tsx`.
 
-## Verified
+## Release verification
 
-First load 223 KB (1 MB budget) · no console errors · no horizontal scroll at
-375px · typecheck clean for both the app and `functions/` · static export builds
-and every route resolves under directory-index serving, including
-`/nuralive/price-calculator`.
-
-Not verified: the migration SQL has never been executed against a real Postgres
-(no Docker on the build machine), and nothing has been deployed to Cloudflare
-yet.
+Run the typecheck, admin test suite and production build for each candidate.
+Verify the real deployment with the configured data and credentials, including
+the portal, Go, the calculator, redirects and the 404 page.

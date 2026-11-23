@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { COMPANY } from '@/lib/company'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/contact' },
   title: 'Kontak',
   description: `Hubungi ${COMPANY.name} — ${COMPANY.legalName}, Bekasi.`,
 }

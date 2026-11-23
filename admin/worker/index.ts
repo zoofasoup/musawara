@@ -1,4 +1,4 @@
-// Musawara Ads Intelligence — Worker entrypoint.
+// Musawara — Worker entrypoint.
 // Serves /api/* via Hono; static SPA assets are handled by the assets binding
 // (run_worker_first is limited to /api/* in wrangler.jsonc).
 
@@ -44,7 +44,7 @@ app.get("/api/health", async (c) => {
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {
   // one searchable line per failure in the Workers logs (observability is on); the path only, never the query string or body
-  console.error(JSON.stringify({ event: "unhandled", method: c.req.method, path: new URL(c.req.url).pathname, message: err.message, stack: err.stack?.split("\n").slice(0, 4).join(" | ") }));
+  console.error(JSON.stringify({ event: "unhandled", method: c.req.method, route: c.req.routePath, error: err.name }));
   return c.json({ error: "Internal error" }, 500);
 });
 

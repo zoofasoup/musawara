@@ -3,30 +3,25 @@
 /* ---------------------------------------------------------------- tokens */
 
 @theme {
-  /*
-   * Sampled from the official logo artwork, not from spec §6.3. The brand
-   * palette supersedes the spec's ink/paper/pine/marigold where they conflict:
-   *   ink      #1F261F  (was #14181D)
-   *   paper    #F2F2F2  (was #F7F6F2)
-   *   accent   #7B23D8  purple, replaces pine
-   *   figure   #CDFE64  lime, replaces marigold — see --figure-accent below
-   * `rule` is derived rather than sampled; the artwork has no hairline colour.
-   */
-  --color-ink: #1f261f;
-  --color-ink-deep: #151915;
-  --color-paper: #f2f2f2;
-  --color-rule: #dcdbd7;
-  --color-purple: #7b23d8;
-  --color-purple-deep: #6224b2;
+  /* Public-site equivalents of the app theme in admin/src/index.css. */
+  --color-ink: #141824;
+  --color-ink-deep: #141824;
+  --color-paper: #ffffff;
+  --color-rule: #e0e3ec;
+  --color-purple: #7a2de3;
+  --color-purple-deep: #6a20cf;
+  --color-public-bg: #eceef5;
+  --color-public-surface: #f5f6fa;
+  --shadow-soft: 0 1px 2px rgba(30, 20, 60, .04), 0 6px 20px -8px rgba(30, 20, 60, .10);
 
-  /* Muted ink for secondary copy. Derived, not a new hue. */
-  --color-ink-60: color-mix(in oklab, #1f261f 60%, #f2f2f2);
-  --color-ink-45: color-mix(in oklab, #1f261f 45%, #f2f2f2);
+  /* Secondary text matches the app's ink2 and muted tokens. */
+  --color-ink-60: #4b5263;
+  --color-ink-45: #5c6474;
 
   /*
    * Two faces only, per brand direction: TASA Orbiter and TASA Explorer.
-   *   Orbiter  — display, headings, and figures. The geometric one.
-   *   Explorer — body copy, UI labels, everything at reading size.
+   *   Explorer — display and headings.
+   *   Orbiter  — body copy, UI labels, and figures.
    *
    * Neither family ships an italic and neither is monospaced, so:
    *   - font-synthesis is disabled outright (see base) rather than letting the
@@ -34,8 +29,8 @@
    *   - figures rely on font-variant-numeric: tabular-nums for column
    *     alignment instead of a monospaced face.
    */
-  --font-display: var(--font-orbiter), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-explorer), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-explorer), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-orbiter), ui-sans-serif, system-ui, sans-serif;
   --font-figure: var(--font-orbiter), ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale — 1.25 major third, fluid at the top end only. */
@@ -86,7 +81,7 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Display face: TASA Orbiter at its heaviest, tightly tracked. */
+  /* Display face follows the app: TASA Explorer. */
   h1,
   h2,
   h3,
@@ -108,6 +103,11 @@
     color: inherit;
     text-underline-offset: 0.18em;
     text-decoration-thickness: from-font;
+  }
+
+  .u-inverted :focus-visible {
+    outline-color: var(--color-paper);
+    box-shadow: 0 0 0 3px var(--color-ink);
   }
 
   :focus-visible {
@@ -137,9 +137,8 @@
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-micro);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .u-rule {
@@ -259,4 +258,106 @@
   font-family: var(--font-figure);
   font-size: 0.92em;
   font-variant-numeric: tabular-nums;
+}
+
+/* Home: editorial introduction, grounded in the existing Musawara mark. */
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(13rem, .8fr);
+  align-items: end;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding-top: clamp(4rem, 8vw, 8rem);
+  padding-bottom: clamp(4rem, 7vw, 7rem);
+}
+.home-title {
+  margin-top: 1.5rem;
+  max-width: 15ch;
+  font-size: var(--text-display);
+  line-height: .98;
+}
+.home-intro {
+  max-width: 39rem;
+  margin-top: 2rem;
+  border-left: 2px solid var(--color-purple);
+  padding-left: 1.25rem;
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+}
+.home-action, .home-text-link, .home-light-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 3rem;
+  font-size: .95rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.home-action {
+  margin-top: 2rem;
+  padding: .85rem 1.25rem;
+  background: var(--color-purple);
+  color: var(--color-paper);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-soft);
+}
+.home-action:hover { background: var(--color-purple-deep); }
+.home-hero-mark {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid var(--color-purple);
+  padding-top: 2rem;
+}
+.home-hero-mark img { width: min(100%, 20rem); height: auto; }
+.home-disciplines { border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); }
+.home-disciplines-inner { display: grid; grid-template-columns: 1fr 1.6fr; gap: 3rem; padding-top: 5rem; padding-bottom: 5rem; }
+.home-disciplines h2, .home-section-heading h2, .home-contact h2 { margin-top: 1rem; font-size: var(--text-h1); }
+.home-disciplines-lead { max-width: 40rem; font-size: clamp(1.1rem, 1.7vw, 1.4rem); line-height: 1.45; }
+.home-service-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+.home-service-list li { border-top: 1px solid var(--color-purple); padding-top: 1rem; }
+.home-service-list h3 { font-size: var(--text-h3); line-height: 1.2; }
+.home-service-list p { margin-top: .8rem; color: var(--color-ink-60); font-size: .94rem; }
+.home-text-link { margin-top: 2rem; color: var(--color-purple); }
+.home-section-heading, .home-contact-inner { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.home-light-link { color: var(--color-paper); border-bottom: 1px solid currentColor; }
+.home-work-list { margin-top: 3rem; }
+.home-work-list li { border-top: 1px solid var(--color-rule); }
+.home-work-link { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 2rem; align-items: start; padding: 1.5rem 0; text-decoration: none; }
+.home-work-link:hover { color: var(--color-purple); }
+.home-work-link strong { display: block; font-size: 1.2rem; }
+.home-work-link small { display: block; margin-top: .3rem; font-size: .8rem; }
+.home-selected-work, .home-process, .home-about, .home-proof { padding: clamp(4rem, 7vw, 7rem) 0; }
+.home-selected-work { border-top: 1px solid var(--color-rule); }
+.home-placeholder-note { margin-top: 1.5rem; color: var(--color-ink-60); font-size: .9rem; }
+.home-project-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+.home-project-art { aspect-ratio: 4 / 3; background: var(--color-public-surface); color: var(--color-purple); display: flex; align-items: end; justify-content: space-between; padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 1.5rem; font-weight: 700; font-size: 1.1rem; line-height: 1.1; }
+.home-project:nth-child(2) .home-project-art { background: var(--color-rule); color: var(--color-ink); }
+.home-project:nth-child(3) .home-project-art { background: var(--color-purple); color: var(--color-paper); }
+.home-project h3 { margin-top: .7rem; font-size: var(--text-h3); }
+.home-project > p:last-child { margin-top: .6rem; color: var(--color-ink-60); }
+.home-process { border-bottom: 1px solid var(--color-rule); }
+.home-section-intro { max-width: 25rem; }
+.home-process-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; margin-top: 3rem; }
+.home-process-list li { border-top: 1px solid var(--color-purple); padding-top: 1rem; }
+.home-process-list h3 { margin-top: 2rem; font-size: var(--text-h3); }
+.home-process-list p { margin-top: .7rem; color: var(--color-ink-60); }
+.home-about { background: var(--color-public-bg); }
+.home-about-inner, .home-proof-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+.home-about h2, .home-proof h2 { margin-top: 1rem; font-size: var(--text-h1); }
+.home-about-inner > div:last-child, .home-proof-inner > div:last-child { max-width: 36rem; font-size: 1.1rem; }
+.home-contact { background: var(--color-ink); color: var(--color-paper); }
+.home-contact-inner { padding-top: 5rem; padding-bottom: 5rem; }
+main:has(> .home-contact) + footer { margin-top: 0; }
+@media (max-width: 767px) {
+  .home-hero { grid-template-columns: 1fr; gap: 3rem; }
+  .home-hero-mark { justify-content: flex-end; }
+  .home-hero-mark img { width: 9rem; }
+  .home-disciplines-inner { grid-template-columns: 1fr; gap: 2rem; }
+  .home-service-list { grid-template-columns: 1fr; }
+  .home-project-grid, .home-process-list { grid-template-columns: 1fr; gap: 2rem; }
+  .home-about-inner, .home-proof-inner { grid-template-columns: 1fr; gap: 2rem; }
+  .home-process-list h3 { margin-top: .8rem; }
+  .home-section-heading, .home-contact-inner { align-items: start; flex-direction: column; }
+  .home-work-link { grid-template-columns: 1fr auto; gap: .75rem; }
+  .home-work-link > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
 }

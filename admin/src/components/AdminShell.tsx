@@ -130,7 +130,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHover(false); }}
       >
         <div className={`flex items-center ${narrow ? "justify-center" : "justify-between"}`}>
-          {!narrow && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark tagline={false} /></NavLink>}
+          {!narrow && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark /></NavLink>}
           <button
             type="button"
             onClick={toggle}

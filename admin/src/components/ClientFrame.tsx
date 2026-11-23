@@ -112,7 +112,7 @@ export function ClientFrame() {
             ))}
             {more.length > 0 && (
               <DropdownMenu>
-                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} data-active={!!moreOn} aria-label={tr("More")}>
+                <DropdownMenuTrigger className={pillTabCls(!!moreOn)} data-active={!!moreOn} aria-label={tr(moreOn ? moreOn.label : "More")}>
                   {tr(moreOn ? moreOn.label : "More")}
                   <Icon name="chevronDown" className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>

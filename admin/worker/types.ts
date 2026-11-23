@@ -4,6 +4,7 @@ export type Env = {
   /** Post media for Publish (private R2 bucket). */
   MEDIA: R2Bucket;
   JWT_SECRET: string;
+  ADMIN_BOOTSTRAP_TOKEN?: string;
   META_ACCESS_TOKEN?: string;
   /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */
   SHEET_SYNC_TOKEN?: string;

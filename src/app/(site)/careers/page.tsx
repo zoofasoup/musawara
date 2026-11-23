@@ -5,9 +5,12 @@ import { Container } from '@/components/Container'
 import { PageHeader } from '@/components/PageHeader'
 import { Prose } from '@/components/Prose'
 import { getJobOpenings } from '@/lib/content'
+import { CAREERS_ENABLED } from '@/lib/site'
+import { COMPANY } from '@/lib/company'
 import { formatArrangement, formatSalaryRange } from '@/lib/format'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/careers' },
   title: 'Karier',
   description:
     'Posisi yang sedang dibuka di Musawara Creative, lengkap dengan rentang gaji.',
@@ -15,6 +18,8 @@ export const metadata: Metadata = {
 
 export default async function CareersPage() {
   const jobs = await getJobOpenings()
+  const privacyUrl = process.env.CAREERS_PRIVACY_URL
+  const acceptsApplications = CAREERS_ENABLED && Boolean(privacyUrl?.startsWith('https://'))
 
   return (
     <>
@@ -28,9 +33,8 @@ export default async function CareersPage() {
         {jobs.length === 0 ? (
           <div className="border-b border-rule py-16">
             <p className="max-w-[48ch] text-ink-60">
-              Belum ada posisi yang dibuka saat ini. Kamu tetap bisa mengirim
-              lamaran terbuka melalui formulir di bawah — kami menyimpannya dan
-              menghubungi kembali saat ada posisi yang cocok.
+              Belum ada posisi yang dibuka saat ini.
+              {acceptsApplications && ' Kamu tetap bisa mengirim lamaran terbuka melalui formulir di bawah.'}
             </p>
           </div>
         ) : (
@@ -97,14 +101,26 @@ export default async function CareersPage() {
       </Container>
 
       <Container className="py-16">
-        <h2 className="text-h2">Kirim lamaran</h2>
-        <p className="mt-4 max-w-[52ch] text-ink-60">
-          Satu formulir untuk semua posisi. Kami membaca jawaban singkatnya
-          lebih dahulu sebelum membuka portofolio.
-        </p>
-        <div className="mt-10">
-          <ApplicationForm jobs={jobs} />
-        </div>
+        {acceptsApplications ? (
+          <>
+            <h2 className="text-h2">Kirim lamaran</h2>
+            <p className="mt-4 max-w-[52ch] text-ink-60">
+              Data dalam formulir digunakan untuk meninjau lamaran dan menghubungimu
+              terkait rekrutmen. Baca <a href={privacyUrl} className="text-purple underline">pemberitahuan privasi rekrutmen</a>.
+            </p>
+            <div className="mt-10">
+              <ApplicationForm jobs={jobs} />
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-h2">Pertanyaan tentang karier?</h2>
+            <p className="mt-4 max-w-[52ch] text-ink-60">
+              Formulir lamaran belum tersedia. Untuk menanyakan lowongan, hubungi{' '}
+              <a href={`mailto:${COMPANY.email}`} className="text-purple underline">{COMPANY.email}</a>.
+            </p>
+          </>
+        )}
       </Container>
     </>
   )

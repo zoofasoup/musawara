@@ -42,6 +42,7 @@ import { CrmLayout } from "./pages/crm/CrmLayout";
 /** Signed-in frame. It stays mounted while the page inside it changes, so moving between menus never redraws the sidebar. */
 function ProtectedLayout() {
   const { user, ready } = useAuth();
+  usePrefetchPages(user?.role === "admin");
   if (!ready) return null;
   if (!user) return <Navigate to="/login" replace />;
   return (
@@ -97,20 +98,26 @@ const PAGES = [
   () => import("./pages/Planning"), () => import("./pages/Board"), () => import("./pages/Shopee"), () => import("./pages/Organic"),
   () => import("./pages/AdminSettings"), () => import("./pages/Profile"), () => import("./pages/crm/CrmInbox"), () => import("./pages/crm/CrmContacts"),
 ];
-function usePrefetchPages() {
+function usePrefetchPages(enabled: boolean) {
   useEffect(() => {
-    const run = () => PAGES.forEach((load, i) => setTimeout(() => void load().catch(() => {}), i * 120));
-    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
-    if (w.requestIdleCallback) w.requestIdleCallback(run);
-    else setTimeout(run, 1500);
-  }, []);
+    if (!enabled) return;
+    const network = navigator as Navigator & { connection?: { saveData?: boolean } };
+    if (network.connection?.saveData) return;
+    const pending: ReturnType<typeof setTimeout>[] = [];
+    const idle = setTimeout(() => {
+      PAGES.forEach((load, i) => pending.push(setTimeout(() => void load().catch(() => {}), i * 120)));
+    }, 1500);
+    return () => {
+      clearTimeout(idle);
+      pending.forEach(clearTimeout);
+    };
+  }, [enabled]);
 }
 
 export function App() {
-  usePrefetchPages();
   return (
     // startTransition: while a page's code or data is loading, the page you are on stays up instead of flashing a skeleton
-    <BrowserRouter basename={BASE} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter basename={BASE}>
       <ClientScopeProvider>
         <Suspense fallback={null}>
           <Routes>

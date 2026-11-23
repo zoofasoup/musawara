@@ -11,6 +11,8 @@ const PASSWORD = "correct-horse-1";
 
 async function setup() {
   const DB = makeDb();
+  await DB.exec(`CREATE TRIGGER test_admin_mfa AFTER INSERT ON users WHEN NEW.role='admin'
+    BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   const hash = await hashPassword(PASSWORD);
   await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (1,'Alpha','alpha')").run();
   await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES (1,'team@x',?,'Team','admin',NULL),(2,'client@x',?,'Client','client',1)")
@@ -27,7 +29,7 @@ async function setup() {
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     }, env);
   const cookie = async (role: string, client_id: number | null) =>
-    `ma_session=${await sign({ sub: role === "admin" ? 1 : 2, email: "e", name: "n", role, client_id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+    `ma_session=${await sign({ sub: role === "admin" ? 1 : 2, email: "e", name: "n", role, client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
   return { DB, call, cookie };
 }
 
@@ -94,4 +96,49 @@ test("invites: accepted only on the invitee's host, and a refusal leaves the inv
   assert.equal((await accept(CLIENT, "inv-client", "new@x")).status, 200);
   assert.equal((await accept(CLIENT, "inv-team", "mate@x")).status, 403);
   assert.equal((await accept(TEAM, "inv-team", "mate@x")).status, 200);
+});
+
+test("bootstrap requires an operator credential and creates only the first admin", async () => {
+  const DB = makeDb();
+  const app = new Hono<any>();
+  app.route("/api/auth", auth);
+  const token = "local-test-operator-token-at-least-32-characters";
+  const env = { DB, JWT_SECRET: SECRET, ADMIN_BOOTSTRAP_TOKEN: token };
+  const bootstrap = (host: string, email: string, authorized = true) => app.request(`${host}/api/auth/bootstrap`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(authorized && { Authorization: `Bearer ${token}` }) },
+    body: JSON.stringify({ email, password: PASSWORD }),
+  }, env);
+
+  assert.equal((await bootstrap(TEAM, "first@example.test", false)).status, 404);
+  assert.equal((await bootstrap(CLIENT, "first@example.test")).status, 404);
+  const results = await Promise.all([
+    bootstrap(TEAM, "first@example.test"),
+    bootstrap(TEAM, "second@example.test"),
+  ]);
+  assert.deepEqual(results.map(({ status }) => status).sort(), [200, 403]);
+  assert.equal((await DB.prepare("SELECT COUNT(*) AS count FROM users").first<{ count: number }>())?.count, 1);
+});
+
+test("removing an account revokes its existing session", async () => {
+  const { DB, call, cookie } = await setup();
+  const session = await cookie("client", 1);
+  assert.equal((await call("GET", `${CLIENT}/api/auth/me`, { cookie: session })).status, 200);
+  await DB.prepare("DELETE FROM users WHERE id=2").run();
+  assert.equal((await call("GET", `${CLIENT}/api/auth/me`, { cookie: session })).status, 401);
+});
+
+
+test("an invitation creates at most one account", async () => {
+  const { DB, call } = await setup();
+  await DB.prepare("UPDATE invites SET email=NULL WHERE token='inv-client'").run();
+  const accept = (email: string) =>
+    call("POST", `${CLIENT}/api/auth/invites/inv-client/accept`, {
+      body: { name: "New user", email, password: PASSWORD },
+    });
+  const results = await Promise.all([accept("first@x.test"), accept("second@x.test")]);
+  assert.deepEqual(results.map(({ status }) => status).sort(), [200, 404]);
+  const matching = await DB.prepare("SELECT COUNT(*) AS count FROM users WHERE email IN ('first@x.test','second@x.test')")
+    .first<{ count: number }>();
+  assert.equal(matching?.count, 1);
 });

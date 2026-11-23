@@ -13,14 +13,18 @@
 type Env = { MAIN: { fetch(request: Request): Promise<Response> } }
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin/')) {
       return env.MAIN.fetch(request)
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return Promise.resolve(new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } }))
+      return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
     }
-    return env.MAIN.fetch(new Request(new URL('/admin/', url), { method: request.method, headers: request.headers }))
+    const response = await env.MAIN.fetch(new Request(new URL('/admin/', url), { method: request.method, headers: request.headers }))
+    const headers = new Headers(response.headers)
+    headers.set('X-Robots-Tag', 'noindex, nofollow')
+    headers.set('Referrer-Policy', 'no-referrer')
+    return new Response(response.body, { status: response.status, headers })
   },
 }

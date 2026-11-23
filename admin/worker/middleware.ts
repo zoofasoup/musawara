@@ -10,20 +10,19 @@ type Ctx = { Bindings: Env; Variables: Vars };
 async function userFromCookie(c: any): Promise<AuthUser | null> {
   const token = getCookie(c, SESSION_COOKIE);
   if (!token) return null;
+  if (!c.env.JWT_SECRET) return null;
+  let userId: unknown;
   try {
-    const payload: any = await verify(token, c.env.JWT_SECRET, "HS256");
-    // A session only counts on the host reserved for its role (app.* team, portal.* clients).
-    if (!roleAllowedOnHost(payload.role, new URL(c.req.url).hostname)) return null;
-    return {
-      id: payload.sub,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role,
-      client_id: payload.client_id ?? null,
-    };
+    const payload = await verify(token, c.env.JWT_SECRET, { alg: "HS256" });
+    userId = payload.sub;
   } catch {
     return null;
   }
+  if (typeof userId !== "number" || !Number.isSafeInteger(userId)) return null;
+  const user: AuthUser | null = await c.env.DB.prepare("SELECT id, email, name, role, client_id FROM users WHERE id=?")
+    .bind(userId).first();
+  if (!user || !roleAllowedOnHost(user.role, new URL(c.req.url).hostname)) return null;
+  return user;
 }
 
 export const requireAuth = createMiddleware<Ctx>(async (c, next) => {

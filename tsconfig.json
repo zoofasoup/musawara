@@ -39,6 +39,8 @@
     "node_modules",
     "out",
     "worker",
-    "admin"
+    "admin",
+    "go",
+    "portal"
   ]
 }

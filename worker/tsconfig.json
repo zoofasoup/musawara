@@ -4,8 +4,9 @@
     "types": ["@cloudflare/workers-types"],
     "lib": ["esnext", "webworker"],
     "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "../go/worker.ts", "../portal/worker.ts"],
   "exclude": []
 }

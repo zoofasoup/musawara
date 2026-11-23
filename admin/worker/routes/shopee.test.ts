@@ -35,6 +35,8 @@ function fakeShopee(orders: any[], calls: string[] = []) {
 
 async function setup() {
   const DB = makeDb();
+  await DB.exec(`CREATE TRIGGER test_admin_mfa AFTER INSERT ON users WHEN NEW.role='admin'
+    BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   await DB.exec(`
     INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','t1',1),(2,'Beta','beta','t2',1);
     INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES (1,'a@x','h','Admin','admin',NULL),(2,'c@x','h','Client','client',1);
@@ -43,7 +45,7 @@ async function setup() {
   app.route("/api/shopee", shopee);
   const env: any = { DB, JWT_SECRET: SECRET, SHOPEE_PARTNER_ID: "1001", SHOPEE_PARTNER_KEY: "partner-key", SHOPEE_API_HOST: "https://shopee.test" };
   const cookie = async (id: number, role: string, client_id: number | null) =>
-    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
   const call = (method: string, path: string, ck?: string, body?: unknown, e: any = env) =>
     app.request(path, { method, headers: { ...(ck ? { cookie: ck } : {}), "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }, e);
   return { DB, env, call, cookie };

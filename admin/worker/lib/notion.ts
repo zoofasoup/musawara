@@ -90,7 +90,7 @@ async function call(cfg: NotionCfg, f: typeof fetch, method: string, path: strin
 
 // ----------------------------------------------------------------- sync
 type Card = {
-  id: number; client_id: number; client_name: string; title: string; brief: string; kind: string; stage: Stage; planned_date: string | null;
+  id: number; client_id: number; client_name: string; title: string; brief: string; kind: string; stage: Stage; planned_date: string | null; source_notion_id: string | null;
   updated_at: string; notion_page_id: string | null; notion_edited_at: string | null; notion_synced_at: string | null; posted_at: string | null;
 };
 export type SyncResult = { pulled_new: number; pulled_updated: number; pushed_new: number; pushed_updated: number; skipped: number };
@@ -110,7 +110,7 @@ export async function syncNotion(env: Env, f: typeof fetch = fetch): Promise<Syn
   const appClientFor = (notionName: string | null) => (notionName ? clients.find((c) => sameClient(c.name, notionName)) ?? null : null);
 
   const cardsSql = `SELECT cp.id, cp.client_id, cl.name AS client_name, cp.title, cp.brief, cp.kind, cp.stage, cp.planned_date, cp.updated_at,
-      cp.notion_page_id, cp.notion_edited_at, cp.notion_synced_at,
+      cp.notion_page_id, cp.notion_edited_at, cp.notion_synced_at, cp.source_notion_id,
       (SELECT MIN(pt.published_at) FROM post_targets pt WHERE pt.post_id=cp.post_id AND pt.published_at IS NOT NULL) AS posted_at
     FROM content_plans cp JOIN clients cl ON cl.id=cp.client_id`;
   const loadCards = async () => (await DB.prepare(cardsSql).all()).results as Card[];
@@ -120,21 +120,29 @@ export async function syncNotion(env: Env, f: typeof fetch = fetch): Promise<Syn
   const since = state?.last_run ? new Date(toMs(state.last_run) - 3_600_000).toISOString() : null;
   const pages: NotionPage[] = [];
   let cursor: string | undefined;
+  const cursors = new Set<string>();
   do {
     const body: any = { page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) };
     if (since) body.filter = { timestamp: "last_edited_time", last_edited_time: { on_or_after: since } };
     const res = await call(cfg, f, "POST", `/databases/${cfg.databaseId}/query`, body);
     pages.push(...res.results);
-    cursor = res.has_more && pages.length < 1000 ? res.next_cursor : undefined;
+    if (res.has_more) {
+      if (typeof res.next_cursor !== "string" || !res.next_cursor || cursors.has(res.next_cursor)) {
+        throw new NotionError(502, "Notion returned an invalid pagination cursor; sync stopped.");
+      }
+      cursors.add(res.next_cursor);
+      cursor = res.next_cursor;
+    } else cursor = undefined;
   } while (cursor);
 
-  const byPage = new Map((await loadCards()).filter((c) => c.notion_page_id).map((c) => [c.notion_page_id!, c]));
+  const byPage = new Map((await loadCards()).filter((c) => c.notion_page_id || c.source_notion_id).map((c) => [(c.source_notion_id || c.notion_page_id!).replace(/-/g, ""), c]));
   const seen = new Set<string>();
   for (const p of pages) {
     seen.add(p.id);
     if (p.archived || p.in_trash) { out.skipped++; continue; }
     const n = parsePage(p);
-    const card = byPage.get(p.id);
+    const card = byPage.get(p.id.replace(/-/g, ""));
+    if (card?.source_notion_id) { out.skipped++; continue; }
     if (card) {
       if (toMs(p.last_edited_time) <= toMs(card.notion_edited_at)) continue; // our own echo or unchanged
       if (toMs(card.updated_at) > toMs(p.last_edited_time)) continue; // the app edited it later: the push below wins
@@ -157,6 +165,7 @@ export async function syncNotion(env: Env, f: typeof fetch = fetch): Promise<Syn
   // ---- push: new cards, and cards the app changed since their last sync
   const progressByPage = new Map(pages.map((p) => [p.id, parsePage(p).progress]));
   for (const card of await loadCards()) {
+    if (card.source_notion_id) continue;
     const dirty = !card.notion_page_id || toMs(card.updated_at) > toMs(card.notion_synced_at);
     if (!dirty) continue;
     const notionClient = notionClientFor(card.client_name);
@@ -181,7 +190,6 @@ export async function syncNotion(env: Env, f: typeof fetch = fetch): Promise<Syn
         parent: { database_id: cfg.databaseId },
         properties: {
           ...properties,
-          "Platform": { multi_select: [{ name: "Instagram" }] },
           ...(notionClient ? { Client: { select: { name: notionClient } } } : {}),
         },
         ...(card.brief ? { children: [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: card.brief.slice(0, 1900) } }] } }] } : {}),

@@ -8,7 +8,7 @@ import { glassCls } from "../lib/glass";
 import { useT } from "../context/LangContext";
 import { LangSwitch } from "./LangSwitch";
 
-export function Wordmark({ compact = false, tagline = true }: { compact?: boolean; tagline?: boolean }) {
+export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <img
@@ -16,7 +16,6 @@ export function Wordmark({ compact = false, tagline = true }: { compact?: boolea
         alt="musawara"
         className="h-7 w-auto"
       />
-      {!compact && tagline && <span className="text-xs font-medium uppercase tracking-widest text-musawara">ads intelligence</span>}
     </span>
   );
 }
@@ -81,12 +80,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LangSwitch compact className="!min-h-11 w-11 !rounded-full px-0" />
-            <NavLink to="/profile" aria-label={t("Profile")} className="inline-flex min-h-11 items-center gap-2 rounded-full px-1.5 text-xs text-muted hover:text-ink">
-              <Avatar name={user?.name ?? ""} size={28} />
+            <NavLink to="/profile" className="inline-flex min-h-11 items-center gap-2 rounded-full px-1.5 text-xs text-muted hover:text-ink">
+              <span aria-hidden="true"><Avatar name={user?.name ?? ""} size={28} /></span>
               <span className="hidden sm:inline">
                 {user?.name}
                 {client ? ` · ${client.name}` : ""}
               </span>
+              <span className="sr-only">{t("Profile")}</span>
             </NavLink>
             <button
               onClick={async () => {

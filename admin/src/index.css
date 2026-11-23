@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Login is a quiet, readable surface over the Musawara sky. */
+.login-sky { min-height: 100svh; background-color: #e7e1f8; background-size: cover; background-position: center; display: flex; flex-direction: column; }
+.login-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.5rem clamp(1.25rem, 4vw, 3rem); }
+.login-content { flex: 1; width: min(100% - 2rem, 25rem); margin: auto; display: flex; flex-direction: column; justify-content: center; padding: 2rem 0 6rem; }
+.login-card { background: rgba(255,255,255,.94); border: 1px solid rgba(255,255,255,.85); border-radius: 1.5rem; padding: clamp(1.5rem, 4vw, 2rem); box-shadow: 0 12px 40px -18px rgba(53,36,96,.28), 0 2px 8px rgba(53,36,96,.08); }
+.login-intro { text-align: center; padding-bottom: .5rem; }
+.login-intro h1 { margin-top: 1.2rem; }
+.login-intro p { margin: .4rem auto 0; color: var(--color-muted); font-size: .875rem; }
+.login-mark { display: inline-flex; justify-content: center; align-items: center; width: 3rem; height: 3rem; background: var(--color-surface2); border-radius: 1rem; }
+.login-mark img { width: 1.25rem; height: auto; }
+.login-caption { margin-top: 1rem; text-align: center; color: var(--color-ink2); font-size: .75rem; }
+
 /*
  * Light theme taken from the HPP calculator (public/nuralive/price-calculator).
  * Brand rules: TASA Orbiter (UI, numbers) and TASA Explorer (display) only;

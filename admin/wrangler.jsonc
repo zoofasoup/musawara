@@ -1,5 +1,5 @@
 {
-  // Musawara Ads Intelligence — single Worker serves /api/* (Hono) + built SPA assets.
+  // Musawara — single Worker serves /api/* (Hono) + built SPA assets.
   "name": "musawara-ads",
   "main": "worker/index.ts",
   "compatibility_date": "2026-05-01",
@@ -26,7 +26,7 @@
     "crons": ["0 20 * * *"]
   },
   "vars": {
-    "APP_NAME": "Musawara Ads Intelligence"
+    "APP_NAME": "Musawara"
   },
   "observability": { "enabled": true }
   // Secrets (set with `wrangler secret put <NAME>`; use .dev.vars locally):

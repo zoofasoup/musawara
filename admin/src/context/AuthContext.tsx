@@ -32,7 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const d = await api<{ user: User }>("/auth/login", { body: { email, password } });
+    const d = await api<{ user?: User }>("/auth/login", { body: { email, password } });
+    if (!d.user) throw new Error("Invalid sign-in response");
     clearApiCache();
     setUser(d.user);
     if (d.user.client_id) {

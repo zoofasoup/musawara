@@ -1,10 +1,10 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import type { JobOpening } from '@/lib/types'
 
-type FieldName = 'full_name' | 'email' | 'whatsapp' | 'portfolio_url'
+type FieldName = 'full_name' | 'email' | 'whatsapp' | 'portfolio_url' | 'answer' | 'job_opening_id'
 
 type ApplyState = {
   status: 'idle' | 'sending' | 'success' | 'error'
@@ -13,8 +13,8 @@ type ApplyState = {
 }
 
 const inputClass =
-  'mt-1.5 w-full border border-rule bg-transparent px-3 py-2.5 text-body ' +
-  'outline-none transition-colors focus:border-purple'
+  'mt-1.5 w-full min-h-11 border border-ink-45 bg-transparent px-3 py-2.5 text-body ' +
+  'transition-colors focus:border-purple'
 
 function Field({
   id,
@@ -26,6 +26,8 @@ function Field({
   error,
   textarea = false,
   placeholder,
+  autoComplete,
+  maxLength,
 }: {
   id: string
   name: string
@@ -36,6 +38,8 @@ function Field({
   error?: string
   textarea?: boolean
   placeholder?: string
+  autoComplete?: string
+  maxLength: number
 }) {
   const hintId = hint ? `${id}-hint` : undefined
   const errorId = error ? `${id}-error` : undefined
@@ -61,6 +65,7 @@ function Field({
           rows={5}
           required={required}
           placeholder={placeholder}
+          maxLength={maxLength}
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
           className={`${inputClass} resize-y`}
@@ -70,8 +75,10 @@ function Field({
           id={id}
           name={name}
           type={type}
+          autoComplete={autoComplete}
           required={required}
           placeholder={placeholder}
+          maxLength={maxLength}
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
           className={inputClass}
@@ -90,19 +97,24 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
   const [state, setState] = useState<ApplyState>({ status: 'idle' })
   const uid = useId()
 
-  /*
-   * Posts to a Cloudflare Pages Function rather than a Server Action: the site
-   * is a static export, so Server Actions do not exist. See functions/api/apply.ts.
-   */
+  const successHeading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (state.status === 'success') successHeading.current?.focus()
+  }, [state.status])
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     setState({ status: 'sending' })
 
     try {
+      const body = new URLSearchParams()
+      for (const [name, value] of new FormData(form)) {
+        if (typeof value === 'string') body.append(name, value)
+      }
       const response = await fetch('/api/apply', {
         method: 'POST',
-        body: new FormData(form),
+        body,
       })
       const result = (await response.json()) as {
         ok: boolean
@@ -131,16 +143,16 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
   if (state.status === 'success') {
     return (
       <div className="border border-rule p-8">
-        <h3 className="text-h3">Lamaran terkirim.</h3>
+        <h3 ref={successHeading} tabIndex={-1} className="text-h3">Lamaran terkirim.</h3>
         <p className="mt-3 max-w-[48ch] text-ink-60">
-          {state.message ?? 'Kami membalas setiap lamaran yang masuk.'}
+          {state.message ?? 'Terima kasih. Lamaranmu sudah kami terima.'}
         </p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-[38rem] space-y-6">
+    <form method="post" action="/api/apply" onSubmit={onSubmit} className="max-w-[38rem] space-y-6">
       {state.status === 'error' && state.message ? (
         <p role="alert" className="border-l-2 border-purple pl-4 text-small">
           {state.message}
@@ -153,7 +165,9 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
         </label>
         <select
           id={`${uid}-role`}
-          name="job_title"
+          name="job_opening_id"
+          aria-invalid={state.fieldErrors?.job_opening_id ? true : undefined}
+          aria-describedby={state.fieldErrors?.job_opening_id ? `${uid}-role-error` : undefined}
           required
           defaultValue=""
           className={inputClass}
@@ -162,17 +176,24 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
             Pilih posisi
           </option>
           {jobs.map((job) => (
-            <option key={job.id} value={job.title}>
+            <option key={job.id} value={job.id}>
               {job.title}
             </option>
           ))}
-          <option value="Lamaran terbuka">Lamaran terbuka</option>
+          <option value="open">Lamaran terbuka</option>
         </select>
+        {state.fieldErrors?.job_opening_id && (
+          <span id={`${uid}-role-error`} className="mt-1 block text-small text-purple">
+            {state.fieldErrors.job_opening_id}
+          </span>
+        )}
       </p>
 
       <Field
         id={`${uid}-name`}
         name="full_name"
+        maxLength={120}
+        autoComplete="name"
         label="Nama lengkap"
         required
         error={state.fieldErrors?.full_name}
@@ -180,6 +201,8 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
       <Field
         id={`${uid}-email`}
         name="email"
+        maxLength={254}
+        autoComplete="email"
         label="Email"
         type="email"
         required
@@ -188,6 +211,8 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
       <Field
         id={`${uid}-wa`}
         name="whatsapp"
+        maxLength={19}
+        autoComplete="tel"
         label="WhatsApp"
         type="tel"
         required
@@ -197,6 +222,8 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
       <Field
         id={`${uid}-portfolio`}
         name="portfolio_url"
+        maxLength={1024}
+        autoComplete="url"
         label="Tautan portofolio"
         type="url"
         placeholder="https://"
@@ -205,8 +232,10 @@ export function ApplicationForm({ jobs }: { jobs: JobOpening[] }) {
       <Field
         id={`${uid}-answer`}
         name="answer"
+        maxLength={2000}
         label="Jawaban singkat"
         textarea
+        error={state.fieldErrors?.answer}
         hint="Jawab pertanyaan yang tercantum pada posisi yang kamu lamar."
       />
 

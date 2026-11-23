@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { getCaseStudies } from '@/lib/content'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/work' },
   title: 'Karya',
   description:
     'Tiga merek MUSA Group yang ditangani Musawara Creative: Musafar, NurAlive, dan Musaland.',

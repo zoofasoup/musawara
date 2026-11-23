@@ -7,22 +7,25 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Wordmark } from "../components/Layout";
 import { LangSwitch } from "../components/LangSwitch";
+import { ASSET_BASE } from "../lib/api";
 import { T } from "../context/LangContext";
+import { Icon } from "../components/icons";
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
       await login(email, password);
+      setPassword("");
       navigate("/", { replace: true });
     } catch (err: any) {
       setError(err.message);
@@ -32,41 +35,33 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <Wordmark />
-        </div>
-        <div className="mb-4 flex justify-center"><LangSwitch /></div>
-        <form onSubmit={submit} className="space-y-4 rounded-3xl bg-surface p-6 shadow-[var(--shadow-soft)]">
-          <h1 className="text-base font-semibold text-ink"><T>Sign in</T></h1>
+    <main className="login-sky" style={{ backgroundImage: `url('${ASSET_BASE}/login-sky.jpg')` }}>
+      <header className="login-header"><Wordmark /><LangSwitch compact /></header>
+      <div className="login-content">
+        <form onSubmit={submit} className="login-card space-y-4">
+          <div className="login-intro">
+            <span className="login-mark"><img src={`${ASSET_BASE}/logo/musawara-mark.png`} alt="" /></span>
+            <h1 className="text-xl font-bold text-ink"><T>Sign in</T></h1>
+            <p>Welcome to your Musawara workspace.</p>
+          </div>
           <FormField label="Email">
-              <Input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormField>
+          <div className="relative">
+            <FormField label="Password">
+              <Input type={showPassword ? "text" : "password"} className="pr-14" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </FormField>
-          <FormField label="Password">
-              <Input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            </FormField>
+            <Btn type="button" tone="ghost" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} className="absolute bottom-0 right-0 min-h-11 min-w-11 px-2"><Icon name={showPassword ? "eyeOff" : "eye"} /></Btn>
+          </div>
           {error && <Callout tone="crit" compact>{error}</Callout>}
           <Btn tone="primary" type="submit" loading={busy} className="w-full">
               {busy ? "Signing in…" : "Sign in"}
             </Btn>
         </form>
-        <p className="mt-4 text-center text-xs text-muted">
+        <p className="login-caption">
           <T>Access is by invitation from Musawara Creative.</T>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

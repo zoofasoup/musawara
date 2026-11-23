@@ -97,9 +97,8 @@ svg.ic{width:1em;height:1em;flex:none;stroke:currentColor;fill:none;stroke-width
   text-align:left;transition:.15s;line-height:1.3
 }
 .mode:hover{color:var(--ink2)}
-.mode small{display:block;font-size:11.5px;font-weight:400;opacity:.85;margin-top:2px}
+.mode small{display:block;font-size:11.5px;font-weight:400;margin-top:2px}
 .mode[aria-pressed=true]{background:var(--mus);color:#fff;border-color:#9a5cf0}
-.mode[aria-pressed=true] small{opacity:.92}
 .mode:focus-visible{outline:2px solid var(--mus-ink);outline-offset:2px}
 
 /* ---------------- split ---------------- */
@@ -337,7 +336,7 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
 <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 4.5v15"/><path d="M6 13.5l6 6 6-6"/></symbol>
 </defs></svg>
 
-<div class="wrap">
+<main class="wrap">
 
 <div class="top">
   <div class="brand">
@@ -351,7 +350,7 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
     </svg>
     <div class="wm">
       <span class="nm">musawara</span>
-      <span class="dc">kalkulator harga</span>
+      <h1 class="dc" style="margin:0">Kalkulator harga</h1>
     </div>
   </div>
   <div class="acts">
@@ -429,9 +428,9 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
       <div class="sec-h">Pajak</div>
       <div class="sec-b">
         <div class="f"><label class="sw" for="pphOn"><input type="checkbox" id="pphOn" checked><span>PPh Pasal 22 final<small>dipungut marketplace dari omzet</small></span></label>
-          <div class="inp pct"><span class="u">%</span><input type="number" step="0.01" id="pph" value="0.5"></div></div>
+          <div class="inp pct"><span class="u">%</span><input type="number" step="0.01" id="pph" aria-label="Persentase PPh Pasal 22" value="0.5"></div></div>
         <div class="f"><label class="sw" for="ppnOn"><input type="checkbox" id="ppnOn"><span>PPN untuk seller PKP<small>aktifkan hanya jika kamu PKP</small></span></label>
-          <div class="inp pct"><span class="u">%</span><input type="number" step="0.1" id="ppn" value="11"></div></div>
+          <div class="inp pct"><span class="u">%</span><input type="number" step="0.1" id="ppn" aria-label="Persentase PPN" value="11"></div></div>
         <p class="tip">PPh 22 bersifat final atas omzet, bukan atas laba, jadi tetap dipotong walau produk rugi. Itu sebabnya ia dihitung sebagai biaya.</p>
       </div>
     </div>
@@ -469,7 +468,7 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
         <div class="f"><label for="nama">Nama produk<small>opsional, untuk menamai profil</small></label>
           <div class="inp"><input type="text" id="nama" style="text-align:left" placeholder="Produk A"></div></div>
         <div class="two">
-          <select id="profileSel"><option value="">Pilih profil tersimpan</option></select>
+          <select id="profileSel" aria-label="Profil tersimpan"><option value="">Pilih profil tersimpan</option></select>
           <div style="display:flex;gap:6px">
             <button class="btn" id="saveProfile" type="button" style="flex:1;justify-content:center">Simpan</button>
             <button class="btn" id="delProfile" type="button" aria-label="Hapus profil"><svg class="ic"><use href="#i-trash"/></svg></button>
@@ -499,14 +498,14 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
     <div class="blk open" id="blkWf">
       <button class="blk-h" type="button">Ke mana uangnya lari<svg class="ic chev"><use href="#i-chev"/></svg></button>
       <div class="blk-b">
-        <div class="tw"><table class="wf"><tbody id="waterfall"></tbody></table></div>
+        <div class="tw" tabindex="0" role="region" aria-label="Ke mana uangnya lari"><table class="wf"><tbody id="waterfall"></tbody></table></div>
         <p class="note">Semua angka adalah <b>rata-rata terekspektasi per order dikirim</b> yang sudah memperhitungkan kemungkinan retur. Persentase dihitung terhadap harga transaksi.</p>
       </div>
     </div>
 
     <div class="blk open" id="blkScen">
       <button class="blk-h" type="button">Harga di berbagai target margin<svg class="ic chev"><use href="#i-chev"/></svg></button>
-      <div class="blk-b"><div class="tw"><table>
+      <div class="blk-b"><div class="tw" tabindex="0" role="region" aria-label="Harga di berbagai target margin"><table>
         <thead><tr><th>Target margin</th><th>Harga tayang</th><th>Harga transaksi</th><th>Profit / order</th><th>Markup vs HPP</th></tr></thead>
         <tbody id="scen"></tbody></table></div></div>
     </div>
@@ -514,7 +513,7 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
     <div class="blk open" id="blkSens">
       <button class="blk-h" type="button">Uji ketahanan kalau keadaan memburuk<svg class="ic chev"><use href="#i-chev"/></svg></button>
       <div class="blk-b">
-        <div class="tw"><table>
+        <div class="tw" tabindex="0" role="region" aria-label="Uji ketahanan kalau keadaan memburuk"><table>
           <thead><tr><th>Skenario</th><th>Margin bersih</th><th>Profit / order</th><th>Selisih</th></tr></thead>
           <tbody id="sens"></tbody></table></div>
         <p class="note">Diuji pada harga yang sedang ditampilkan. Kalau baris merah muncul di skenario yang realistis buat kamu, harga itu belum aman.</p>
@@ -529,7 +528,7 @@ code{background:var(--in-pane);border:1px solid var(--line);padding:1px 6px;bord
   <b>D adalah plafon margin strukturalmu.</b> Berapa pun harga dinaikkan, margin tidak akan melewati D. Kalau D ≤ 0, tidak ada harga yang menyelamatkan produk itu; yang harus diubah struktur biayanya.<br>
   Data tersimpan hanya di browser ini. Tidak ada yang dikirim ke mana pun.
 </footer>
-</div>
+</main>
 
 <div class="dock" id="dock">
   <button type="button" id="dockBtn">
@@ -574,9 +573,9 @@ function bindRp(el){el.addEventListener("input",function(){
 /* ---- baris biaya tambahan ---- */
 function addCustomRow(name,val,unit){
   var d=document.createElement("div");d.className="crow";
-  d.innerHTML='<input type="text" class="nm" placeholder="Nama biaya">'+
-    '<input type="text" class="val" inputmode="decimal">'+
-    '<select><option value="pct">%</option><option value="rp">Rp</option></select>'+
+  d.innerHTML='<input type="text" class="nm" aria-label="Nama biaya" placeholder="Nama biaya">'+
+    '<input type="text" class="val" aria-label="Besaran biaya" inputmode="decimal">'+
+    '<select aria-label="Satuan biaya"><option value="pct">%</option><option value="rp">Rp</option></select>'+
     '<button type="button" class="del" aria-label="Hapus baris">'+ico("trash")+'</button>';
   var nm=d.children[0],vl=d.children[1],un=d.children[2],del=d.children[3];
   nm.value=name||"";un.value=unit||"pct";vl.value=val===undefined?"":val;
@@ -608,7 +607,13 @@ Array.prototype.forEach.call(document.querySelectorAll(".mode"),function(b){
 
 /* ---- lipat ---- */
 document.querySelectorAll(".sec--fold > .sec-h, .blk > .blk-h").forEach(function(h){
-  h.addEventListener("click",function(){h.parentElement.classList.toggle("open")});
+  var panel = h.nextElementSibling;
+  panel.id = h.parentElement.id + "-panel";
+  h.setAttribute("aria-controls", panel.id);
+  h.setAttribute("aria-expanded", h.parentElement.classList.contains("open"));
+  h.addEventListener("click",function(){
+    h.setAttribute("aria-expanded", h.parentElement.classList.toggle("open"));
+  });
 });
 
 /* ---- model ---- */
@@ -822,14 +827,14 @@ function renderWaterfall(i,m,T){
    });
   [["PPh Pasal 22",i.pph,"var(--crit)"],["PPN",i.ppn,"var(--crit)"]]
     .forEach(function(f){if(f[1]>0)rows.push({t:f[0],v:-f[1]*settle,c:f[2]})});
-  i.cus.forEach(function(c){if(c.unit==="pct")rows.push({t:c.name,v:-(c.v/100)*settle,c:"#737b8c"})});
+  i.cus.forEach(function(c){if(c.unit==="pct")rows.push({t:escapeHtml(c.name),v:-(c.v/100)*settle,c:"#737b8c"})});
   if(i.adsPct>0)rows.push({t:"Ads marketplace <span class='mut'>(semua order)</span>",v:-i.adsPct*T,c:"var(--crit)"});
   if(i.adsRp>0)rows.push({t:"Ads marketplace "+FLAT+" <span class='mut'>(semua order)</span>",v:-i.adsRp,c:"var(--crit)"});
   if(i.ongkir>0)rows.push({t:"Ongkir ditanggung seller",v:-i.ongkir*(1+i.r),c:"#12806a"});
   if(i.asuransi>0)rows.push({t:"Asuransi pengiriman",v:-i.asuransi,c:"#12806a"});
   if(i.packing>0)rows.push({t:"Packing &amp; material",v:-i.packing,c:"var(--warn)"});
   if(i.cs>0)rows.push({t:"CS / admin per order",v:-i.cs,c:"var(--warn)"});
-  i.cus.forEach(function(c){if(c.unit==="rp")rows.push({t:c.name,v:-c.v,c:"#737b8c"})});
+  i.cus.forEach(function(c){if(c.unit==="rp")rows.push({t:escapeHtml(c.name),v:-c.v,c:"#737b8c"})});
   if(i.hpp>0)rows.push({t:"HPP efektif"+(i.r>0&&i.rec>0?" <span class='mut'>(retur "+fmtPct(i.rec,0)+" layak jual)</span>":""),
     v:-i.hpp*(1-i.r*i.rec),c:"var(--good)"});
 
@@ -913,10 +918,13 @@ var FIELDS=["nama","hpp","target","harga","admin","gratisOngkir","ads","affiliat
 var KEY="musawara.kalkHarga.v2";
 function loadStore(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return{}}}
 function saveStore(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){alert("Gagal menyimpan. Penyimpanan browser penuh atau diblokir.")}}
+function escapeHtml(text){
+  return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
 function refreshProfiles(sel){
   var s=loadStore(),n=Object.keys(s).sort();
-  $("profileSel").innerHTML='<option value="">Pilih profil tersimpan</option>'+
-    n.map(function(x){return'<option value="'+x.replace(/"/g,"&quot;")+'">'+x+'</option>'}).join("");
+  $("profileSel").replaceChildren(new Option("Pilih profil tersimpan",""),
+    ...n.map(function(name){return new Option(name,name)}));
   if(sel)$("profileSel").value=sel;
 }
 $("saveProfile").addEventListener("click",function(){
@@ -946,7 +954,7 @@ $("profileSel").addEventListener("change",function(){
 /* ---- misc ---- */
 $("printBtn").addEventListener("click",function(){window.print()});
 $("resetBtn").addEventListener("click",function(){if(confirm("Kembalikan semua isian ke angka awal?"))location.reload()});
-$("dockBtn").addEventListener("click",function(){$("out").scrollIntoView({behavior:"smooth",block:"start"})});
+$("dockBtn").addEventListener("click",function(){$("out").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"start"})});
 
 /* ---- pengalih satuan % ⇄ Rp ---- */
 function setUnit(id,u,convert){

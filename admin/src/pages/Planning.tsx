@@ -5,8 +5,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Callout } from "../components/Callout";
 import { Segmented } from "../components/Segmented";
 import { Input } from "@/components/ui/input";
+import { FormField } from "../components/FormField";
 import { Textarea } from "@/components/ui/textarea";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, useApi } from "../lib/api";
 import { todayJakarta } from "../lib/dates";
 import { CardSkeleton, ErrorState } from "../components/ui";
@@ -19,11 +20,12 @@ import { Kanban } from "../components/Kanban";
 import { Avatar } from "../components/Avatar";
 import { useClientScope } from "../context/ClientScope";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDaysYmd, monthGrid, POST_STATUS, STAGES, STAGE_LABEL, MANUAL_STAGES, weekStart, type Stage } from "../../worker/lib/planning";
+import { addDaysYmd, monthGrid, POST_STATUS, weekStart, type Stage } from "../../worker/lib/planning";
 
 type Card = {
   id: number; client_id: number; client_name: string; title: string; brief: string; kind: string; stage: Stage;
   planned_date: string | null; owner_user_id: number | null; owner_name: string | null;
+  source_notion_id: string | null; progress: string; pillar: string; campaign: string; platforms: string; reference_url: string; final_url: string; posted_date: string | null;
   post_id: number | null; post_status: string | null; post_scheduled_at: string | null;
 };
 type CalPost = { id: number; client_id: number; client_name: string; status: string; kind: string; caption: string; scheduled_at: string; day: string; platforms: string[]; card_id: number | null; last_error: string | null };
@@ -32,6 +34,7 @@ type Board = { cards: Card[]; owners: { id: number; name: string }[] };
 type ClientRow = { id: number; name: string };
 type Picked = { type: "day"; day: string } | { type: "post"; post: CalPost } | { type: "card"; id: number } | null;
 
+const PROGRESS = ["Ideation", "Copy / Script", "Review Copy", "Production", "Ready to Edit", "Design / Editing", "Review Visual", "Ready to Post", "Scheduled", "Posted", "Failed"];
 const KINDS = ["feed", "carousel", "reel", "story"];
 const KIND_NAME: Record<string, string> = { feed: "Photo", carousel: "Carousel", reel: "Reel", story: "Story" };
 /** Pastel fill and edge per content type, so the calendar and board read at a glance. */
@@ -41,7 +44,6 @@ const KIND_TINT: Record<string, string> = {
   reel: "border-kind-reel-edge bg-kind-reel",
   story: "border-kind-story-edge bg-kind-story",
 };
-const STAGE_COLOR: Record<Stage, string> = { idea: "bg-muted", drafting: "bg-chart-2", in_review: "bg-chart-1", scheduled: "bg-chart-4", published: "bg-chart-3" };
 const KIND_SWATCH: Record<string, string> = { feed: "bg-kind-feed-edge", carousel: "bg-kind-carousel-edge", reel: "bg-kind-reel-edge", story: "bg-kind-story-edge" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -89,7 +91,7 @@ export function Planning() {
   return (
     <div className="max-w-7xl">
       {node}
-      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><NotionSync onDone={reload} notify={notify} /></>} />
+      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><UnassignedImports /><WorkflowNotifications notify={notify} /><NotionSync onDone={reload} notify={notify} /></>} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
         <TabsList>
@@ -235,7 +237,7 @@ function DaySheet({ day, clients, clientId, owners, items, onPick, onClose, onSa
               <span className="tabular-nums text-muted">{fmtTime(p.scheduled_at)}</span><span className="truncate">{p.client_name}: {p.caption || KIND_NAME[p.kind]}</span>
             </ItemRow>
           ))}
-          {items.cards.map((c) => <ItemRow key={"c" + c.id} onClick={() => onPick({ type: "card", id: c.id })}><span className="truncate">{c.client_name}: {c.title}</span><Pill>{STAGE_LABEL[c.stage]}</Pill></ItemRow>)}
+          {items.cards.map((c) => <ItemRow key={"c" + c.id} onClick={() => onPick({ type: "card", id: c.id })}><span className="truncate">{c.client_name}: {c.title}</span><Pill>{c.progress}</Pill></ItemRow>)}
         </div>
       )}
       <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); void save(); }}>
@@ -288,7 +290,7 @@ function PostSheet({ post, onClose, onChanged, notify }: { post: CalPost; onClos
 }
 
 function CardSheet({ card, owners, onClose, onChanged, notify }: { card: Card; owners: { id: number; name: string }[]; onClose: () => void; onChanged: () => void; notify: (t: string, k?: "ok" | "err") => void }) {
-  const [f, setF] = useState({ title: card.title, brief: card.brief, kind: card.kind, date: card.planned_date ?? "", owner: card.owner_user_id ?? ("" as number | ""), post: card.post_id ?? ("" as number | "") });
+  const [f, setF] = useState({ title: card.title, brief: card.brief, kind: card.kind, date: card.planned_date ?? "", owner: card.owner_user_id ?? ("" as number | ""), post: card.post_id ?? ("" as number | ""), progress: card.progress, pillar: card.pillar, campaign: card.campaign, platforms: card.platforms, reference: card.reference_url, final: card.final_url, posted: card.posted_date ?? "" });
   const [busy, setBusy] = useState(false);
   const linkable = useApi<{ posts: { id: number; status: string; kind: string; caption: string; scheduled_at: string | null }[] }>(`/admin/plan/linkable-posts?client_id=${card.client_id}`);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -302,11 +304,14 @@ function CardSheet({ card, owners, onClose, onChanged, notify }: { card: Card; o
       setBusy(false);
     }
   };
-  const save = () => run(() => api(`/admin/plan/cards/${card.id}`, { method: "PATCH", body: { title: f.title, brief: f.brief, kind: f.kind, planned_date: f.date || null, owner_user_id: f.owner || null, post_id: f.post || null } }), "Saved");
+  const save = () => run(() => api(`/admin/plan/cards/${card.id}`, { method: "PATCH", body: { title: f.title, brief: f.brief, kind: f.kind, planned_date: f.date || null, owner_user_id: f.owner || null, post_id: f.post || null, progress: f.progress, pillar: f.pillar, campaign: f.campaign, platforms: f.platforms, reference_url: f.reference, final_url: f.final, posted_date: f.posted || null } }), "Saved");
   return (
-    <Sheet title="Card" onClose={onClose}>
-      <div className="flex flex-wrap items-center gap-2"><Pill tone="accent">{STAGE_LABEL[card.stage]}</Pill><span className="text-xs text-muted">{card.client_name}</span></div>
+    <Sheet title="Content plan" onClose={onClose}>
+      <div className="flex flex-wrap items-center gap-2"><Pill tone="accent">{card.progress}</Pill><span className="text-xs text-muted">{card.client_name}</span></div>
       <div className="mt-3 space-y-3">
+        {card.source_notion_id && <a className="inline-flex min-h-11 items-center text-sm text-musawara-ink underline" href={`https://www.notion.so/${card.source_notion_id}`} target="_blank" rel="noopener noreferrer">Open original in Notion ↗</a>}
+        <FormField label="Progress"><NativeSelect aria-label="Progress" className="w-full" value={f.progress} onChange={(e) => setF({ ...f, progress: e.target.value })}>{PROGRESS.map((status) => <option key={status}>{status}</option>)}</NativeSelect></FormField>
+        <p className="text-xs text-muted">Progress is a manual workflow record; it does not schedule or publish a post.</p>
         <Input className="w-full" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Title" />
         <Textarea className="min-h-24 w-full" placeholder="Brief" value={f.brief} onChange={(e) => setF({ ...f, brief: e.target.value })} aria-label="Brief" />
         <div className="grid grid-cols-2 gap-2">
@@ -321,47 +326,78 @@ function CardSheet({ card, owners, onClose, onChanged, notify }: { card: Card; o
             {(linkable.data?.posts ?? []).map((p) => <option key={p.id} value={p.id}>#{p.id} {POST_STATUS[p.status]?.label}: {p.caption || KIND_NAME[p.kind]}</option>)}
           </NativeSelect>
         </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Pillar"><Input className="w-full" value={f.pillar} onChange={(e) => setF({ ...f, pillar: e.target.value })} /></FormField>
+          <FormField label="Campaign"><Input className="w-full" value={f.campaign} onChange={(e) => setF({ ...f, campaign: e.target.value })} /></FormField>
+          <FormField label="Platforms"><Input className="w-full" value={f.platforms} onChange={(e) => setF({ ...f, platforms: e.target.value })} placeholder="Instagram, Meta Ads…" /></FormField>
+          <FormField label="Posted date"><Input className="w-full" type="date" value={f.posted} onChange={(e) => setF({ ...f, posted: e.target.value })} /></FormField>
+          <FormField label="Reference link"><Input className="w-full" type="url" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></FormField>
+          <FormField label="Final link"><Input className="w-full" type="url" value={f.final} onChange={(e) => setF({ ...f, final: e.target.value })} /></FormField>
+        </div>
         {card.post_id != null && <p className="text-xs text-muted">Linked card moves forward by itself when its post is scheduled or published. Moving or deleting the card never changes the post.</p>}
         <div className="flex flex-wrap items-center gap-2">
           <Btn tone="primary" className="min-h-11" onClick={save} loading={busy} disabled={!f.title.trim()}>Save</Btn>
           <ConfirmBtn label="Delete card" onConfirm={() => run(() => api(`/admin/plan/cards/${card.id}`, { method: "DELETE" }), "Card deleted")} />
         </div>
       </div>
+      <CardConversation id={card.id} notify={notify} />
     </Sheet>
   );
 }
 
+function CardConversation({ id, notify }: { id: number; notify: (message: string, kind?: "ok" | "err") => void }) {
+  const details = useApi<{ comments: { id: number; author_name: string; body: string; created_at: string }[]; links: { id: number; title: string; url: string }[] }>(`/admin/plan/cards/${id}/details`);
+  const [comment, setComment] = useState("");
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function add(path: string, body: object, reset: () => void) {
+    setBusy(true);
+    try { await api(`/admin/plan/cards/${id}/${path}`, { body }); reset(); details.reload(); }
+    catch (e: any) { notify(e.message || "Could not save", "err"); }
+    finally { setBusy(false); }
+  }
+  return <section className="mt-6 space-y-4 border-t border-border pt-5" aria-label="Discussion and links">
+    <div><h3 className="text-base font-semibold">Links</h3><p className="text-xs text-muted">Add a link to a file or reference. Files are not uploaded here.</p></div>
+    {details.loading && !details.data ? <CardSkeleton lines={2} /> : details.error ? <ErrorState message={details.error} onRetry={details.reload} /> : <>
+      {details.data?.links.length ? <ul className="space-y-2">{details.data.links.map((link) => <li key={link.id}><a className="text-sm text-musawara-ink underline" href={link.url} target="_blank" rel="noopener noreferrer">{link.title} ↗</a></li>)}</ul> : <p className="text-xs text-muted">No links yet.</p>}
+      <FormField label="Link title"><Input className="w-full" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></FormField>
+      <FormField label="Link URL"><Input className="w-full" type="url" value={url} onChange={(e) => setUrl(e.target.value)} /></FormField>
+      <Btn onClick={() => add("links", { title, url }, () => { setTitle(""); setUrl(""); })} disabled={busy || !title.trim() || !url.trim()}>Add link</Btn>
+      <h3 className="pt-3 text-base font-semibold">Discussion</h3>
+      {details.data?.comments.length ? <ul className="space-y-3">{details.data.comments.map((item) => <li key={item.id} className="rounded-2xl bg-surface2 p-3"><p className="text-xs text-muted">{item.author_name} · {item.created_at} UTC</p><p className="mt-1 whitespace-pre-wrap text-sm">{item.body}</p></li>)}</ul> : <p className="text-xs text-muted">No comments yet.</p>}
+      <FormField label="Add comment"><Textarea className="w-full" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={5000} /></FormField>
+      <Btn onClick={() => add("comments", { body: comment }, () => setComment(""))} disabled={busy || !comment.trim()}>Add comment</Btn>
+    </>}
+  </section>;
+}
+
 function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[]; onChanged: () => void; onOpen: (id: number) => void; notify: (t: string, k?: "ok" | "err") => void; onAdd: () => void }) {
-  const move = async (card: Card, stage: Stage) => {
+  const move = async (card: Card, progress: string) => {
     try {
-      await api(`/admin/plan/cards/${card.id}/move`, { body: { stage } });
+      await api(`/admin/plan/cards/${card.id}`, { method: "PATCH", body: { progress } });
       onChanged();
     } catch (e: any) {
       notify(e.message, "err");
       throw e; // tells the board to put the card back
     }
   };
-  const isLocked = (c: Card) => c.post_status != null && ["scheduled", "publishing", "published"].includes(c.post_status);
-  if (!cards.length) return <Empty icon="board" title="No ideas yet" hint="Add an idea and move it from Idea to Drafting to In review. Scheduled and Published fill in by themselves from Publish." action={<Btn tone="primary" className="min-h-11" onClick={onAdd}>Add idea</Btn>} />;
+  if (!cards.length) return <Empty icon="board" title="No ideas yet" hint="Add a content idea or project to start planning." action={<Btn tone="primary" className="min-h-11" onClick={onAdd}>Add idea</Btn>} />;
   return (
     <>
       <div className="mb-3 flex justify-end"><Btn tone="primary" className="min-h-11" onClick={onAdd} icon="plus">Add idea</Btn></div>
       <Kanban
-        columns={STAGES.map((s) => ({
-          id: s,
-          label: STAGE_LABEL[s],
-          droppable: MANUAL_STAGES.includes(s),
-          empty: MANUAL_STAGES.includes(s) ? "Empty" : "Fills in from Publish",
-          color: STAGE_COLOR[s],
-          onAdd: s === "idea" ? onAdd : undefined,
+        columns={PROGRESS.map((status) => ({
+          id: status, label: status, droppable: true, empty: "Empty",
+          onAdd: status === "Ideation" ? onAdd : undefined,
         }))}
         items={cards}
         getId={(c) => c.id}
-        getColumn={(c) => c.stage}
-        canDrag={(c) => MANUAL_STAGES.includes(c.stage) && !isLocked(c)}
-        onMove={(c, to) => move(c, to as Stage)}
+        getColumn={(c) => c.progress || "Ideation"}
+        canDrag={() => true}
+        onMove={(c, to) => move(c, to)}
         renderCard={(c) => {
-          const idx = MANUAL_STAGES.indexOf(c.stage);
+          const idx = PROGRESS.indexOf(c.progress);
           const ps = c.post_status ? POST_STATUS[c.post_status] : null;
           return (
             <article className="rounded-2xl bg-surface shadow-[var(--shadow-soft)]">
@@ -370,15 +406,16 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
                 <span className="block px-3 pt-2 text-sm font-medium text-ink">{c.title}</span>
                 <span className="flex flex-wrap items-center gap-1.5 px-3 pb-2.5 pt-1.5">
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] text-ink ${KIND_TINT[c.kind] ?? ""}`}>{KIND_NAME[c.kind]}</span>
+                  <Pill tone="accent">{c.progress}</Pill>
                   {c.owner_name && <span className="inline-flex items-center gap-1 text-[11px] text-ink2"><Avatar name={c.owner_name} size={18} />{c.owner_name}</span>}
                   {c.planned_date && <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted"><Icon name="clock" className="h-3 w-3" />{c.planned_date.slice(5)}</span>}
                 </span>
                 {ps && <span className="block px-3 pb-2.5"><Pill tone={ps.tone}>Post: {ps.label}</Pill></span>}
               </button>
-              {MANUAL_STAGES.includes(c.stage) && !isLocked(c) && (
+              {idx >= 0 && (
                 <div className="flex gap-1.5 border-t border-border p-2">
-                  {idx > 0 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx - 1]).catch(() => {})} aria-label={`Move ${c.title} back`}>‹ {STAGE_LABEL[MANUAL_STAGES[idx - 1]]}</Btn>}
-                  {idx < MANUAL_STAGES.length - 1 && <Btn className="min-h-11 flex-1" onClick={() => move(c, MANUAL_STAGES[idx + 1]).catch(() => {})} aria-label={`Move ${c.title} forward`}>{STAGE_LABEL[MANUAL_STAGES[idx + 1]]} ›</Btn>}
+                  {idx > 0 && <Btn className="min-h-11 flex-1" onClick={() => move(c, PROGRESS[idx - 1]).catch(() => {})} aria-label={`Move ${c.title} back`}>‹ {PROGRESS[idx - 1]}</Btn>}
+                  {idx < PROGRESS.length - 1 && <Btn className="min-h-11 flex-1" onClick={() => move(c, PROGRESS[idx + 1]).catch(() => {})} aria-label={`Move ${c.title} forward`}>{PROGRESS[idx + 1]} ›</Btn>}
                 </div>
               )}
             </article>
@@ -387,6 +424,48 @@ function KanbanBoard({ cards, onChanged, onOpen, notify, onAdd }: { cards: Card[
       />
     </>
   );
+}
+
+type ImportReviewItem = { source_id: string; title: string; progress: string };
+function UnassignedImports() {
+  const d = useApi<{ items: ImportReviewItem[] }>("/admin/plan/imports/review");
+  const [open, setOpen] = useState(false);
+  if (!d.data?.items.length) return null;
+  return <>
+    <Btn onClick={() => setOpen(true)}>Unassigned imports ({d.data.items.length})</Btn>
+    {open && <Sheet title="Imports without a client" onClose={() => setOpen(false)}>
+      <p className="text-sm text-ink2">These items had no client in Notion. Review the source before assigning them to a client.</p>
+      <ul className="mt-4 space-y-2">{d.data.items.map((item) => <li key={item.source_id} className="rounded-2xl bg-surface2 p-3">
+        <p className="text-sm font-medium">{item.title}</p><p className="mt-1 text-xs text-muted">{item.progress || "No status"}</p>
+        {/^[0-9a-f]{32}$/i.test(item.source_id) && <a className="mt-1 inline-flex min-h-11 items-center text-sm text-musawara-ink underline" href={`https://www.notion.so/${item.source_id}`} target="_blank" rel="noopener noreferrer">Open in Notion ↗</a>}
+      </li>)}</ul>
+    </Sheet>}
+  </>;
+}
+
+type WorkflowNotification = { id: number; title: string; client_name: string; message: string; created_at: string; read_at: string | null };
+function WorkflowNotifications({ notify }: { notify: (message: string, kind?: "ok" | "err") => void }) {
+  const d = useApi<{ notifications: WorkflowNotification[] }>("/admin/plan/notifications");
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") d.reload(); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [d.reload]);
+  const unread = d.data?.notifications.filter((n) => !n.read_at).length ?? 0;
+  async function markRead(id: number) {
+    try { await api(`/admin/plan/notifications/${id}/read`, { body: {} }); d.reload(); }
+    catch (e: any) { notify(e.message || "Could not update notification", "err"); }
+  }
+  return <>
+    <Btn onClick={() => { setOpen(true); d.reload(); }} aria-label={`Content notifications${unread ? `, ${unread} unread` : ""}`}>Notifications{unread ? ` (${unread})` : ""}</Btn>
+    {open && <Sheet title="Content notifications" onClose={() => setOpen(false)}>
+      {d.loading && !d.data ? <CardSkeleton lines={3} /> : d.error ? <ErrorState message={d.error} onRetry={d.reload} /> : !d.data?.notifications.length ? <Empty title="No notifications yet" /> :
+        <ul className="space-y-3">{d.data.notifications.map((n) => <li key={n.id} className="rounded-2xl bg-surface2 p-4">
+          <p className="text-xs text-muted">{n.client_name} · {n.created_at} UTC</p><p className="mt-1 text-sm font-medium">{n.title}</p><p className="mt-1 text-sm text-ink2">{n.message}</p>
+          {!n.read_at && <Btn className="mt-2" onClick={() => markRead(n.id)}>Mark as read</Btn>}
+        </li>)}</ul>}
+    </Sheet>}
+  </>;
 }
 
 type NotionStatus = { configured: boolean; last_run: string | null; last_error: string | null };

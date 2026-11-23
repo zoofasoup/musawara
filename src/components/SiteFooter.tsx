@@ -14,7 +14,7 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h2 className="u-label text-paper/50">Alamat</h2>
+          <h2 className="u-label text-paper/60">Alamat</h2>
           <address className="mt-3 text-small not-italic text-paper/80">
             {COMPANY.addressLines.map((line) => (
               <span key={line} className="block">
@@ -25,7 +25,7 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h2 className="u-label text-paper/50">Kontak</h2>
+          <h2 className="u-label text-paper/60">Kontak</h2>
           <ul className="mt-3 space-y-1.5 text-small text-paper/80">
             <li>
               <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>
@@ -39,7 +39,7 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h2 className="u-label text-paper/50">Halaman</h2>
+          <h2 className="u-label text-paper/60">Halaman</h2>
           <ul className="mt-3 space-y-1.5 text-small text-paper/80">
             <li>
               <Link href="/work">Karya</Link>
@@ -55,7 +55,7 @@ export function SiteFooter() {
       </Container>
 
       <Container wide>
-        <p className="border-t border-rule py-6 text-micro text-paper/45">
+        <p className="border-t border-rule py-6 text-micro text-paper/60">
           © {new Date().getFullYear()} {COMPANY.legalName}. Bagian dari MUSA Group.
         </p>
       </Container>

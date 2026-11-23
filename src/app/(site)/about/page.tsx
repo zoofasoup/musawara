@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { COMPANY } from '@/lib/company'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/about' },
   title: 'Tentang',
   description:
     'Musawara Creative adalah tim kreatif in-house MUSA Group, berbasis di Bekasi.',

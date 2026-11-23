@@ -1,13 +1,6 @@
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteHeader } from '@/components/SiteHeader'
 
-/**
- * Chrome for the real pages.
- *
- * The holding page at / sits outside this route group on purpose: it is a
- * standing notice, not a page you navigate away from, so it carries no header,
- * no nav, and no footer. Route groups do not affect URLs.
- */
 export default function SiteLayout({
   children,
 }: {
@@ -22,7 +15,7 @@ export default function SiteLayout({
         Lompat ke konten
       </a>
       <SiteHeader />
-      <main id="konten" className="flex-1">
+      <main id="konten" tabIndex={-1} className="flex-1">
         {children}
       </main>
       <SiteFooter />
