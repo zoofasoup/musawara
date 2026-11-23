@@ -66,7 +66,7 @@ export function ClientFrame() {
         ...(can("content") ? [{ to: `${base}/assets`, label: "Assets" }] : []),
         brand,
         ...(can("settings") ? [{ to: `${base}/onboarding`, label: "Onboarding" }] : []),
-        ...(can("content") && !hasOrganic && organic.data ? [{ to: `${base}/organic`, label: "Connect Instagram" }] : []),
+        ...(can("settings") && !hasOrganic && organic.data ? [{ to: `${base}/organic`, label: "Connect Instagram" }] : []),
         ...(can("sales") && !hasShopee && shopee.data ? [{ to: `${base}/shopee`, label: "Connect Shopee" }] : []),
       ]
     : [];

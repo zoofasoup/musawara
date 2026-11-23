@@ -18,3 +18,6 @@ ALTER TABLE invites ADD COLUMN client_ids_json TEXT;
 -- Everyone who exists today keeps exactly what they have: admins become owners, client logins keep deciding approvals.
 UPDATE users SET staff_role = 'owner' WHERE role = 'admin';
 UPDATE users SET client_role = 'approver' WHERE role = 'client';
+-- Invites not yet used keep working with the same access they were promising.
+UPDATE invites SET staff_role = 'owner' WHERE role = 'admin' AND used = 0;
+UPDATE invites SET client_role = 'approver' WHERE role = 'client' AND used = 0;

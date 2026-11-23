@@ -684,13 +684,17 @@ async function ownerCount(c: Context<{ Bindings: Env; Variables: Vars }>) {
   return (await c.env.DB.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND staff_role='owner'").first<{ n: number }>())?.n ?? 0;
 }
 
-/** Change a team member's role and which clients they see. */
+/** Change a team member's role and which clients they see, or a client login's role (viewer / approver). */
 admin.put("/users/:id", async (c) => {
   const id = Number(c.req.param("id"));
-  const { staff_role, client_ids } = await c.req.json().catch(() => ({}));
+  const { staff_role, client_role, client_ids } = await c.req.json().catch(() => ({}));
   const target = await c.env.DB.prepare("SELECT id, role, staff_role FROM users WHERE id=?").bind(id).first<{ id: number; role: string; staff_role: string | null }>();
   if (!target) return c.json({ error: "User not found" }, 404);
-  if (target.role !== "admin") return c.json({ error: "Only team members have a team role" }, 400);
+  if (target.role === "client") {
+    if (!isClientRole(client_role)) return c.json({ error: "Pick a client role (viewer or approver)" }, 400);
+    await c.env.DB.prepare("UPDATE users SET client_role=? WHERE id=?").bind(client_role, id).run();
+    return c.json({ ok: true });
+  }
   if (!isStaffRole(staff_role)) return c.json({ error: "Pick a team role" }, 400);
   if (target.staff_role === "owner" && staff_role !== "owner" && (id === c.get("user").id || (await ownerCount(c)) <= 1)) {
     return c.json({ error: "There must always be at least one Owner. Make someone else an Owner first." }, 400);

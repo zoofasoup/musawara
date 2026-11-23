@@ -180,4 +180,11 @@ test("invites carry a role; assignments follow the invite; the last Owner cannot
   const moved = await DB.prepare("SELECT client_id FROM user_clients WHERE user_id=? ORDER BY client_id").bind(IDS.ads).all<any>();
   assert.deepEqual(moved.results.map((r) => r.client_id), [1, 2]);
   assert.equal((await call(IDS.owner, "GET", "/api/admin/plan/board", undefined)).status, 200);
+
+  // A client login switches between viewer and approver; a team member cannot be given a client role.
+  assert.equal((await call(IDS.owner, "PUT", "/api/admin/users/6", { client_role: "approver" })).status, 200);
+  assert.equal((await DB.prepare("SELECT client_role FROM users WHERE id=6").first<any>())!.client_role, "approver");
+  assert.equal((await call(IDS.owner, "PUT", "/api/admin/users/6", { client_role: "boss" })).status, 400);
+  assert.equal((await call(IDS.owner, "PUT", "/api/admin/users/7", { client_role: "viewer" })).status, 200);
+  assert.equal((await call(IDS.owner, "PUT", `/api/admin/users/${IDS.ads}`, { client_role: "viewer" })).status, 400);
 });

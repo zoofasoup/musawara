@@ -171,6 +171,27 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                   </p>
                   <p className="truncate text-xs text-muted">{u.email} · {u.role === "admin" ? reach(u.staff_role, u.client_ids, clients) : u.client_name}</p>
                 </div>
+                {u.role === "client" && (
+                  <NativeSelect
+                    className="w-32"
+                    value={u.client_role ?? ""}
+                    aria-label={`Role for ${u.name}`}
+                    onChange={async (e) => {
+                      try {
+                        await api(`/admin/users/${u.id}`, { method: "PUT", body: { client_role: e.target.value } });
+                        reload();
+                        notify(`${u.name} is now ${CLIENT_LABEL[e.target.value as ClientRole]}.`);
+                      } catch (err: any) {
+                        notify(err.message, "err");
+                      }
+                    }}
+                  >
+                    {!u.client_role && <option value="">No role</option>}
+                    {CLIENT_ROLES.map((r) => (
+                      <option key={r} value={r}>{CLIENT_LABEL[r]}</option>
+                    ))}
+                  </NativeSelect>
+                )}
                 {u.role === "admin" && (
                   <Btn tone="ghost" onClick={() => { if (editing === u.id) { setEditing(null); return; } setEditing(u.id); setEditRole(u.staff_role ?? "ads"); setEditIds(u.client_ids ?? []); }}>
                     {editing === u.id ? "Cancel" : "Edit access"}
