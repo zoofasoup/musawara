@@ -8,10 +8,25 @@
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
-import { requirePerm } from "../middleware";
+import { canReachClient, requirePerm } from "../middleware";
 
 const crm = new Hono<{ Bindings: Env; Variables: Vars }>();
 crm.use("*", requirePerm("crm"));
+
+// Which platform client (brand) each WhatsApp number belongs to, as the gateway reports it. Cached briefly per isolate.
+type GatewayAccount = { id: number; client_id: number | null };
+let accountCache: { at: number; list: GatewayAccount[] } | null = null;
+async function gatewayAccounts(base: string, token: string): Promise<GatewayAccount[]> {
+  if (accountCache && Date.now() - accountCache.at < 30_000) return accountCache.list;
+  const res = await fetch(`${base}/api/accounts`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error("accounts");
+  const list = (await res.json()) as GatewayAccount[];
+  accountCache = { at: Date.now(), list };
+  return list;
+}
+
+/** What a team member who is not an Owner may ask the gateway for: only data of numbers whose brand is one of their clients. */
+const SCOPED_AREAS = new Set(["contacts", "tags", "templates", "campaigns", "conversations", "messages", "media", "wa"]);
 
 crm.all("/*", async (c) => {
   const base = c.env.WA_GATEWAY_URL?.replace(/\/$/, "");
@@ -19,7 +34,37 @@ crm.all("/*", async (c) => {
     return c.json({ error: "WhatsApp gateway is not configured", code: "gateway_unconfigured" }, 503);
   }
   const url = new URL(c.req.url);
-  const target = base + "/api" + url.pathname.slice("/api/crm".length) + url.search;
+  const path = url.pathname.slice("/api/crm".length);
+  const user = c.get("user");
+  let account = c.req.header("x-wa-account");
+  let search = url.search;
+  let filterList = false;
+  let allowedIds: Set<number> | null = null;
+
+  if (user.client_ids !== null) {
+    // Owners may use any number (and the default one). Everyone else: an explicit number that belongs to one of their clients, nothing else.
+    const area = path.split("/")[1] ?? "";
+    let known: GatewayAccount[];
+    try {
+      known = await gatewayAccounts(base, c.env.WA_GATEWAY_TOKEN);
+    } catch {
+      return c.json({ error: "WhatsApp gateway is unreachable", code: "gateway_down" }, 502);
+    }
+    const mine = known.filter((a) => a.client_id !== null && canReachClient(user, a.client_id));
+    if (area === "accounts" && c.req.method === "GET" && path === "/accounts") {
+      filterList = true; // the list of numbers, cut down below
+    } else {
+      if (!SCOPED_AREAS.has(area)) return c.json({ error: "Forbidden" }, 403);
+      const asked = account ?? url.searchParams.get("account");
+      if (!asked || !/^\d+$/.test(asked)) return c.json({ error: "Pick a WhatsApp number first" }, 400);
+      if (!mine.some((a) => String(a.id) === asked)) return c.json({ error: "Forbidden" }, 403);
+      account = asked;
+      url.searchParams.delete("account"); // one source of truth: the header we set below
+      search = url.search;
+    }
+    allowedIds = new Set(mine.map((a) => a.id));
+  }
+  const target = base + "/api" + path + search;
 
   const headers = new Headers();
   const type = c.req.header("content-type");
@@ -27,7 +72,6 @@ crm.all("/*", async (c) => {
   headers.set("authorization", `Bearer ${c.env.WA_GATEWAY_TOKEN}`);
   const range = c.req.header("range");
   if (range && /^bytes=\d*-\d*(,\s*\d*-\d*)*$/.test(range)) headers.set("range", range); // lets video seek and play on Safari
-  const account = c.req.header("x-wa-account");
   if (account && /^\d+$/.test(account)) headers.set("x-wa-account", account); // which WhatsApp number (multi-account gateway)
   headers.set("x-platform-user", c.get("user").email); // audit trail on the gateway side
 
@@ -43,6 +87,11 @@ crm.all("/*", async (c) => {
     for (const h of ["content-type", "content-disposition", "cache-control", "content-range", "accept-ranges", "content-length"]) {
       const v = res.headers.get(h);
       if (v) out.set(h, v);
+    }
+    if (filterList && res.ok) {
+      const list = ((await res.json()) as Array<{ id: number }>).filter((x) => allowedIds?.has(x.id));
+      out.delete("content-length");
+      return new Response(JSON.stringify(list), { status: 200, headers: out });
     }
     return new Response(res.body, { status: res.status, headers: out });
   } catch {

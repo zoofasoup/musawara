@@ -10,6 +10,7 @@ import { Empty } from "../../components/kit";
 import { PillNav, pillTabCls } from "../../components/PillNav";
 import { Skeleton } from "../../components/ui";
 import { Link } from "react-router-dom";
+import { useCan } from "../../lib/can";
 
 const TABS = [
   { to: "/crm/inbox", label: "Inbox" },
@@ -22,6 +23,7 @@ const TABS = [
 /** Shared frame for every CRM page: the number switcher, the section tabs, then the page. */
 export function CrmLayout({ children }: { children: ReactNode }) {
   const stored = useAccountId();
+  const owner = useCan()("settings"); // adding, linking and unlinking numbers is Owner work; everyone else only sees the numbers of their own clients
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
   const list = useLive<Account[]>("/accounts", 15000);
@@ -70,9 +72,9 @@ export function CrmLayout({ children }: { children: ReactNode }) {
       <Empty
         icon="users"
         title="No WhatsApp number yet"
-        hint="Add a number and scan its QR code before using the inbox, contacts or broadcasts."
+        hint={owner ? "Add a number and scan its QR code before using the inbox, contacts or broadcasts." : "None of your clients has a WhatsApp number yet. Ask an Owner to link one."}
         action={
-          <Link to="/crm/connection" className="inline-flex min-h-11 items-center rounded-lg bg-musawara px-4 text-xs font-medium text-white">
+          !owner ? undefined : <Link to="/crm/connection" className="inline-flex min-h-11 items-center rounded-lg bg-musawara px-4 text-xs font-medium text-white">
             Add a number
           </Link>
         }
@@ -90,7 +92,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
       <div className="space-y-4">
         {list.data && accounts.length > 0 && <AccountSwitcher />}
         <PillNav label="CRM" className="mb-1">
-          {TABS.map((t) => (
+          {TABS.filter((t) => owner || t.to !== "/crm/connection").map((t) => (
             <NavLink key={t.to} to={t.to} className={({ isActive }) => pillTabCls(isActive)}>
               {t.label}
             </NavLink>

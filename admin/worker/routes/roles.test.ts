@@ -188,3 +188,43 @@ test("invites carry a role; assignments follow the invite; the last Owner cannot
   assert.equal((await call(IDS.owner, "PUT", "/api/admin/users/7", { client_role: "viewer" })).status, 200);
   assert.equal((await call(IDS.owner, "PUT", `/api/admin/users/${IDS.ads}`, { client_role: "viewer" })).status, 400);
 });
+
+test("CRM: a non-owner only reaches WhatsApp numbers of their own clients, never the default number", async () => {
+  const { DB } = await setup();
+  const calls: Array<{ url: string; account: string | null }> = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init: any) => {
+    const url = String(input);
+    calls.push({ url, account: new Headers(init?.headers).get("x-wa-account") });
+    if (url.endsWith("/api/accounts")) return Response.json([{ id: 1, client_id: null }, { id: 2, client_id: 1 }, { id: 3, client_id: 2 }]);
+    return Response.json({ ok: true });
+  }) as any;
+  const env: any = { DB, JWT_SECRET: SECRET, WA_GATEWAY_URL: "https://gw.test", WA_GATEWAY_TOKEN: "t" };
+  const crm = async (id: number, method: string, path: string, account?: string) =>
+    app.request(TEAM + "/api/crm" + path, {
+      method,
+      headers: { cookie: `ma_session=${await sign({ sub: id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256")}`, ...(account ? { "x-wa-account": account } : {}) },
+    }, env);
+  try {
+    // CRM member assigned to client 1 (user 4)
+    assert.equal((await crm(4, "GET", "/contacts")).status, 400, "no number picked: refused, not sent to the default number");
+    assert.equal((await crm(4, "GET", "/contacts", "1")).status, 403, "the default number (NurAlive) belongs to no assigned client");
+    assert.equal((await crm(4, "GET", "/contacts", "3")).status, 403, "a number of another client");
+    assert.equal((await crm(4, "GET", "/contacts?account=1", "2")).status, 200, "own number, with a smuggled ?account= that is dropped");
+    const sent = calls.at(-1)!;
+    assert.equal(sent.account, "2");
+    assert.ok(!sent.url.includes("account="), sent.url);
+    assert.equal((await crm(4, "GET", "/contacts?account=3")).status, 403, "query param cannot pick another number either");
+    assert.equal((await crm(4, "POST", "/accounts")).status, 403, "creating numbers is Owner work");
+    assert.equal((await crm(4, "GET", "/accounts/1/status")).status, 403, "no QR or status of numbers that are not theirs");
+    assert.equal((await crm(4, "GET", "/attendees", "2")).status, 403, "event features are bound to the default number: Owner only");
+    const list = (await (await crm(4, "GET", "/accounts")).json()) as Array<{ id: number }>;
+    assert.deepEqual(list.map((a) => a.id), [2], "the number list is cut down to their own");
+    // Owner: unchanged, any number and the default
+    assert.equal((await crm(1, "GET", "/contacts")).status, 200);
+    assert.equal((await crm(1, "GET", "/contacts", "3")).status, 200);
+    assert.equal(((await (await crm(1, "GET", "/accounts")).json()) as any[]).length, 3);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
