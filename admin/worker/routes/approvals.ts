@@ -14,21 +14,22 @@
 
 import { Hono, type Context } from "hono";
 import type { Env, Vars } from "../types";
-import { clientAccess, requireAdmin } from "../middleware";
+import { clientAccess, requirePerm, scopeSql } from "../middleware";
+import { staffCan, type Feature } from "../../shared/permissions";
 import { APPROVAL_STATUSES, ASSET_KINDS, decide, parseIds, resubmit, validateAsset, type ApprovalStatus } from "../lib/approvals";
 
 const approvals = new Hono<{ Bindings: Env; Variables: Vars }>();
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 
 // Team view across clients
-approvals.get("/", requireAdmin, async (c) => {
+approvals.get("/", requirePerm("approvals"), async (c) => {
   const status = c.req.query("status");
   if (status && !APPROVAL_STATUSES.includes(status as ApprovalStatus)) return c.json({ error: "Bad status" }, 400);
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.client_id, cl.name AS client_name, r.title, r.message, r.status, r.version, r.post_id, r.created_at, r.updated_at,
             (SELECT COUNT(*) FROM approval_request_assets x WHERE x.request_id=r.id) AS asset_count
        FROM approval_requests r JOIN clients cl ON cl.id=r.client_id
-      WHERE (?1 IS NULL OR r.status=?1) ORDER BY r.updated_at DESC, r.id DESC LIMIT 300`
+      WHERE (?1 IS NULL OR r.status=?1)${scopeSql(c.get("user"), "r.client_id")} ORDER BY r.updated_at DESC, r.id DESC LIMIT 300`
   )
     .bind(status || null)
     .all();
@@ -37,17 +38,19 @@ approvals.get("/", requireAdmin, async (c) => {
 
 approvals.use("/:clientId/*", clientAccess);
 
-/** Resolved tenant + who is asking. Share links are refused; "team" means an admin session. */
-function who(c: Ctx) {
+/** Resolved tenant + who is asking. Share links are refused; "team" means a team member whose role includes `feature`. A team member without it gets null (forbidden). */
+function who(c: Ctx, feature: Feature) {
   const a = c.get("access");
   if (a.type !== "user") return null;
-  return { clientId: a.clientId, user: a.user, team: a.user.role === "admin" };
+  const team = a.user.role === "admin";
+  if (team && !staffCan(a.user.staff_role, feature)) return null;
+  return { clientId: a.clientId, user: a.user, team };
 }
 const FORBIDDEN = { error: "Forbidden" };
 
 // ---------------------------------------------------------------- assets
 approvals.get("/:clientId/assets", async (c) => {
-  const w = who(c);
+  const w = who(c, "content");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const q = (c.req.query("q") ?? "").trim().toLowerCase();
   const tag = (c.req.query("tag") ?? "").trim().toLowerCase();
@@ -67,7 +70,7 @@ approvals.get("/:clientId/assets", async (c) => {
 });
 
 approvals.post("/:clientId/assets", async (c) => {
-  const w = who(c);
+  const w = who(c, "content");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const v = validateAsset(await c.req.json().catch(() => null));
   if (!v.ok) return c.json({ error: v.error }, 400);
@@ -79,7 +82,7 @@ approvals.post("/:clientId/assets", async (c) => {
 });
 
 approvals.put("/:clientId/assets/:id", async (c) => {
-  const w = who(c);
+  const w = who(c, "content");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const v = validateAsset(await c.req.json().catch(() => null));
   if (!v.ok) return c.json({ error: v.error }, 400);
@@ -94,7 +97,7 @@ approvals.put("/:clientId/assets/:id", async (c) => {
 });
 
 approvals.delete("/:clientId/assets/:id", async (c) => {
-  const w = who(c);
+  const w = who(c, "content");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const id = Number(c.req.param("id"));
   const used = await c.env.DB.prepare(
@@ -129,7 +132,7 @@ async function assetsFor(c: Ctx, clientId: number, requestIds: number[]) {
 }
 
 approvals.get("/:clientId/requests", async (c) => {
-  const w = who(c);
+  const w = who(c, "approvals");
   if (!w) return c.json(FORBIDDEN, 403);
   const status = c.req.query("status");
   if (status && !APPROVAL_STATUSES.includes(status as ApprovalStatus)) return c.json({ error: "Bad status" }, 400);
@@ -144,7 +147,7 @@ approvals.get("/:clientId/requests", async (c) => {
 });
 
 approvals.get("/:clientId/requests/:id", async (c) => {
-  const w = who(c);
+  const w = who(c, "approvals");
   if (!w) return c.json(FORBIDDEN, 403);
   const id = Number(c.req.param("id"));
   const req = await c.env.DB.prepare(
@@ -191,7 +194,7 @@ const linkStmts = (c: Ctx, requestId: number | null, assetIds: number[]) =>
   );
 
 approvals.post("/:clientId/requests", async (c) => {
-  const w = who(c);
+  const w = who(c, "approvals");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const body: any = await c.req.json().catch(() => null);
   if (!body || typeof body !== "object") return c.json({ error: "Body must be JSON." }, 400);
@@ -213,7 +216,7 @@ approvals.post("/:clientId/requests", async (c) => {
 });
 
 approvals.post("/:clientId/requests/:id/resubmit", async (c) => {
-  const w = who(c);
+  const w = who(c, "approvals");
   if (!w?.team) return c.json(FORBIDDEN, 403);
   const id = Number(c.req.param("id"));
   const body: any = await c.req.json().catch(() => ({}));
@@ -257,9 +260,9 @@ approvals.post("/:clientId/requests/:id/resubmit", async (c) => {
 });
 
 approvals.post("/:clientId/requests/:id/decision", async (c) => {
-  const w = who(c);
-  // the people who decide are the client's own users; the team does not approve on their behalf
-  if (!w || w.team) return c.json(FORBIDDEN, 403);
+  const w = who(c, "approvals");
+  // the people who decide are the client's own approvers (viewers only read); the team does not approve on their behalf
+  if (!w || w.team || w.user.client_role !== "approver") return c.json(FORBIDDEN, 403);
   const id = Number(c.req.param("id"));
   const body: any = await c.req.json().catch(() => null);
   if (!body || typeof body !== "object") return c.json({ error: "Body must be JSON." }, 400);

@@ -26,6 +26,7 @@ export type Env = {
   GRAPH_BASE?: string;
 };
 
+import type { ClientRole, StaffRole } from "../shared/permissions";
 export type Role = "admin" | "client";
 
 export type AuthUser = {
@@ -34,6 +35,12 @@ export type AuthUser = {
   name: string;
   role: Role;
   client_id: number | null;
+  /** Team members: owner | ads | content | crm. null for client logins (and for a team account with no role set, which gets no access). */
+  staff_role: StaffRole | null;
+  /** Client logins: viewer | approver. */
+  client_role: ClientRole | null;
+  /** The clients this person may reach: null = all (owners), otherwise exactly these ids. */
+  client_ids: number[] | null;
 };
 
 // How the current request is allowed to see a client's data.

@@ -14,7 +14,7 @@
 import { Hono, type Context } from "hono";
 import { sign, verify } from "hono/jwt";
 import type { Env, Vars } from "../types";
-import { requireAdmin } from "../middleware";
+import { canReachClient, requirePerm } from "../middleware";
 import { authUrl, connectShop, salesSummary, shopeeCfg, ShopeeError, syncShop } from "../lib/shopee";
 
 const shopee = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -37,7 +37,7 @@ async function clientExists(c: Ctx, id: number) {
 }
 
 // The callback is a plain browser redirect, so it answers with a redirect rather than JSON.
-shopee.get("/callback", requireAdmin, async (c) => {
+shopee.get("/callback", requirePerm("sales"), async (c) => {
   // lands on the client's own Shopee tab once we know which client it was for
   const done = (result: string, forClient?: number) => c.redirect(`${forClient ? `/c/${forClient}/shopee` : "/shopee"}?shopee=${result}`);
   const cfg = shopeeCfg(c.env);
@@ -54,6 +54,7 @@ shopee.get("/callback", requireAdmin, async (c) => {
     return done("expired");
   }
   if (!clientId || !(await clientExists(c, clientId))) return done("invalid");
+  if (!canReachClient(c.get("user"), clientId)) return done("invalid");
   try {
     await connectShop(c.env, cfg, clientId, code, shopId);
   } catch (e) {
@@ -63,11 +64,12 @@ shopee.get("/callback", requireAdmin, async (c) => {
   return done("connected", clientId);
 });
 
-shopee.use("*", requireAdmin);
+shopee.use("*", requirePerm("sales"));
 
 shopee.get("/status", async (c) => {
   const clientId = clientIdOf(c.req.query("client_id"));
   if (!clientId) return c.json({ error: "client_id required" }, 400);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   const row = await c.env.DB
     .prepare(`SELECT shop_id, synced_to, last_sync_at, last_error, refresh_expires_at FROM shopee_shops WHERE client_id=?`)
     .bind(clientId)
@@ -81,6 +83,7 @@ shopee.post("/auth-url", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const clientId = clientIdOf((body as any).client_id);
   if (!clientId || !(await clientExists(c, clientId))) return c.json({ error: "Client not found" }, 404);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   const state = await sign({ purpose: "shopee", client_id: clientId, exp: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS }, c.env.JWT_SECRET, "HS256");
   const redirect = `${callbackUrl(c)}?${new URLSearchParams({ state })}`;
   return c.json({ url: await authUrl(cfg, redirect) });
@@ -92,6 +95,7 @@ shopee.post("/sync", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const clientId = clientIdOf((body as any).client_id);
   if (!clientId) return c.json({ error: "client_id required" }, 400);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   try {
     const r = await syncShop(c.env, cfg, clientId);
     return c.json({ ok: true, orders: r.orders, caught_up: r.caughtUp });
@@ -106,13 +110,15 @@ shopee.get("/summary", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   if (!clientId) return c.json({ error: "client_id required" }, 400);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   if (!YMD.test(from) || !YMD.test(to) || from > to) return c.json({ error: "from and to must be YYYY-MM-DD, from <= to" }, 400);
   return c.json(await salesSummary(c.env.DB, clientId, from, to));
 });
 
-shopee.delete("/connection", async (c) => {
+shopee.delete("/connection", requirePerm("settings"), async (c) => {
   const clientId = clientIdOf(c.req.query("client_id"));
   if (!clientId) return c.json({ error: "client_id required" }, 400);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   await c.env.DB.batch([
     c.env.DB.prepare(`DELETE FROM shopee_order_items WHERE client_id=?`).bind(clientId),
     c.env.DB.prepare(`DELETE FROM shopee_orders WHERE client_id=?`).bind(clientId),

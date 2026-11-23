@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { AdAccountRow, Env, Vars } from "../types";
-import { requireAdmin } from "../middleware";
+import { reachClient, reachVia, requirePerm, requireStaff, canReachClient, scopeSql } from "../middleware";
 import { randomToken } from "../lib/auth";
 import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
@@ -12,6 +12,7 @@ import { clientSparkline, clientTotals } from "../lib/metrics";
 import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
 import { ONBOARDING_TEMPLATE, parseTaskInput } from "../lib/ops";
 import { addDays, ymdInTz } from "../lib/dates";
+import { isClientRole, isStaffRole } from "../../shared/permissions";
 import spend from "./spend";
 import conversions from "./conversions";
 import organic from "./organic";
@@ -19,7 +20,29 @@ import publishSetup from "./publishSetup";
 import planning from "./planning";
 
 const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
-admin.use("*", requireAdmin);
+// Every route needs a team login; the role then decides which areas open. Every area below names its feature;
+// GET /clients is the one route open to every team member (scoped to their clients). Add new routes to a gate.
+admin.use("*", requireStaff);
+const gate = (feature: Parameters<typeof requirePerm>[0], ...paths: string[]) => {
+  for (const p of paths) admin.use(p, requirePerm(feature));
+};
+gate("ads", "/overview", "/accounts", "/accounts/*", "/alerts/*", "/clients/:id/sync");
+gate("spend", "/spend", "/spend/*");
+gate("sales", "/conversions", "/conversions/*");
+gate("content", "/organic", "/organic/*", "/publish", "/publish/*", "/plan", "/plan/*", "/tasks", "/tasks/*", "/clients/:id/brand/*", "/clients/:id/brand-links", "/clients/:id/brand-links/*");
+gate("settings", "/token", "/token/*", "/users", "/users/*", "/invites", "/invites/*", "/onboarding/*", "/clients/:id/onboarding", "/clients/:id/onboarding/*", "/clients/:id/share");
+// Creating, renaming and deleting clients, and their share link, is Owner work.
+admin.on(["POST"], "/clients", requirePerm("settings"));
+admin.on(["PUT", "DELETE"], "/clients/:id", requirePerm("settings"));
+// Rows reached by id must belong to one of the caller's clients.
+admin.use("/clients/:id/*", reachClient("id"));
+admin.use("/accounts/:id", reachVia("id", "SELECT client_id FROM ad_accounts WHERE id=?"));
+admin.use("/accounts/:id/*", reachVia("id", "SELECT client_id FROM ad_accounts WHERE id=?"));
+admin.use("/tasks/:id", reachVia("id", "SELECT client_id FROM tasks WHERE id=?"));
+admin.use(
+  "/alerts/:id/*",
+  reachVia("id", "SELECT a.client_id FROM alerts al JOIN ad_accounts a ON a.id=al.ad_account_id WHERE al.id=?")
+);
 admin.route("/spend", spend);
 admin.route("/conversions", conversions);
 admin.route("/organic", organic);
@@ -52,7 +75,8 @@ admin.get("/overview", async (c) => {
   const sparkTo = addDays(today, -1);
   const sparkFrom = addDays(sparkTo, -13);
 
-  const clientRows = await c.env.DB.prepare("SELECT * FROM clients ORDER BY name").all<any>();
+  const user = c.get("user");
+  const clientRows = await c.env.DB.prepare(`SELECT * FROM clients WHERE 1=1${scopeSql(user, "id")} ORDER BY name`).all<any>();
   const cards = [];
   for (const client of clientRows.results) {
     const totals = await clientTotals(c.env, client.id, from, to);
@@ -85,7 +109,7 @@ admin.get("/overview", async (c) => {
      JOIN ad_accounts a ON a.id=al.ad_account_id
      JOIN clients cl ON cl.id=a.client_id
      LEFT JOIN entities e ON e.ad_account_id=al.ad_account_id AND e.entity_id=al.entity_id
-     WHERE al.type NOT IN ('zero_results','cpr_spike')
+     WHERE al.type NOT IN ('zero_results','cpr_spike')${scopeSql(user, "a.client_id")}
      ORDER BY al.created_at DESC LIMIT 20`
   ).all();
 
@@ -95,7 +119,7 @@ admin.get("/overview", async (c) => {
             (SELECT status FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_status,
             (SELECT error FROM sync_jobs j WHERE j.ad_account_id=a.id ORDER BY started_at DESC, id DESC LIMIT 1) last_error
      FROM ad_accounts a JOIN clients cl ON cl.id=a.client_id
-     WHERE a.status='active' ORDER BY cl.name`
+     WHERE a.status='active'${scopeSql(user, "a.client_id")} ORDER BY cl.name`
   ).all();
 
   return c.json({ range: { from, to }, clients: cards, alerts: alerts.results, syncHealth: syncHealth.results });
@@ -106,7 +130,7 @@ admin.get("/clients", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT c.*, (SELECT COUNT(*) FROM ad_accounts a WHERE a.client_id=c.id) account_count,
             (SELECT COUNT(*) FROM users u WHERE u.client_id=c.id) user_count
-     FROM clients c ORDER BY c.name`
+     FROM clients c WHERE 1=1${scopeSql(c.get("user"), "c.id")} ORDER BY c.name`
   ).all();
   return c.json({ clients: rows.results });
 });
@@ -261,7 +285,7 @@ admin.get("/tasks", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT t.id, t.client_id, c.name client_name, t.title, t.status, t.assignee, t.due_date
      FROM tasks t JOIN clients c ON c.id=t.client_id
-     ${clientId ? "WHERE t.client_id=?" : ""}
+     WHERE 1=1${clientId ? " AND t.client_id=?" : ""}${scopeSql(c.get("user"), "t.client_id")}
      ORDER BY t.due_date IS NULL, t.due_date, t.id`
   )
     .bind(...(clientId ? [clientId] : []))
@@ -273,6 +297,7 @@ admin.post("/tasks", async (c) => {
   const parsed = parseTaskInput(await c.req.json().catch(() => ({})), false);
   if ("error" in parsed) return c.json({ error: parsed.error }, 400);
   const v = parsed.value;
+  if (!canReachClient(c.get("user"), Number(v.client_id))) return c.json({ error: "Forbidden" }, 403);
   const client = await c.env.DB.prepare("SELECT id FROM clients WHERE id=?").bind(v.client_id).first();
   if (!client) return c.json({ error: "Client not found" }, 404);
   const task = await c.env.DB.prepare(
@@ -319,6 +344,7 @@ admin.get("/accounts", async (c) => {
      FROM ad_accounts a
      JOIN clients cl ON cl.id=a.client_id
      LEFT JOIN account_settings s ON s.ad_account_id=a.id
+     WHERE 1=1${scopeSql(c.get("user"), "a.client_id")}
      ORDER BY cl.name, a.account_name`
   ).all();
   return c.json({ accounts: rows.results, defaults: DEFAULT_ALERT_CONFIG });
@@ -339,6 +365,7 @@ admin.get("/accounts/:id/sync-jobs", async (c) => {
 admin.post("/accounts", async (c) => {
   const { client_id, meta_account_id } = await c.req.json().catch(() => ({}));
   if (!client_id || !meta_account_id) return c.json({ error: "client_id and meta_account_id are required" }, 400);
+  if (!canReachClient(c.get("user"), Number(client_id))) return c.json({ error: "Forbidden" }, 403);
 
   let name: string | null = null;
   let currency = "IDR";
@@ -589,32 +616,95 @@ admin.post("/alerts/:id/ack", async (c) => {
   return c.json({ ok: true });
 });
 
-// ---------------------------------------------------------------- users & invites
+// ---------------------------------------------------------------- users & invites (Owner only)
 admin.get("/users", async (c) => {
   const users = await c.env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.role, u.client_id, u.created_at, c.name client_name
+    `SELECT u.id, u.email, u.name, u.role, u.client_id, u.staff_role, u.client_role, u.created_at, c.name client_name,
+            (SELECT group_concat(uc.client_id) FROM user_clients uc WHERE uc.user_id=u.id) assigned
      FROM users u LEFT JOIN clients c ON c.id=u.client_id ORDER BY u.created_at`
-  ).all();
+  ).all<any>();
   const invites = await c.env.DB.prepare(
-    `SELECT i.id, i.token, i.email, i.role, i.client_id, i.created_at, c.name client_name
+    `SELECT i.id, i.token, i.email, i.role, i.staff_role, i.client_role, i.client_id, i.client_ids_json, i.created_at, c.name client_name
      FROM invites i LEFT JOIN clients c ON c.id=i.client_id WHERE i.used=0 ORDER BY i.created_at DESC`
-  ).all();
-  return c.json({ users: users.results, invites: invites.results });
+  ).all<any>();
+  const ids = (v: string | null) => (v ? v.split(",").map(Number) : []);
+  return c.json({
+    users: users.results.map(({ assigned, ...u }) => ({ ...u, client_ids: u.staff_role === "owner" ? null : ids(assigned) })),
+    invites: invites.results.map(({ client_ids_json, ...i }) => ({ ...i, client_ids: i.staff_role && i.staff_role !== "owner" ? safeIds(client_ids_json) : null })),
+  });
 });
 
+/** Client ids from a request body or stored JSON: whole numbers of clients that exist, no repeats. */
+function safeIds(raw: unknown): number[] {
+  let v: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      v = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(v) ? [...new Set(v.filter((n): n is number => Number.isSafeInteger(n) && n > 0))] : [];
+}
+
+async function existingClientIds(c: Context<{ Bindings: Env; Variables: Vars }>, ids: number[]): Promise<number[]> {
+  if (!ids.length) return [];
+  const r = await c.env.DB.prepare(`SELECT id FROM clients WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all<{ id: number }>();
+  return r.results.map((x) => x.id);
+}
+
 admin.post("/invites", async (c) => {
-  const { email, role, client_id } = await c.req.json().catch(() => ({}));
-  const finalRole = role === "admin" ? "admin" : "client";
-  if (finalRole === "client" && !client_id) return c.json({ error: "client_id is required for client invites" }, 400);
+  const { email, audience, staff_role, client_role, client_id, client_ids } = await c.req.json().catch(() => ({}));
   const token = randomToken();
-  await c.env.DB.prepare("INSERT INTO invites (token, email, role, client_id) VALUES (?,?,?,?)")
-    .bind(token, email ?? null, finalRole, finalRole === "client" ? client_id : null)
-    .run();
+  if (audience === "client") {
+    if (!isClientRole(client_role)) return c.json({ error: "Pick a client role (viewer or approver)" }, 400);
+    if (!(await existingClientIds(c, [Number(client_id)])).length) return c.json({ error: "Pick the client this login is for" }, 400);
+    await c.env.DB.prepare("INSERT INTO invites (token, email, role, client_role, client_id) VALUES (?,?,'client',?,?)").bind(token, email ?? null, client_role, Number(client_id)).run();
+  } else {
+    if (!isStaffRole(staff_role)) return c.json({ error: "Pick a team role" }, 400);
+    let assigned: number[] = [];
+    if (staff_role !== "owner") {
+      assigned = await existingClientIds(c, safeIds(client_ids));
+      if (!assigned.length) return c.json({ error: "Assign at least one client to this team member" }, 400);
+    }
+    await c.env.DB.prepare("INSERT INTO invites (token, email, role, staff_role, client_ids_json) VALUES (?,?,'admin',?,?)")
+      .bind(token, email ?? null, staff_role, staff_role === "owner" ? null : JSON.stringify(assigned))
+      .run();
+  }
   return c.json({ token, path: `/invite/${token}` });
 });
 
 admin.delete("/invites/:id", async (c) => {
   await c.env.DB.prepare("DELETE FROM invites WHERE id=?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+/** The last Owner must always remain, or nobody could manage the team any more. */
+async function ownerCount(c: Context<{ Bindings: Env; Variables: Vars }>) {
+  return (await c.env.DB.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND staff_role='owner'").first<{ n: number }>())?.n ?? 0;
+}
+
+/** Change a team member's role and which clients they see. */
+admin.put("/users/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const { staff_role, client_ids } = await c.req.json().catch(() => ({}));
+  const target = await c.env.DB.prepare("SELECT id, role, staff_role FROM users WHERE id=?").bind(id).first<{ id: number; role: string; staff_role: string | null }>();
+  if (!target) return c.json({ error: "User not found" }, 404);
+  if (target.role !== "admin") return c.json({ error: "Only team members have a team role" }, 400);
+  if (!isStaffRole(staff_role)) return c.json({ error: "Pick a team role" }, 400);
+  if (target.staff_role === "owner" && staff_role !== "owner" && (id === c.get("user").id || (await ownerCount(c)) <= 1)) {
+    return c.json({ error: "There must always be at least one Owner. Make someone else an Owner first." }, 400);
+  }
+  let assigned: number[] = [];
+  if (staff_role !== "owner") {
+    assigned = await existingClientIds(c, safeIds(client_ids));
+    if (!assigned.length) return c.json({ error: "Assign at least one client to this team member" }, 400);
+  }
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE users SET staff_role=? WHERE id=?").bind(staff_role, id),
+    c.env.DB.prepare("DELETE FROM user_clients WHERE user_id=?").bind(id),
+    ...assigned.map((cid) => c.env.DB.prepare("INSERT INTO user_clients (user_id, client_id) VALUES (?,?)").bind(id, cid)),
+  ]);
   return c.json({ ok: true });
 });
 

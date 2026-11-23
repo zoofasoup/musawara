@@ -1,9 +1,11 @@
 // Unified spend across Meta (auto-synced) and manually entered marketplace spend.
-// Mounted under /api/admin/spend, so requireAdmin from admin.ts applies.
+// Mounted under /api/admin/spend; admin.ts gates it to roles with the "spend" feature.
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
 import { addDays } from "../lib/dates";
+import { canReachClient, reachVia, scopeSql } from "../middleware";
+import type { AuthUser } from "../types";
 
 const spend = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -15,11 +17,12 @@ function dayCount(from: string, to: string): number {
   return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
 }
 
-/** Optional client filter appended to a WHERE clause; "none" = company-wide rows. */
-function clientClause(raw: string | undefined): { sql: string; binds: unknown[] } {
-  if (!raw) return { sql: "", binds: [] };
-  if (raw === "none") return { sql: " AND client_id IS NULL", binds: [] };
-  return { sql: " AND client_id = ?", binds: [Number(raw)] };
+/** Optional client filter appended to a WHERE clause; "none" = company-wide rows. A scoped team member never sees company-wide rows or other clients. */
+function clientClause(raw: string | undefined, user: AuthUser): { sql: string; binds: unknown[] } {
+  const scope = scopeSql(user, "client_id");
+  if (!raw) return { sql: scope, binds: [] };
+  if (raw === "none") return { sql: " AND client_id IS NULL" + scope, binds: [] };
+  return { sql: " AND client_id = ?" + scope, binds: [Number(raw)] };
 }
 
 spend.get("/", async (c) => {
@@ -27,7 +30,7 @@ spend.get("/", async (c) => {
   const to = c.req.query("to") ?? "";
   if (!YMD.test(from) || !YMD.test(to) || from > to) return c.json({ error: "Invalid date range" }, 400);
 
-  const filter = clientClause(c.req.query("client_id"));
+  const filter = clientClause(c.req.query("client_id"), c.get("user"));
   const where = `date BETWEEN ? AND ?${filter.sql}`;
   const binds = [from, to, ...filter.binds];
 
@@ -68,7 +71,7 @@ spend.get("/entries", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   if (!YMD.test(from) || !YMD.test(to) || from > to) return c.json({ error: "Invalid date range" }, 400);
-  const filter = clientClause(c.req.query("client_id"));
+  const filter = clientClause(c.req.query("client_id"), c.get("user"));
   const rows = await c.env.DB.prepare(
     `SELECT e.id, e.client_id, c.name client_name, e.source, e.category, e.date, e.amount, e.note
      FROM (SELECT * FROM spend_entries WHERE date BETWEEN ? AND ?${filter.sql}) e
@@ -86,6 +89,9 @@ spend.post("/entries", async (c) => {
   if (!CATEGORIES.includes(b.category ?? "ads")) return c.json({ error: "Invalid category" }, 400);
   if (typeof b.date !== "string" || !YMD.test(b.date)) return c.json({ error: "Invalid date" }, 400);
   if (!Number.isFinite(amount) || amount <= 0) return c.json({ error: "Amount must be greater than 0" }, 400);
+  if (clientId === null ? c.get("user").client_ids !== null : !canReachClient(c.get("user"), clientId)) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
   if (clientId !== null) {
     const exists = await c.env.DB.prepare("SELECT 1 FROM clients WHERE id=?").bind(clientId).first();
     if (!exists) return c.json({ error: "Unknown client" }, 400);
@@ -97,7 +103,7 @@ spend.post("/entries", async (c) => {
   return c.json({ id: res.meta.last_row_id });
 });
 
-spend.delete("/entries/:id", async (c) => {
+spend.delete("/entries/:id", reachVia("id", "SELECT client_id FROM spend_entries WHERE id=?"), async (c) => {
   await c.env.DB.prepare("DELETE FROM spend_entries WHERE id=?").bind(c.req.param("id")).run();
   return c.json({ ok: true });
 });

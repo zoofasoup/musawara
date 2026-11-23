@@ -4,7 +4,7 @@
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
-import { clientAccess } from "../middleware";
+import { clientAccess, clientFeature } from "../middleware";
 import publish from "./publish";
 import planning from "./planning";
 import { clientCreatives, clientEntities, clientTotals, clientTrend } from "../lib/metrics";
@@ -13,6 +13,9 @@ import { addDays, dayOfMonth, daysInMonth, monthStart, ymdInTz } from "../lib/da
 
 const clients = new Hono<{ Bindings: Env; Variables: Vars }>();
 clients.use("/:clientId/*", clientAccess);
+// A team member needs the matching feature in their role; client logins and share links are decided by the handlers.
+for (const part of ["summary", "trend", "entities", "creatives", "alerts", "pacing"]) clients.use(`/:clientId/${part}`, clientFeature("ads"));
+clients.use("/:clientId/publish/*", clientFeature("content"));
 clients.route("/:clientId/publish", publish);
 clients.route("/:clientId/plan", planning);
 

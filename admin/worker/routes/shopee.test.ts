@@ -37,7 +37,7 @@ async function setup() {
   const DB = makeDb();
   await DB.exec(`
     INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','t1',1),(2,'Beta','beta','t2',1);
-    INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES (1,'a@x','h','Admin','admin',NULL),(2,'c@x','h','Client','client',1);
+    INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES (1,'a@x','h','Admin','admin',NULL,'owner',NULL),(2,'c@x','h','Client','client',1,NULL,'approver');
   `);
   const app = new Hono<any>();
   app.route("/api/shopee", shopee);

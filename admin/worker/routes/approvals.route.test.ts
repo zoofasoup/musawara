@@ -60,8 +60,8 @@ beforeEach(() => {
   const dir = new URL("../../migrations/", import.meta.url);
   for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) db.exec(readFileSync(new URL(f, dir), "utf8"));
   db.exec(`INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','tok-a',1),(2,'Beta','beta','tok-b',1);
-           INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES
-             (1,'a@x.test','x','Admin','admin',NULL),(2,'ca@x.test','x','Client A','client',1),(3,'cb@x.test','x','Client B','client',2);
+           INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES
+             (1,'a@x.test','x','Admin','admin',NULL,'owner',NULL),(2,'ca@x.test','x','Client A','client',1,NULL,'approver'),(3,'cb@x.test','x','Client B','client',2,NULL,'approver');
            INSERT INTO posts (id,client_id,kind,caption) VALUES (10,1,'feed','hi'),(20,2,'feed','other');`);
   env = { DB: d1(db), JWT_SECRET: SECRET, APP_NAME: "t" };
 });
@@ -184,8 +184,8 @@ describe("status transitions and history", () => {
     expect((await call(ADMIN, "POST", `/1/requests/${requestId}/resubmit`, {})).status).toBe(409);
     const hist = db.prepare("SELECT action, actor_name, comment FROM approval_history WHERE request_id=? ORDER BY id").all(requestId);
     expect(hist).toEqual([
-      { action: "submitted", actor_name: "User 1", comment: "Please review" },
-      { action: "approved", actor_name: "User 2", comment: "Looks great" },
+      { action: "submitted", actor_name: "Admin", comment: "Please review" },
+      { action: "approved", actor_name: "Client A", comment: "Looks great" },
     ]);
   });
 
