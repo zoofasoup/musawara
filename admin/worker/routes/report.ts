@@ -7,7 +7,7 @@
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
-import { clientAccess } from "../middleware";
+import { clientAccess, clientFeature } from "../middleware";
 import { clientEntities, clientTotals, clientTrend } from "../lib/metrics";
 import { ymdInTz } from "../lib/dates";
 import { buildReport, resolveRange, type OrganicPost, type SaleRow } from "../lib/report";
@@ -15,6 +15,8 @@ import { buildReport, resolveRange, type OrganicPost, type SaleRow } from "../li
 const report = new Hono<{ Bindings: Env; Variables: Vars }>();
 report.use("/:clientId/*", clientAccess);
 report.use("/:clientId", clientAccess);
+report.use("/:clientId/*", clientFeature("ads"));
+report.use("/:clientId", clientFeature("ads"));
 
 async function organicFor(env: Env, clientId: number, from: string, to: string, prevFrom: string, prevTo: string) {
   const accounts = await env.DB.prepare("SELECT ig_username, followers FROM organic_accounts WHERE client_id=? ORDER BY id")

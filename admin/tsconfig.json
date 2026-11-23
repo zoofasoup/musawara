@@ -15,6 +15,6 @@
     "paths": { "@/*": ["./src/*"] },
     "types": ["@cloudflare/workers-types", "vite/client"]
   },
-  "include": ["src", "worker"],
+  "include": ["src", "worker", "shared"],
   "exclude": ["src/**/*.test.ts", "worker/**/*.test.ts", "worker/testkit"]
 }

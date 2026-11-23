@@ -187,6 +187,8 @@ function NewRequestSheet({ clientId, onClose, onDone }: { clientId: number; onCl
 }
 
 function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: number; req: Req; team: boolean; onChanged: () => void; notify: (t: string, k?: "ok" | "err") => void }) {
+  const { user } = useAuth();
+  const approver = user?.client_role === "approver";
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState<"" | "approved" | "changes_requested">("");
   const [showHistory, setShowHistory] = useState(false);
@@ -218,7 +220,10 @@ function RequestCard({ clientId, req, team, onChanged, notify }: { clientId: num
       {req.message && <p className="mt-2 whitespace-pre-line text-sm text-ink2">{req.message}</p>}
       <AssetLinks assets={req.assets} />
 
-      {!team && req.status === "pending" && (
+      {!team && !approver && req.status === "pending" && (
+        <Callout tone="info" className="mt-3">Waiting for an approver on your team to decide. You can read everything here.</Callout>
+      )}
+      {!team && approver && req.status === "pending" && (
         <div className="mt-3 space-y-2">
           <FormField label="Comment (required if you request changes)">
               <Textarea rows={2} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} />

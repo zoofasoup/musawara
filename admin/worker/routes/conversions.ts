@@ -14,6 +14,7 @@ import { HEX64, saveSales, todayWib, validateSale } from "../lib/sales";
 import { syncKey } from "../lib/sheetSync";
 import { CAPI_TOKEN_KEY, getCapiToken, MAX_EVENT_AGE_DAYS, SEND_CHUNK, sendCapiEvents, type CapiEvent } from "../lib/capi";
 import { fetchAccountInfo, getMetaToken, metaGetAll } from "../lib/meta";
+import { canReachClient, reachClient, reachVia, requirePerm, scopeSql } from "../middleware";
 import type { Env, Vars } from "../types";
 
 const conv = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -24,13 +25,13 @@ const UNCERTAIN_AFTER_MIN = 10;
 // ------------------------------------------------------------------ settings & token
 conv.get("/settings", async (c) => {
   const [rows, token] = await Promise.all([
-    c.env.DB.prepare("SELECT * FROM capi_settings").all(),
+    c.env.DB.prepare(`SELECT * FROM capi_settings WHERE 1=1${scopeSql(c.get("user"), "client_id")}`).all(),
     getCapiToken(c.env),
   ]);
   return c.json({ settings: rows.results, tokenConfigured: Boolean(token), actionSources: ACTION_SOURCES });
 });
 
-conv.put("/settings/:clientId", async (c) => {
+conv.put("/settings/:clientId", reachClient("clientId"), async (c) => {
   const { dataset_id, action_source, event_name, currency } = await c.req.json().catch(() => ({}));
   if (dataset_id != null && !/^\d{5,20}$/.test(String(dataset_id))) return c.json({ error: "Dataset ID must be the numeric ID from Events Manager" }, 400);
   if (action_source && !ACTION_SOURCES.includes(action_source)) return c.json({ error: "Unknown action source" }, 400);
@@ -49,7 +50,7 @@ conv.put("/settings/:clientId", async (c) => {
   return c.json({ ok: true });
 });
 
-conv.post("/token", async (c) => {
+conv.post("/token", requirePerm("settings"), async (c) => {
   const { token } = await c.req.json().catch(() => ({}));
   if (!token || typeof token !== "string") return c.json({ error: "Token is required" }, 400);
   const enc = await encryptString(c.env.JWT_SECRET, token.trim());
@@ -64,6 +65,7 @@ conv.post("/token", async (c) => {
 /** Datasets (pixels) the client's first ad account can see, via the read token. */
 conv.get("/datasets", async (c) => {
   const clientId = Number(c.req.query("client_id"));
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   const account = await c.env.DB.prepare("SELECT meta_account_id FROM ad_accounts WHERE client_id=? ORDER BY id LIMIT 1")
     .bind(clientId)
     .first<{ meta_account_id: string }>();
@@ -104,6 +106,7 @@ conv.post("/check", async (c) => {
 conv.post("/batches", async (c) => {
   const { client_id, dataset_id, filename, is_test, test_event_code } = await c.req.json().catch(() => ({}));
   if (!client_id || !/^\d{5,20}$/.test(String(dataset_id))) return c.json({ error: "Client and dataset are required" }, 400);
+  if (!canReachClient(c.get("user"), Number(client_id))) return c.json({ error: "Forbidden" }, 403);
   if (is_test && !test_event_code) return c.json({ error: "A test event code is required for test sends" }, 400);
   const row = await c.env.DB.prepare(
     "INSERT INTO offline_batches (client_id, dataset_id, filename, is_test, test_event_code, created_by) VALUES (?,?,?,?,?,?) RETURNING id"
@@ -158,6 +161,7 @@ conv.post("/batches/:id/send", async (c) => {
   const batchId = Number(c.req.param("id"));
   const batch = await c.env.DB.prepare("SELECT * FROM offline_batches WHERE id=?").bind(batchId).first<any>();
   if (!batch) return c.json({ error: "Batch not found" }, 404);
+  if (!canReachClient(c.get("user"), batch.client_id)) return c.json({ error: "Forbidden" }, 403);
   const token = await getCapiToken(c.env);
   if (!token) return c.json({ error: "No Conversions API token configured. Add one in Settings, Meta connection." }, 400);
 
@@ -222,7 +226,7 @@ conv.post("/batches/:id/send", async (c) => {
 });
 
 /** Settle rows stuck in 'sending' after the user checked Events Manager. */
-conv.post("/uncertain/resolve", async (c) => {
+conv.post("/uncertain/resolve", requirePerm("settings"), async (c) => {
   const { dataset_id, is_test, keys, action } = await c.req.json().catch(() => ({}));
   if (!dataset_id || !Array.isArray(keys) || !keys.every((k) => HEX64.test(k)) || !["mark_sent", "retry"].includes(action)) return c.json({ error: "Bad request" }, 400);
   const status = action === "mark_sent" ? "sent" : "failed";
@@ -272,6 +276,7 @@ async function markSalesSent(env: Env, clientId: number, events: Array<{ key: st
 /** Which sale keys are already saved, and whether each reached Meta. Unknown keys are new. */
 conv.post("/sales/check", async (c) => {
   const { client_id, keys } = await c.req.json().catch(() => ({}));
+  if (client_id && !canReachClient(c.get("user"), Number(client_id))) return c.json({ error: "Forbidden" }, 403);
   if (!client_id || !Array.isArray(keys) || keys.length > 20000 || !keys.every((k: unknown) => typeof k === "string" && HEX64.test(k))) {
     return c.json({ error: "Bad request" }, 400);
   }
@@ -292,6 +297,7 @@ conv.post("/sales/check", async (c) => {
 /** Save sales for the dashboard. Re-saving a known sale updates it (price corrections, new group or contact info) and never resets "sent". */
 conv.post("/sales/import", async (c) => {
   const { client_id, rows } = await c.req.json().catch(() => ({}));
+  if (client_id && !canReachClient(c.get("user"), Number(client_id))) return c.json({ error: "Forbidden" }, 403);
   if (!client_id || !Array.isArray(rows) || rows.length === 0 || rows.length > 300) return c.json({ error: "Send between 1 and 300 rows per call" }, 400);
   const today = todayWib();
   for (const r of rows) {
@@ -307,6 +313,7 @@ conv.get("/sales", async (c) => {
   const state = c.req.query("state");
   const month = c.req.query("month");
   if (!clientId) return c.json({ error: "client_id is required" }, 400);
+  if (!canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   const byState = state === "dashboard" || state === "sent";
   const byMonth = month && /^\d{4}-\d{2}$/.test(month);
   const monthSql = byMonth ? "AND substr(sale_date, 1, 7) = ?" : "";
@@ -337,7 +344,7 @@ conv.get("/sales", async (c) => {
 });
 
 /** Correct one sale by hand. See lib/saleEdit.ts for what a sent sale may change. */
-conv.patch("/sales/:id", async (c) => {
+conv.patch("/sales/:id", reachVia("id", "SELECT client_id FROM sales WHERE id=?"), async (c) => {
   const id = Number(c.req.param("id"));
   const patch = await c.req.json().catch(() => null);
   if (!Number.isInteger(id) || !patch || typeof patch !== "object") return c.json({ error: "Bad request" }, 400);
@@ -354,7 +361,7 @@ conv.patch("/sales/:id", async (c) => {
 });
 
 /** Remove a sale that was never sent to Meta. It is kept as a tombstone so re-uploading the file does not bring it back. */
-conv.delete("/sales/:id", async (c) => {
+conv.delete("/sales/:id", reachVia("id", "SELECT client_id FROM sales WHERE id=?"), async (c) => {
   const id = Number(c.req.param("id"));
   const sale = await c.env.DB.prepare("SELECT meta_state FROM sales WHERE id=? AND deleted_at IS NULL").bind(id).first<{ meta_state: string }>();
   if (!sale) return c.json({ error: "Sale not found" }, 404);
@@ -374,12 +381,13 @@ conv.get("/batches", async (c) => {
      FROM offline_batches b
      JOIN clients cl ON cl.id=b.client_id
      LEFT JOIN offline_events e ON e.batch_id=b.id
+     WHERE 1=1${scopeSql(c.get("user"), "b.client_id")}
      GROUP BY b.id ORDER BY b.id DESC LIMIT 50`
   ).all();
   return c.json({ batches: rows.results });
 });
 
-conv.get("/batches/:id/events", async (c) => {
+conv.get("/batches/:id/events", reachVia("id", "SELECT client_id FROM offline_batches WHERE id=?"), async (c) => {
   const status = c.req.query("status");
   const rows = await c.env.DB.prepare(
     `SELECT row_key, event_name, event_time, value, currency, order_id, status, error

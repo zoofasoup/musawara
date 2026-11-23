@@ -13,8 +13,8 @@ async function setup() {
     BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   await DB.exec(`
     INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','tok1',1),(2,'Beta','beta','tok2',1);
-    INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES
-      (1,'a@x','h','Admin','admin',NULL),(2,'c1@x','h','Client1','client',1),(3,'c2@x','h','Client2','client',2);
+    INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES
+      (1,'a@x','h','Admin','admin',NULL,'owner',NULL),(2,'c1@x','h','Client1','client',1,NULL,'approver'),(3,'c2@x','h','Client2','client',2,NULL,'approver');
     INSERT INTO channels (id,client_id,platform,external_id,name) VALUES (1,1,'instagram','ig1','@alpha');
   `);
   const app = new Hono<any>();

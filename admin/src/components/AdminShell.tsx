@@ -1,6 +1,6 @@
 // The team's app frame: a grouped sidebar on desktop, a short tab bar with a "More" sheet on phones, and the
 // client switcher that scopes every page. Clients get a different, simpler frame (see Layout).
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "../lib/api";
@@ -11,6 +11,8 @@ import { Sheet } from "./kit";
 import { glassCls } from "../lib/glass";
 import { useT } from "../context/LangContext";
 import { LangSwitch } from "./LangSwitch";
+import { featureForPath } from "../../shared/permissions";
+import { userCan } from "../lib/can";
 
 type Item = { to: string; label: string; icon: IconName; end?: boolean };
 const GROUPS: { label: string; items: Item[] }[] = [
@@ -33,8 +35,23 @@ const GROUPS: { label: string; items: Item[] }[] = [
   },
 ];
 const SETTINGS: Item = { to: "/settings", label: "Settings", icon: "sliders" };
-/** The four destinations used all day get a phone tab; everything else is in the menu at the top right. */
-const PHONE_TABS: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[1].items[1]];
+/** The destinations used all day get a phone tab (up to four of the ones this role has); everything else is in the menu at the top right. */
+const PHONE_FIRST: Item[] = [GROUPS[0].items[0], GROUPS[0].items[1], GROUPS[0].items[2], GROUPS[1].items[1]];
+
+/** Only what this person's role can open: the sidebar, the phone tabs and the menu never show a door that is locked. */
+function useNav() {
+  const { user } = useAuth();
+  return useMemo(() => {
+    const open = (i: Item) => {
+      const f = featureForPath(i.to);
+      return f === null || userCan(user, f);
+    };
+    const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter(open) })).filter((g) => g.items.length);
+    const first = PHONE_FIRST.filter(open);
+    const rest = groups.flatMap((g) => g.items).filter((i) => !first.includes(i));
+    return { groups, tabs: [...first, ...rest].slice(0, 4), settings: userCan(user, "settings") };
+  }, [user]);
+}
 
 const linkCls = (active: boolean) =>
   `flex min-h-11 items-center gap-2.5 rounded-full px-3 text-[13px] font-medium md:min-h-9 ${
@@ -50,9 +67,10 @@ const PAGE_TITLE = (pathname: string) => {
 
 function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   const t = useT();
+  const { groups } = useNav();
   return (
     <>
-      {GROUPS.map((g) => (
+      {groups.map((g) => (
         <div key={g.label}>
           {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-3 pb-1 text-xs font-medium text-muted">{t(g.label)}</p>}
           <div className="space-y-0.5">
@@ -118,6 +136,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
   const onTab = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/") || (to === "/clients" && pathname.startsWith("/c/")));
+  const { tabs: PHONE_TABS, settings: canSettings } = useNav();
   const activeIdx = PHONE_TABS.findIndex((tab) => onTab(tab.to)); // -1 (Planning, Board, Spend, Settings...) hides the pill; those live in the menu at the top right
 
   return (
@@ -147,10 +166,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="space-y-0.5 border-t border-border pt-3">
           <div className={narrow ? "flex justify-center pb-1" : "px-1 pb-1"}><LangSwitch compact={narrow} className={narrow ? "w-11" : "w-full"} /></div>
-          <NavLink to={SETTINGS.to} title={narrow ? t(SETTINGS.label) : undefined} aria-label={narrow ? t(SETTINGS.label) : undefined} className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}>
+          {canSettings && <NavLink to={SETTINGS.to} title={narrow ? t(SETTINGS.label) : undefined} aria-label={narrow ? t(SETTINGS.label) : undefined} className={({ isActive }) => `${linkCls(isActive)} ${narrow ? "justify-center px-0" : ""}`}>
             <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
             {!narrow && t(SETTINGS.label)}
-          </NavLink>
+          </NavLink>}
           <NavLink
             to="/profile"
             title={narrow ? "Profile" : undefined}
@@ -186,12 +205,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Phone: four daily tabs plus More */}
       <nav aria-label="Main" data-glass className={`fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-full p-1 md:hidden ${glassCls}`}>
-        <div className="relative grid grid-cols-4">
+        <div className="relative grid" style={{ gridTemplateColumns: `repeat(${PHONE_TABS.length}, minmax(0, 1fr))` }}>
           {/* one glass pill that glides to the active tab instead of each tab lighting up on its own */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
-            style={{ transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-white/90 shadow-[0_2px_10px_rgba(20,24,36,0.12)] transition-[transform,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+            style={{ width: `${100 / PHONE_TABS.length}%`, transform: `translateX(${activeIdx * 100}%)`, opacity: activeIdx < 0 ? 0 : 1 }}
           />
           {PHONE_TABS.map((tab, i) => (
             <NavLink
@@ -212,10 +231,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <nav aria-label="All sections" className="flex flex-col gap-4 pt-2">
             <NavGroups onNavigate={() => setMore(false)} />
             <div className="space-y-0.5 border-t border-border pt-3">
-              <NavLink to={SETTINGS.to} onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
-                <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
-                {t(SETTINGS.label)}
-              </NavLink>
+              {canSettings && (
+                <NavLink to={SETTINGS.to} onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
+                  <Icon name={SETTINGS.icon} className="h-4 w-4 shrink-0" />
+                  {t(SETTINGS.label)}
+                </NavLink>
+              )}
               <NavLink to="/profile" onClick={() => setMore(false)} className={({ isActive }) => linkCls(isActive)}>
                 <Avatar name={user?.name ?? ""} size={22} />
                 <span className="min-w-0 truncate">{t("Profile")} · {user?.name}</span>

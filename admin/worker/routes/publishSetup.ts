@@ -1,15 +1,16 @@
 // Admin-only Publish setup: is the Meta token allowed to publish, and which Instagram and
-// Facebook accounts belong to which client. Mounted under /api/admin (requireAdmin applies).
+// Facebook accounts belong to which client. Mounted under /api/admin; connecting Meta accounts is Owner-only.
 
 import { Hono } from "hono";
 import { metaGet } from "../lib/meta";
 import { missingPermissions } from "../lib/metaPermissions";
 import { discoverInstagram } from "../lib/organic";
+import { requirePerm } from "../middleware";
 import type { Env, Vars } from "../types";
 
 const setup = new Hono<{ Bindings: Env; Variables: Vars }>();
 
-setup.get("/permissions", async (c) => {
+setup.get("/permissions", requirePerm("settings"), async (c) => {
   try {
     const res = await metaGet(c.env, "me/permissions", {}, 1);
     const missing = missingPermissions(res?.data ?? []);
@@ -20,7 +21,7 @@ setup.get("/permissions", async (c) => {
   }
 });
 
-setup.get("/candidates", async (c) => {
+setup.get("/candidates", requirePerm("settings"), async (c) => {
   try {
     return c.json({ candidates: await discoverInstagram(c.env) });
   } catch (e: any) {
@@ -29,7 +30,7 @@ setup.get("/candidates", async (c) => {
 });
 
 // Connecting an Instagram account also connects the Facebook Page it hangs off.
-setup.post("/channels", async (c) => {
+setup.post("/channels", requirePerm("settings"), async (c) => {
   const b = await c.req.json().catch(() => ({}));
   if (!Number.isInteger(b.client_id) || !b.ig_user_id || !b.page_id) return c.json({ error: "client_id, ig_user_id and page_id are required" }, 400);
   const client = await c.env.DB.prepare("SELECT id FROM clients WHERE id=?").bind(b.client_id).first();
@@ -44,7 +45,7 @@ setup.post("/channels", async (c) => {
 });
 
 // Disabling keeps history: posts that targeted the channel still show it.
-setup.delete("/channels/:id", async (c) => {
+setup.delete("/channels/:id", requirePerm("settings"), async (c) => {
   await c.env.DB.prepare("UPDATE channels SET status='disabled' WHERE id=?").bind(Number(c.req.param("id"))).run();
   return c.json({ ok: true });
 });

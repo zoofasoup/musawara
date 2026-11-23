@@ -15,10 +15,10 @@ async function setup() {
     BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   const hash = await hashPassword(PASSWORD);
   await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (1,'Alpha','alpha')").run();
-  await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id) VALUES (1,'team@x',?,'Team','admin',NULL),(2,'client@x',?,'Client','client',1)")
+  await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES (1,'team@x',?,'Team','admin',NULL,'owner',NULL),(2,'client@x',?,'Client','client',1,NULL,'approver')")
     .bind(hash, hash)
     .run();
-  await DB.prepare("INSERT INTO invites (id,token,email,role,client_id,used) VALUES (1,'inv-client','new@x','client',1,0),(2,'inv-team','mate@x','admin',NULL,0)").run();
+  await DB.prepare("INSERT INTO invites (id,token,email,role,client_role,staff_role,client_id,used) VALUES (1,'inv-client','new@x','client','approver',NULL,1,0),(2,'inv-team','mate@x','admin',NULL,'owner',NULL,0)").run();
   const app = new Hono<any>();
   app.route("/api/auth", auth);
   const env: any = { DB, JWT_SECRET: SECRET };

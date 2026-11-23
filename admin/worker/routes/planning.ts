@@ -1,20 +1,29 @@
-// SMM planning: content calendar and idea kanban. Team (admin) only, for reads AND writes: the
+// SMM planning: content calendar and idea kanban. Team only (roles with the "content" feature, and only their own clients), for reads AND writes: the
 // planning data is internal, so a client user or share link never reaches it even though the
 // per-client mount sits behind clientAccess. Mounted twice: /api/clients/:clientId/plan (one client)
 // and /api/admin/plan (all clients, optional ?client_id=). Nothing here schedules or publishes.
 
 import { Hono, type Context } from "hono";
 import type { Env, Vars } from "../types";
+import { staffCan } from "../../shared/permissions";
+import { canReachClient, scopeSql } from "../middleware";
 import { KINDS } from "../lib/publishRules";
 import { bucketByDay, checkMove, isStage, isYmd, jakartaDay, jakartaDayStartUtc, SYNC_SQL, addDaysYmd } from "../lib/planning";
 
 const plan = new Hono<{ Bindings: Env; Variables: Vars }>();
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 
-plan.use("*", async (c, next) => {
+/** The signed-in team member behind this request, or null for a client login or share link. */
+const actor = (c: Ctx) => {
   const a = c.get("access");
-  const user = a ? (a.type === "user" ? a.user : null) : c.get("user");
-  if (!user || user.role !== "admin") return c.json({ error: "Forbidden" }, 403);
+  return a ? (a.type === "user" ? a.user : null) : c.get("user");
+};
+
+plan.use("*", async (c, next) => {
+  const user = actor(c);
+  if (!user || user.role !== "admin" || !staffCan(user.staff_role, "content")) return c.json({ error: "Forbidden" }, 403);
+  const asked = scope(c);
+  if (asked !== null && !Number.isNaN(asked) && !canReachClient(user, asked)) return c.json({ error: "Forbidden" }, 403);
   await next();
 });
 
@@ -27,10 +36,9 @@ function scope(c: Ctx): number | null {
 }
 const badScope = (c: Ctx) => c.json({ error: "Bad client id" }, 400);
 
-const userId = (c: Ctx) => {
-  const a = c.get("access");
-  return a ? (a.type === "user" ? a.user.id : null) : c.get("user")?.id ?? null;
-};
+const userId = (c: Ctx) => actor(c)?.id ?? null;
+/** AND-fragment limiting a query to the caller's clients (empty for Owner). */
+const mine = (c: Ctx, column: string) => scopeSql(actor(c)!, column);
 
 const syncPlans = (c: Ctx) => c.env.DB.batch(SYNC_SQL.map((s) => c.env.DB.prepare(s)));
 
@@ -42,7 +50,7 @@ const CARD_SELECT = `SELECT cp.id, cp.client_id, cl.name AS client_name, cp.titl
   LEFT JOIN users u ON u.id=cp.owner_user_id LEFT JOIN posts p ON p.id=cp.post_id`;
 
 async function cardById(c: Ctx, id: number, cid: number | null) {
-  return c.env.DB.prepare(`${CARD_SELECT} WHERE cp.id=? AND (? IS NULL OR cp.client_id=?)`).bind(id, cid, cid).first<any>();
+  return c.env.DB.prepare(`${CARD_SELECT} WHERE cp.id=? AND (? IS NULL OR cp.client_id=?)${mine(c, "cp.client_id")}`).bind(id, cid, cid).first<any>();
 }
 
 // Source items without a verified client are visible to staff for review only.
@@ -74,7 +82,7 @@ plan.get("/board", async (c) => {
   if (Number.isNaN(cid)) return badScope(c);
   await syncPlans(c);
   const [cards, owners] = await Promise.all([
-    c.env.DB.prepare(`${CARD_SELECT} WHERE (? IS NULL OR cp.client_id=?) ORDER BY cp.planned_date IS NULL, cp.planned_date, cp.id DESC`).bind(cid, cid).all(),
+    c.env.DB.prepare(`${CARD_SELECT} WHERE (? IS NULL OR cp.client_id=?)${mine(c, "cp.client_id")} ORDER BY cp.planned_date IS NULL, cp.planned_date, cp.id DESC`).bind(cid, cid).all(),
     c.env.DB.prepare("SELECT id, name FROM users WHERE role='admin' ORDER BY name").all(),
   ]);
   return c.json({ cards: cards.results, owners: owners.results });
@@ -116,6 +124,7 @@ plan.post("/cards", async (c) => {
   if (Number.isNaN(scoped)) return badScope(c);
   const clientId = scoped ?? b.client_id;
   if (!Number.isInteger(clientId)) return c.json({ error: "client_id is required" }, 400);
+  if (!canReachClient(actor(c)!, clientId as number)) return c.json({ error: "Forbidden" }, 403);
   const client = await c.env.DB.prepare("SELECT id FROM clients WHERE id=?").bind(clientId).first();
   if (!client) return c.json({ error: "Client not found" }, 404);
   if (typeof b.title !== "string") return c.json({ error: "Give the card a title (up to 200 characters)." }, 400);
@@ -261,9 +270,9 @@ plan.get("/calendar", async (c) => {
               (SELECT group_concat(DISTINCT ch.platform) FROM post_targets t JOIN channels ch ON ch.id=t.channel_id WHERE t.post_id=p.id) AS platforms,
               (SELECT cp.id FROM content_plans cp WHERE cp.post_id=p.id) AS card_id
          FROM posts p JOIN clients cl ON cl.id=p.client_id
-        WHERE (? IS NULL OR p.client_id=?) AND p.scheduled_at >= ? AND p.scheduled_at < ? ORDER BY p.scheduled_at`
+        WHERE (? IS NULL OR p.client_id=?)${mine(c, "p.client_id")} AND p.scheduled_at >= ? AND p.scheduled_at < ? ORDER BY p.scheduled_at`
     ).bind(cid, cid, startUtc, endUtc).all<any>(),
-    c.env.DB.prepare(`${CARD_SELECT} WHERE (? IS NULL OR cp.client_id=?) AND cp.post_id IS NULL AND cp.planned_date BETWEEN ? AND ? ORDER BY cp.planned_date, cp.id`)
+    c.env.DB.prepare(`${CARD_SELECT} WHERE (? IS NULL OR cp.client_id=?)${mine(c, "cp.client_id")} AND cp.post_id IS NULL AND cp.planned_date BETWEEN ? AND ? ORDER BY cp.planned_date, cp.id`)
       .bind(cid, cid, from, to).all(),
   ]);
   const withDay = posts.results.map((p) => ({ ...p, platforms: p.platforms ? String(p.platforms).split(",") : [], day: jakartaDay(p.scheduled_at) }));

@@ -5,13 +5,31 @@ import { fileURLToPath } from "node:url";
 
 const app = readFileSync(fileURLToPath(new URL("../App.tsx", import.meta.url)), "utf8");
 
-test("team-only pages (style guide, settings, spend...) are only routed inside the AdminOnly block", () => {
-  const adminOnly = app.indexOf("<Route element={<AdminOnly />}>");
-  assert.ok(adminOnly > 0, "AdminOnly block not found");
-  for (const path of ["/styleguide", "/settings", "/spend", "/planning", "/board", "/clients"]) {
+// Each team page must sit inside the gate for its feature. The Worker refuses the data anyway; this keeps the page itself out of reach.
+const GATE = /<Route element=\{<(Needs feature="(\w+)"[^/]*|StaffOnly )\/>\}>/g;
+function gateBefore(index: number): string | null {
+  let last: string | null = null;
+  for (const m of app.matchAll(GATE)) {
+    if (m.index! > index) break;
+    last = m[2] ?? "staff";
+  }
+  return last;
+}
+
+test("team pages are only routed inside the gate for their feature", () => {
+  const expected: Array<[string, string]> = [
+    ["/styleguide", "settings"], ["/settings", "settings"], ["/spend", "spend"], ["/planning", "content"], ["/board", "content"],
+    ["/approvals", "approvals"], ["/crm/inbox", "crm"], ["/shopee", "sales"], ["/conversions", "sales"], ["/clients", "staff"],
+  ];
+  for (const [path, feature] of expected) {
     const at = [...app.matchAll(new RegExp(`path="${path}"`, "g"))].map((m) => m.index!);
     assert.ok(at.length >= 1, `${path} is not routed`);
-    for (const i of at) assert.ok(i > adminOnly, `${path} is routed outside AdminOnly (public)`);
+    for (const i of at) assert.equal(gateBefore(i), feature, `${path} must sit inside the ${feature} gate`);
+  }
+  for (const [path, feature] of [["onboarding", "settings"], ["assets", "content"], ["organic", "content"], ["sales", "sales"], ["shopee", "sales"]]) {
+    const i = app.indexOf(`<Route path="${path}"`);
+    assert.ok(i > 0, `client tab ${path} is not routed`);
+    assert.equal(gateBefore(i), feature, `client tab ${path} must sit inside the ${feature} gate`);
   }
 });
 

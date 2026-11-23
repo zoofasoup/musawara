@@ -6,6 +6,9 @@ import type { Env, Vars } from "../types";
 import { hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPassword } from "../lib/auth";
 import { requireAuth } from "../middleware";
 import { CLIENT_HOST, homeHostFor, roleAllowedOnHost, type Role } from "../lib/audience";
+import { isClientRole, isStaffRole } from "../../shared/permissions";
+
+const publicUser = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role, client_id: u.client_id ?? null, staff_role: u.staff_role ?? null, client_role: u.client_role ?? null });
 
 const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -33,7 +36,7 @@ async function startSession(c: any, user: any) {
 
 async function beginAuthentication(c: any, user: any) {
   await startSession(c, user);
-  return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, client_id: user.client_id } });
+  return c.json({ user: publicUser(user) });
 }
 
 /** 403 telling the user where their account signs in, or null when this host serves their role. */
@@ -82,7 +85,7 @@ auth.patch("/profile", requireAuth, async (c) => {
   const user = await c.env.DB.prepare("UPDATE users SET name=? WHERE id=? RETURNING *").bind(clean, id).first<any>();
   if (!user) return c.json({ error: "Account not found" }, 404);
   await startSession(c, user);
-  return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, client_id: user.client_id } });
+  return c.json({ user: publicUser(user) });
 });
 
 /** Change your own password. Needs the current one, so a borrowed open session cannot take over the account. */
@@ -114,8 +117,8 @@ auth.post("/bootstrap", async (c) => {
   }
   const hash = await hashPassword(password);
   const user = await c.env.DB.prepare(
-    `INSERT INTO users (email, password_hash, name, role)
-     SELECT ?,?,?,'admin' WHERE NOT EXISTS (SELECT 1 FROM users) RETURNING *`
+    `INSERT INTO users (email, password_hash, name, role, staff_role)
+     SELECT ?,?,?,'admin','owner' WHERE NOT EXISTS (SELECT 1 FROM users) RETURNING *`
   )
     .bind(email.trim(), hash, name?.trim() || "Admin")
     .first<any>();
@@ -125,7 +128,7 @@ auth.post("/bootstrap", async (c) => {
 
 auth.get("/invites/:token", async (c) => {
   const invite = await c.env.DB.prepare(
-    `SELECT i.token, i.email, i.role, i.client_id, c.name AS client_name
+    `SELECT i.token, i.email, i.role, i.staff_role, i.client_role, i.client_id, c.name AS client_name
      FROM invites i LEFT JOIN clients c ON c.id = i.client_id
      WHERE i.token=? AND i.used=0`
   )
@@ -151,15 +154,27 @@ auth.post("/invites/:token/accept", async (c) => {
   const existing = await c.env.DB.prepare("SELECT id FROM users WHERE email=?").bind(finalEmail).first();
   if (existing) return c.json({ error: "An account with this email already exists" }, 409);
   const hash = await hashPassword(password);
+  // The role comes from the invite and nowhere else. A team invite with no valid role, or a client invite without one, cannot be accepted.
+  const staffRole = invite.role === "admin" ? invite.staff_role : null;
+  const clientRole = invite.role === "client" ? invite.client_role : null;
+  if (invite.role === "admin" ? !isStaffRole(staffRole) : !isClientRole(clientRole)) return c.json({ error: "This invite has no role. Ask for a new one." }, 400);
+  let assigned: number[] = [];
+  if (staffRole && staffRole !== "owner") {
+    try { const v = JSON.parse(invite.client_ids_json ?? "[]"); if (Array.isArray(v)) assigned = v.filter((n) => Number.isSafeInteger(n) && n > 0); } catch { /* no assignments */ }
+  }
+  // One batch: the account, the used mark and the client assignments land together or not at all.
   const [inserted] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO users (email, password_hash, name, role, client_id)
-       SELECT ?,?,?,role,client_id FROM invites WHERE id=? AND used=0`
-    ).bind(finalEmail, hash, name.trim(), invite.id),
+      `INSERT INTO users (email, password_hash, name, role, client_id, staff_role, client_role)
+       SELECT ?,?,?,role,client_id,?,? FROM invites WHERE id=? AND used=0`
+    ).bind(finalEmail, hash, name.trim(), staffRole, clientRole, invite.id),
     c.env.DB.prepare("UPDATE invites SET used=1 WHERE id=? AND used=0").bind(invite.id),
+    ...assigned.map((cid) =>
+      c.env.DB.prepare("INSERT OR IGNORE INTO user_clients (user_id, client_id) SELECT u.id, c.id FROM users u, clients c WHERE u.email=? AND c.id=?").bind(finalEmail, cid)
+    ),
   ]);
   if (Number(inserted.meta.changes) !== 1) return c.json({ error: "Invite not found or already used" }, 404);
-  const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id FROM users WHERE email=?")
+  const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE email=?")
     .bind(finalEmail).first<any>();
   if (!user) return c.json({ error: "Account not found" }, 404);
   return beginAuthentication(c, user);

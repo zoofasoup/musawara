@@ -2,16 +2,16 @@
 //
 // WhatsApp Web needs a long-lived Chrome, which a Worker cannot host, so contacts,
 // templates, broadcasts and the inbox live in the gateway service (wa-gateway on a VPS).
-// This route only adds the platform's admin session check and the gateway token:
+// This route only adds the platform's session check (roles with the CRM feature) and the gateway token:
 //   /api/crm/<path>  ->  <WA_GATEWAY_URL>/api/<path>
 // The browser never sees the gateway URL or its token.
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
-import { requireAdmin } from "../middleware";
+import { requirePerm } from "../middleware";
 
 const crm = new Hono<{ Bindings: Env; Variables: Vars }>();
-crm.use("*", requireAdmin);
+crm.use("*", requirePerm("crm"));
 
 crm.all("/*", async (c) => {
   const base = c.env.WA_GATEWAY_URL?.replace(/\/$/, "");

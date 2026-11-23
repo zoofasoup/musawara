@@ -6,6 +6,8 @@ import { Layout } from "./components/Layout";
 import { ClientFrame } from "./components/ClientFrame";
 import { ClientScopeProvider, useClientScope } from "./context/ClientScope";
 import { CardSkeleton } from "./components/ui";
+import { homePathFor, type Feature } from "../shared/permissions";
+import { userCan } from "./lib/can";
 
 // Pages
 const AdminHome = lazy(() => import("./pages/AdminHome").then((m) => ({ default: m.AdminHome })));
@@ -54,9 +56,18 @@ function ProtectedLayout() {
   );
 }
 
-function AdminOnly() {
+/** Team members whose role includes `feature`; others go to the first page their role can open. `clients` also lets client logins through (those pages decide for themselves). */
+function Needs({ feature, clients = false }: { feature: Feature; clients?: boolean }) {
   const { user } = useAuth();
-  return user?.role === "admin" ? <Outlet /> : <Navigate to="/" replace />;
+  if (user?.role === "client") return clients ? <Outlet /> : <Navigate to={`/c/${user.client_id}`} replace />;
+  if (userCan(user, feature)) return <Outlet />;
+  return <Navigate to={user?.role === "admin" ? homePathFor(user.staff_role) : "/login"} replace />;
+}
+
+/** Any team member with a role (Clients list, scoped to their clients). */
+function StaffOnly() {
+  const { user } = useAuth();
+  return user?.role === "admin" && user.staff_role ? <Outlet /> : <Navigate to={user?.role === "admin" ? "/profile" : "/"} replace />;
 }
 
 /** The CRM tab bar and number switcher stay put while the section underneath changes. */
@@ -84,9 +95,21 @@ function ClientRoute({ page: Page }: { page: React.ComponentType<{ clientId: num
   return <Page clientId={clientId} />;
 }
 
+/** A client's front page: the dashboard for logins and roles with ads data; other team roles land on the first tab they have. */
+function ClientHome() {
+  const { user } = useAuth();
+  const id = Number(useParams().id);
+  if (user?.role === "client" || userCan(user, "ads")) return <ClientRoute page={ClientDashboard} />;
+  const tab = userCan(user, "approvals") ? "approvals" : userCan(user, "sales") ? "sales" : "brand";
+  return <Navigate to={`/c/${id}/${tab}`} replace />;
+}
+
 function RootRedirect() {
   const { user } = useAuth();
-  if (user?.role === "admin") return <AdminHome />;
+  if (user?.role === "admin") {
+    const home = homePathFor(user.staff_role);
+    return home === "/" ? <AdminHome /> : <Navigate to={home} replace />;
+  }
   return <Navigate to={`/c/${user?.client_id}`} replace />;
 }
 
@@ -132,35 +155,55 @@ export function App() {
               <Route path="/" element={<RootRedirect />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/c/:id" element={<ClientFrame />}>
-                <Route index element={<ClientRoute page={ClientDashboard} />} />
-                <Route path="creatives" element={<ClientRoute page={CreativeView} />} />
-                <Route path="alerts" element={<ClientRoute page={ClientAlerts} />} />
+                <Route index element={<ClientHome />} />
+                <Route element={<Needs feature="ads" clients />}>
+                  <Route path="creatives" element={<ClientRoute page={CreativeView} />} />
+                  <Route path="alerts" element={<ClientRoute page={ClientAlerts} />} />
+                  <Route path="report" element={<ClientRoute page={ClientReport} />} />
+                </Route>
                 <Route path="brand" element={<ClientRoute page={BrandKnowledge} />} />
-                <Route path="report" element={<ClientRoute page={ClientReport} />} />
-                <Route path="approvals" element={<ClientRoute page={Approvals} />} />
-                {/* Team only */}
-                <Route element={<AdminOnly />}>
+                <Route element={<Needs feature="approvals" clients />}>
+                  <Route path="approvals" element={<ClientRoute page={Approvals} />} />
+                </Route>
+                {/* Team only: each page needs its own feature */}
+                <Route element={<Needs feature="settings" />}>
                   <Route path="onboarding" element={<ClientRoute page={Onboarding} />} />
+                </Route>
+                <Route element={<Needs feature="content" />}>
                   <Route path="assets" element={<ClientRoute page={Assets} />} />
-                  <Route path="sales" element={<ClientRoute page={Conversions} />} />
                   <Route path="organic" element={<ClientRoute page={Organic} />} />
+                </Route>
+                <Route element={<Needs feature="sales" />}>
+                  <Route path="sales" element={<ClientRoute page={Conversions} />} />
                   <Route path="shopee" element={<ClientRoute page={Shopee} />} />
                 </Route>
               </Route>
 
               {/* Team only */}
-              <Route element={<AdminOnly />}>
-                <Route path="/settings" element={<AdminSettings />} />
+              <Route element={<StaffOnly />}>
                 <Route path="/clients" element={<Clients />} />
-                <Route path="/assets" element={<ScopedRedirect to="assets" />} />
+              </Route>
+              <Route element={<Needs feature="settings" />}>
+                <Route path="/settings" element={<AdminSettings />} />
                 <Route path="/styleguide" element={<Styleguide />} />
-                <Route path="/shopee" element={<ScopedRedirect to="shopee" />} />
+              </Route>
+              <Route element={<Needs feature="content" />}>
+                <Route path="/assets" element={<ScopedRedirect to="assets" />} />
                 <Route path="/planning" element={<Planning />} />
                 <Route path="/board" element={<Board />} />
-                <Route path="/spend" element={<Spend />} />
-                <Route path="/conversions" element={<ScopedRedirect to="sales" />} />
                 <Route path="/organic" element={<ScopedRedirect to="organic" />} />
+              </Route>
+              <Route element={<Needs feature="sales" />}>
+                <Route path="/shopee" element={<ScopedRedirect to="shopee" />} />
+                <Route path="/conversions" element={<ScopedRedirect to="sales" />} />
+              </Route>
+              <Route element={<Needs feature="spend" />}>
+                <Route path="/spend" element={<Spend />} />
+              </Route>
+              <Route element={<Needs feature="approvals" />}>
                 <Route path="/approvals" element={<TeamApprovals />} />
+              </Route>
+              <Route element={<Needs feature="crm" />}>
                 <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
                 <Route element={<CrmFrame />}>
                   <Route path="/crm/inbox" element={<CrmInbox />} />

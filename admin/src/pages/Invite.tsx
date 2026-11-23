@@ -1,3 +1,5 @@
+import { type ClientRole, type StaffRole } from "../../shared/permissions";
+import { RolePill } from "../lib/roles";
 import { Input } from "@/components/ui/input";
 import { FormField } from "../components/FormField";
 import { Callout } from "../components/Callout";
@@ -13,7 +15,7 @@ export function Invite() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { setSession } = useAuth();
-  const { data, error, loading } = useApi<{ invite: { email: string | null; role: string; client_name: string | null } }>(
+  const { data, error, loading } = useApi<{ invite: { email: string | null; role: string; staff_role: StaffRole | null; client_role: ClientRole | null; client_name: string | null } }>(
     `/auth/invites/${token}`
   );
   const [name, setName] = useState("");
@@ -53,8 +55,12 @@ export function Invite() {
             <p className="text-xs text-ink2">
               {data!.invite.client_name
                 ? `You've been invited to view the ${data!.invite.client_name} dashboard.`
+                : data!.invite.staff_role
+                ? "You've been invited to the Musawara team as:"
                 : "You've been invited to Musawara."}
             </p>
+            {data!.invite.staff_role && <RolePill role={data!.invite.staff_role} />}
+            {!data!.invite.staff_role && data!.invite.client_role && <RolePill role={data!.invite.client_role} />}
             <FormField label="Your name">
               <Input
                 required

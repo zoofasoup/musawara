@@ -15,6 +15,7 @@ import type { Alert } from "./AlertFeed";
 import { CardSkeleton } from "./ui";
 import { Icon } from "./icons";
 import { useT } from "../context/LangContext";
+import { useCan } from "../lib/can";
 import { PillNav, pillTabCls } from "./PillNav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -36,36 +37,37 @@ export function ClientFrame() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const admin = user?.role === "admin";
+  const can = useCan();
+  // Each call is made only when this role may use it; the Worker would refuse it otherwise.
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
-  const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
+  const alerts = useApi<{ alerts: Alert[] }>(!admin || can("ads") ? `/clients/${clientId}/alerts` : null);
   const pending = useApi<{ requests: unknown[] }>(user?.role === "client" ? `/approvals/${clientId}/requests?status=pending` : null);
   // what this client actually has (team only)
-  const organic = useApi<{ accounts: Array<{ client_id: number }> }>(admin ? "/admin/organic" : null);
-  const shopee = useApi<{ connected: boolean }>(admin ? `/shopee/status?client_id=${clientId}` : null);
+  const organic = useApi<{ accounts: Array<{ client_id: number }> }>(can("content") ? "/admin/organic" : null);
+  const shopee = useApi<{ connected: boolean }>(can("sales") ? `/shopee/status?client_id=${clientId}` : null);
 
   const open = alerts.data?.alerts.filter((a) => !a.acknowledged).length ?? 0;
   const base = `/c/${clientId}`;
   const approvals: Tab = { to: `${base}/approvals`, label: "Approvals", badge: pending.data?.requests.length, tone: "accent" };
   const brand: Tab = { to: `${base}/brand`, label: "Brand knowledge" };
-  const hasOrganic = admin && !!organic.data?.accounts.some((a) => a.client_id === clientId);
-  const hasShopee = admin && !!shopee.data?.connected;
+  const hasOrganic = can("content") && !!organic.data?.accounts.some((a) => a.client_id === clientId);
+  const hasShopee = can("sales") && !!shopee.data?.connected;
   const tabs: Tab[] = [
-    { to: base, label: "Overview", end: true },
-    { to: `${base}/creatives`, label: "Ads" },
-    ...(admin ? [{ to: `${base}/sales`, label: "Sales" }] : []),
+    ...(!admin || can("ads") ? [{ to: base, label: "Overview", end: true }, { to: `${base}/creatives`, label: "Ads" }] : []),
+    ...(can("sales") ? [{ to: `${base}/sales`, label: "Sales" }] : []),
     ...(hasOrganic ? [{ to: `${base}/organic`, label: "Organic" }] : []),
     ...(hasShopee ? [{ to: `${base}/shopee`, label: "Shopee" }] : []),
-    { to: `${base}/alerts`, label: "Alerts", badge: open, tone: "crit" as const },
+    ...(!admin || can("ads") ? [{ to: `${base}/alerts`, label: "Alerts", badge: open, tone: "crit" as const }] : []),
   ];
   // A source this client has not connected yet has no tab of its own; its setup page is reached from here.
   const more: Tab[] = admin
     ? [
-        approvals,
-        { to: `${base}/assets`, label: "Assets" },
+        ...(can("approvals") ? [approvals] : []),
+        ...(can("content") ? [{ to: `${base}/assets`, label: "Assets" }] : []),
         brand,
-        { to: `${base}/onboarding`, label: "Onboarding" },
-        ...(!hasOrganic && organic.data ? [{ to: `${base}/organic`, label: "Connect Instagram" }] : []),
-        ...(!hasShopee && shopee.data ? [{ to: `${base}/shopee`, label: "Connect Shopee" }] : []),
+        ...(can("settings") ? [{ to: `${base}/onboarding`, label: "Onboarding" }] : []),
+        ...(can("settings") && !hasOrganic && organic.data ? [{ to: `${base}/organic`, label: "Connect Instagram" }] : []),
+        ...(can("sales") && !hasShopee && shopee.data ? [{ to: `${base}/shopee`, label: "Connect Shopee" }] : []),
       ]
     : [];
   const moreOn = more.find((t) => pathname === t.to || pathname.startsWith(t.to + "/"));
