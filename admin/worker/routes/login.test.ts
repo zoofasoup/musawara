@@ -6,7 +6,7 @@ import { backfillAccounts } from "../testkit/session.ts";
 import { hashPassword } from "../lib/auth.ts";
 import auth from "./auth.ts";
 
-test("staff can sign in with a password and access their session", async () => {
+test("team members can sign in with a password and read their session", async () => {
   const DB = makeDb();
   const hash = await hashPassword("test-password-123");
   await DB.prepare("INSERT INTO users (id,email,password_hash,name,role) VALUES (1,'staff@example.test',?,'Staff','admin')").bind(hash).run();
