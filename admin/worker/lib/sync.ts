@@ -3,7 +3,7 @@
 // the entity tree, logs to sync_jobs, then recomputes anomaly alerts.
 
 import type { AdAccountRow, AccountSettingsRow, Env } from "../types";
-import { fetchEntityTree, fetchInsights } from "./meta";
+import { fetchAdsById, fetchEntityTree, fetchInsights } from "./meta";
 import { runAlertRules, checkSyncFailureAlert } from "./alerts";
 import { addDays, ymdInTz } from "./dates";
 import { buildExtras, deriveKpis } from "./history";
@@ -74,6 +74,48 @@ ON CONFLICT(ad_account_id, level, entity_id) DO UPDATE SET
   thumbnail_url=COALESCE(excluded.thumbnail_url, entities.thumbnail_url),
   optimization_goal=COALESCE(excluded.optimization_goal, entities.optimization_goal),
   lifetime_budget=excluded.lifetime_budget, updated_at=datetime('now')`;
+
+/**
+ * Ads that have spend but no entity record get one, so their name and thumbnail show: new ads between full syncs, and ads Meta no
+ * longer lists. An ad Meta will not give is kept as "UNAVAILABLE" (and asked for again only after a week) so it is not retried every hour.
+ */
+export async function backfillMissingAds(env: Env, account: AdAccountRow): Promise<number> {
+  const { results } = await env.DB.prepare(
+    `SELECT DISTINCT i.entity_id, i.entity_name, i.parent_id FROM insights_daily i
+       LEFT JOIN entities e ON e.ad_account_id=i.ad_account_id AND e.level='ad' AND e.entity_id=i.entity_id
+      WHERE i.ad_account_id=? AND i.level='ad' AND i.spend > 0
+        AND (e.entity_id IS NULL OR (e.effective_status='UNAVAILABLE' AND e.updated_at < datetime('now','-7 days')))
+      LIMIT 100`
+  ).bind(account.id).all<{ entity_id: string; entity_name: string | null; parent_id: string | null }>();
+  if (!results.length) return 0;
+  const found = new Map((await fetchAdsById(env, results.map((r) => r.entity_id))).map((a: any) => [String(a.id), a]));
+  const stmts = results.map((r) => {
+    const a = found.get(r.entity_id);
+    return a
+      ? entityStatement(env, account, "ad", a, a.adset_id ?? r.parent_id ?? null, null, a.creative?.thumbnail_url ?? null)
+      : entityStatement(env, account, "ad", { id: r.entity_id, name: r.entity_name, effective_status: "UNAVAILABLE" }, r.parent_id ?? null, null, null);
+  });
+  await runBatched(env, stmts);
+  return found.size;
+}
+
+/** The upsert for one campaign / ad set / ad. */
+function entityStatement(env: Env, account: AdAccountRow, level: string, e: any, parentId: string | null, objective: string | null, thumb: string | null) {
+  return env.DB.prepare(UPSERT_ENTITY).bind(
+    account.id,
+    level,
+    e.id,
+    e.name ?? null,
+    e.status ?? null,
+    e.effective_status ?? null,
+    objective,
+    e.daily_budget != null ? Number(e.daily_budget) / minorUnit(account.currency) : null,
+    parentId,
+    thumb,
+    e.optimization_goal ?? null,
+    e.lifetime_budget != null ? Number(e.lifetime_budget) / minorUnit(account.currency) : null
+  );
+}
 
 /**
  * Pull campaign/adset/ad insights for [since, until] and upsert them, one level
@@ -169,22 +211,7 @@ export async function syncAccount(
     const tree = light ? { campaigns: [], adsets: [], ads: [] } : await fetchEntityTree(env, account.meta_account_id);
     const entityStmts: D1PreparedStatement[] = [];
     const push = (level: string, e: any, parentId: string | null, objective: string | null, thumb: string | null) =>
-      entityStmts.push(
-        env.DB.prepare(UPSERT_ENTITY).bind(
-          account.id,
-          level,
-          e.id,
-          e.name ?? null,
-          e.status ?? null,
-          e.effective_status ?? null,
-          objective,
-          e.daily_budget != null ? Number(e.daily_budget) / minorUnit(account.currency) : null,
-          parentId,
-          thumb,
-          e.optimization_goal ?? null,
-          e.lifetime_budget != null ? Number(e.lifetime_budget) / minorUnit(account.currency) : null
-        )
-      );
+      entityStmts.push(entityStatement(env, account, level, e, parentId, objective, thumb));
     for (const c of tree.campaigns) push("campaign", c, null, c.objective ?? null, null);
     for (const s of tree.adsets) push("adset", s, s.campaign_id ?? null, null, null);
     for (const a of tree.ads) push("ad", a, a.adset_id ?? null, null, a.creative?.thumbnail_url ?? null);
@@ -194,6 +221,8 @@ export async function syncAccount(
     const until = ymdInTz(account.timezone);
     const since = addDays(until, -((light ? LIGHT_LOOKBACK_DAYS : SYNC_LOOKBACK_DAYS) - 1));
     rows += await pullInsights(env, account, since, until, true, !light);
+    // New or unlisted ads get a name and thumbnail; a hiccup here must not fail the sync (spend is already stored).
+    await backfillMissingAds(env, account).catch((e) => console.error("ad backfill failed", String(e?.message ?? e)));
 
     await env.DB.prepare("UPDATE sync_jobs SET finished_at=datetime('now'), status='success', rows_upserted=? WHERE id=?")
       .bind(rows, jobId)
