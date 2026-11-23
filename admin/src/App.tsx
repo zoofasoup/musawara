@@ -94,6 +94,15 @@ function ClientRoute({ page: Page }: { page: React.ComponentType<{ clientId: num
   return <Page clientId={clientId} />;
 }
 
+/** A client's front page: the dashboard for logins and roles with ads data; other team roles land on the first tab they have. */
+function ClientHome() {
+  const { user } = useAuth();
+  const id = Number(useParams().id);
+  if (user?.role === "client" || userCan(user, "ads")) return <ClientRoute page={ClientDashboard} />;
+  const tab = userCan(user, "approvals") ? "approvals" : userCan(user, "sales") ? "sales" : "brand";
+  return <Navigate to={`/c/${id}/${tab}`} replace />;
+}
+
 function RootRedirect() {
   const { user } = useAuth();
   if (user?.role === "admin") {
@@ -139,8 +148,8 @@ export function App() {
               <Route path="/" element={<RootRedirect />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/c/:id" element={<ClientFrame />}>
+                <Route index element={<ClientHome />} />
                 <Route element={<Needs feature="ads" clients />}>
-                  <Route index element={<ClientRoute page={ClientDashboard} />} />
                   <Route path="creatives" element={<ClientRoute page={CreativeView} />} />
                   <Route path="alerts" element={<ClientRoute page={ClientAlerts} />} />
                   <Route path="report" element={<ClientRoute page={ClientReport} />} />
