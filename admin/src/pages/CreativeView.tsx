@@ -17,6 +17,8 @@ const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
   spend: ["Spend", (a, b) => b.spend - a.spend],
   hook: ["Hook rate", (a, b) => (b.hook_rate ?? -1) - (a.hook_rate ?? -1)],
   hold: ["Hold rate", (a, b) => (b.hold_rate ?? -1) - (a.hold_rate ?? -1)],
+  // Meta's upload time is not stored; the first day an ad spent is the closest honest signal, and it is what shows new content first.
+  recent: ["Recently launched", (a, b) => (b.first_date ?? "").localeCompare(a.first_date ?? "") || b.spend - a.spend],
   ctr: ["Link CTR", (a, b) => (b.link_ctr ?? -1) - (a.link_ctr ?? -1)],
 };
 

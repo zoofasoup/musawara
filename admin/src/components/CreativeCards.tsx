@@ -1,7 +1,7 @@
 // Creative cards: thumbnail, a verdict against the client's own ads, and the metrics
 // that tell a creative's story (cost per lead, link CTR, hook and hold rate, frequency).
 
-import { fmtNum, fmtPct, fmtRp } from "../lib/format";
+import { fmtDay, fmtNum, fmtPct, fmtRp } from "../lib/format";
 import { StatusBadge } from "./ui";
 
 export type Creative = {
@@ -21,6 +21,8 @@ export type Creative = {
   hold_rate: number | null;
   avg_watch_s: number | null;
   days_active: number;
+  /** First day this ad spent (YYYY-MM-DD), over all history. */
+  first_date: string | null;
   quality: string | null;
   engagement: string | null;
   conversion: string | null;
@@ -78,6 +80,7 @@ export function CreativeCard({ ad }: { ad: Creative }) {
           {isVideo && <Stat label="Hold rate" value={fmtPct(ad.hold_rate, 1)} />}
           <Stat label="Frequency" value={fmtNum(ad.frequency, 1)} tone={ad.verdict === "fatigued" ? "crit" : undefined} />
           <Stat label="Running" value={`${fmtNum(ad.days_active)} d`} />
+          <Stat label="Launched" value={ad.first_date ? fmtDay(ad.first_date) : "–"} />
         </dl>
         {flagged.length > 0 && (
           <p className="mt-2 text-xs text-crit">

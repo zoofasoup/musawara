@@ -264,7 +264,8 @@ export async function clientCreatives(env: Env, clientId: number, from: string, 
             SUM(COALESCE(json_extract(i.extras_json, '$.video.plays'), 0)) plays,
             SUM(COALESCE(json_extract(i.extras_json, '$.video.avg_watch_s'), 0) * COALESCE(json_extract(i.extras_json, '$.video.plays'), 0)) watch_weighted,
             COUNT(DISTINCT CASE WHEN i.spend > 0 THEN i.date END) days_active,
-            MIN(CASE WHEN i.spend > 0 THEN i.date END) first_date,
+            -- the first day this ad ever spent, over all history (not just the chosen range), so "recently launched" is honest
+            (SELECT MIN(f.date) FROM insights_daily f WHERE f.ad_account_id=i.ad_account_id AND f.level='ad' AND f.entity_id=i.entity_id AND f.spend > 0) first_date,
             ${latest("quality")} quality, ${latest("engagement")} engagement, ${latest("conversion")} conversion
      FROM insights_daily i JOIN ad_accounts a ON a.id = i.ad_account_id
      WHERE a.client_id=? AND i.level='ad' AND i.date BETWEEN ? AND ?

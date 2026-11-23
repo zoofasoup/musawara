@@ -207,7 +207,7 @@ function OverlaysDemo({ notify }: { notify: (t: string, k?: "ok" | "err") => voi
   );
 }
 
-const ad = (i: number, name: string, spend: number, leads: number, verdict: Creative["verdict"], frequency = 1.6): Creative => ({ entity_id: "q" + i, name, thumbnail_url: null, status: "ACTIVE", effective_status: "ACTIVE", spend, impressions: 90000, leads, cpl: leads ? spend / leads : null, link_ctr: 1.4, cost_per_link_click: 1800, frequency, hook_rate: null, hold_rate: null, avg_watch_s: null, days_active: 14, quality: null, engagement: null, conversion: null, verdict });
+const ad = (i: number, name: string, spend: number, leads: number, verdict: Creative["verdict"], frequency = 1.6): Creative => ({ entity_id: "q" + i, name, thumbnail_url: null, status: "ACTIVE", effective_status: "ACTIVE", spend, impressions: 90000, leads, cpl: leads ? spend / leads : null, link_ctr: 1.4, cost_per_link_click: 1800, frequency, hook_rate: null, hold_rate: null, avg_watch_s: null, days_active: 14, first_date: null, quality: null, engagement: null, conversion: null, verdict });
 const QUAD_ADS: Creative[] = [
   ad(1, "Video Testimoni Jamaah", 2_880_000, 61, "winner"), ad(2, "Carousel Paket Desember", 2_050_000, 38, "ok"), ad(3, "Reels Tips Umroh", 1_930_000, 42, "winner"),
   ad(4, "Foto Hotel Madinah", 1_450_000, 17, "weak"), ad(5, "Promo Early Bird", 1_280_000, 10, "fatigued", 3.9), ad(6, "Story Countdown", 420_000, 12, "ok"),
