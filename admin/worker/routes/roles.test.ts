@@ -66,7 +66,7 @@ const MATRIX: Array<[string, string, Who[]]> = [
   ["GET", "/api/crm/status", ["owner", "crm"]],
   ["GET", "/api/shopee/status?client_id=1", ["owner", "ads", "crm"]],
   ["DELETE", "/api/shopee/connection?client_id=1", ["owner"]],
-  ["GET", "/api/notion/status", ["owner"]],
+  ["GET", "/api/notion/status", ["owner", "ads", "content", "crm"]],
   ["GET", "/api/clients/1/summary", ["owner", "ads"]],
   ["GET", "/api/clients/1/alerts", ["owner", "ads"]],
   ["GET", "/api/clients/1/meta", ["owner", "ads", "content", "crm"]],

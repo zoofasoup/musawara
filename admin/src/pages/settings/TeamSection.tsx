@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { api, homeOrigin, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
+import { RolePill, ROLE_LOOK, type AnyRole } from "../../lib/roles";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Section, type Notify } from "../../components/kit";
 
 type TeamState = ReturnType<typeof useApi<{ users: any[]; invites: any[] }>>;
@@ -26,7 +27,7 @@ function AccessFields({ role, setRole, ids, setIds, clients }: { role: StaffRole
           <option key={r} value={r}>{STAFF_LABEL[r]}</option>
         ))}
       </NativeSelect>
-      <p className="text-xs text-muted">{STAFF_HINT[role]}</p>
+      <p className="flex items-start gap-2 text-xs text-muted"><RolePill role={role} size="sm" /><span className="pt-0.5">{STAFF_HINT[role]}</span></p>
       {role !== "owner" && (
         <fieldset className="rounded-lg border border-border p-2">
           <legend className="px-1 text-xs font-medium text-muted">Which clients can they see?</legend>
@@ -141,7 +142,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                 ))}
               </NativeSelect>
               <Segmented label="Client role" value={clientRole} onChange={setClientRole} options={CLIENT_ROLES.map((r) => ({ value: r, label: CLIENT_LABEL[r] }))} />
-              <p className="text-xs text-muted">{CLIENT_HINT[clientRole]}</p>
+              <p className="flex items-start gap-2 text-xs text-muted"><RolePill role={clientRole} size="sm" /><span className="pt-0.5">{CLIENT_HINT[clientRole]}</span></p>
             </div>
           )}
           <Btn type="submit" tone="primary" loading={saving} disabled={blocked}>
@@ -149,6 +150,12 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
           </Btn>
         </form>
       )}
+
+      <ul aria-label="Roles" className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted">
+        {(["owner", "ads", "content", "crm", "approver", "viewer"] as AnyRole[]).map((r) => (
+          <li key={r} className="inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${ROLE_LOOK[r].dot}`} aria-hidden />{ROLE_LOOK[r].label}</li>
+        ))}
+      </ul>
 
       {loading ? (
         <div className="h-24 skeleton rounded-xl" />
@@ -165,9 +172,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
                     <span className="truncate">{u.name}</span>
-                    <Pill tone={u.role === "admin" ? "accent" : "neutral"} icon={u.role === "admin" ? "shield" : "user"}>
-                      {u.role === "admin" ? STAFF_LABEL[u.staff_role as StaffRole] ?? "No role" : CLIENT_LABEL[u.client_role as ClientRole] ?? "No role"}
-                    </Pill>
+                    <RolePill role={u.role === "admin" ? u.staff_role : u.client_role} />
                   </p>
                   <p className="truncate text-xs text-muted">{u.email} · {u.role === "admin" ? reach(u.staff_role, u.client_ids, clients) : u.client_name}</p>
                 </div>
@@ -229,8 +234,9 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                   {i.email || "Invite link"}
                   <Pill tone="warn" icon="clock">Pending</Pill>
                 </p>
-                <p className="truncate text-xs text-muted">
-                  {i.role === "admin" ? `${STAFF_LABEL[i.staff_role as StaffRole] ?? "No role"} · ${reach(i.staff_role, i.client_ids, clients)}` : `${CLIENT_LABEL[i.client_role as ClientRole] ?? "No role"} · ${i.client_name}`}
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <RolePill role={i.role === "admin" ? i.staff_role : i.client_role} size="sm" />
+                  <span className="truncate">{i.role === "admin" ? reach(i.staff_role, i.client_ids, clients) : i.client_name}</span>
                 </p>
               </div>
               <Btn

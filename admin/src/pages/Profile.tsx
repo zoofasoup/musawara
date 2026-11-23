@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { api } from "../lib/api";
-import { CLIENT_LABEL, STAFF_LABEL } from "../../shared/permissions";
+import { RolePill } from "../lib/roles";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "../components/Avatar";
 import { PageHeader } from "../components/PageHeader";
@@ -61,7 +61,7 @@ export function Profile() {
           <p className="truncate text-base font-medium text-ink">{user.name}</p>
           <p className="truncate text-sm text-ink2">{user.email}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <Pill tone="accent">{user.role === "admin" ? (user.staff_role ? STAFF_LABEL[user.staff_role] : "No role yet") : user.client_role ? CLIENT_LABEL[user.client_role] : "Client"}</Pill>
+            <RolePill role={user.role === "admin" ? user.staff_role : user.client_role} />
             {client && <Pill>{client.name}</Pill>}
           </div>
         </div>

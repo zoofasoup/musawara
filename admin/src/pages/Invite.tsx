@@ -1,4 +1,5 @@
-import { STAFF_LABEL, type ClientRole, type StaffRole } from "../../shared/permissions";
+import { type ClientRole, type StaffRole } from "../../shared/permissions";
+import { RolePill } from "../lib/roles";
 import { Input } from "@/components/ui/input";
 import { FormField } from "../components/FormField";
 import { Callout } from "../components/Callout";
@@ -55,9 +56,11 @@ export function Invite() {
               {data!.invite.client_name
                 ? `You've been invited to view the ${data!.invite.client_name} dashboard.`
                 : data!.invite.staff_role
-                ? `You've been invited to the Musawara team as ${STAFF_LABEL[data!.invite.staff_role]}.`
+                ? "You've been invited to the Musawara team as:"
                 : "You've been invited to Musawara Ads Intelligence."}
             </p>
+            {data!.invite.staff_role && <RolePill role={data!.invite.staff_role} />}
+            {!data!.invite.staff_role && data!.invite.client_role && <RolePill role={data!.invite.client_role} />}
             <FormField label="Your name">
               <Input
                 required
