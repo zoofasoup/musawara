@@ -11,7 +11,7 @@ type Ctx = { Bindings: Env; Variables: Vars };
  * person comes from our database on every request, so a changed role or assignment applies at once.
  */
 async function userFromCookie(c: any): Promise<AuthUser | null> {
-  if (!c.env.JWT_SECRET && !c.env.AUTH_SECRET) return null;
+  if (!c.env.JWT_SECRET) return null;
   const url = new URL(c.req.url);
   const session = await makeAuth(c.env, url.origin).api.getSession({ headers: c.req.raw.headers }).catch(() => null);
   const userId = Number(session?.user?.id);

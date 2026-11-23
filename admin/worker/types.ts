@@ -4,8 +4,6 @@ export type Env = {
   /** Post media for Publish (private R2 bucket). */
   MEDIA: R2Bucket;
   JWT_SECRET: string;
-  /** Signs Better Auth cookies. Falls back to JWT_SECRET; set its own value to rotate them independently. */
-  AUTH_SECRET?: string;
   /** "true" = every team account must have two-factor authentication. Starts unset; turn on once the Owners have enrolled. */
   REQUIRE_STAFF_MFA?: string;
   ADMIN_BOOTSTRAP_TOKEN?: string;

@@ -13,7 +13,8 @@ function build(env: Env, origin: string) {
   return betterAuth({
     baseURL: origin,
     basePath: "/api/auth",
-    secret: env.AUTH_SECRET ?? env.JWT_SECRET,
+    // Also encrypts every TOTP secret and backup code at rest, so it must never change (JWT_SECRET already may not: it encrypts the stored Meta and Shopee tokens).
+    secret: env.JWT_SECRET,
     database: env.DB as any,
     trustedOrigins: ["https://app.musawara.id", "https://portal.musawara.id", origin],
     user: {

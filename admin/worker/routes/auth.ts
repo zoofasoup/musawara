@@ -3,7 +3,7 @@
 import { Hono } from "hono";
 import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Vars } from "../types";
-import { hashPassword, verifyPassword } from "../lib/auth";
+import { hashPassword } from "../lib/auth";
 import { requireAuth } from "../middleware";
 import { CLIENT_HOST, homeHostFor, roleAllowedOnHost, type Role } from "../lib/audience";
 import { isClientRole, isStaffRole } from "../../shared/permissions";
@@ -56,11 +56,12 @@ auth.post("/login", async (c) => {
     if ((response as any)?.twoFactorRedirect) return c.json({ twoFactor: true, methods: (response as any).twoFactorMethods ?? ["totp"] });
     const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE id=?").bind(Number((response as any).user.id)).first();
     return c.json({ user: publicUser(user) });
-  } catch {
-    // A refused sign-in is one of two things: a wrong password, or a right one on the wrong host (no session is ever created there).
-    const row = await c.env.DB.prepare("SELECT u.role, a.password FROM users u JOIN account a ON a.userId=CAST(u.id AS TEXT) AND a.providerId='credential' WHERE u.email=?").bind(cleanEmail).first<{ role: Role; password: string }>();
-    if (row && (await verifyPassword(password, row.password))) {
-      const wrong = wrongHost(c, row.role);
+  } catch (e: any) {
+    // The error code tells the two refusals apart without hashing again (a second hash for known emails only would leak which exist):
+    // FAILED_TO_CREATE_SESSION = the password was right but the host hook refused the session (wrong host); anything else = wrong credentials.
+    if (e?.body?.code === "FAILED_TO_CREATE_SESSION") {
+      const row = await c.env.DB.prepare("SELECT role FROM users WHERE email=?").bind(cleanEmail).first<{ role: Role }>();
+      const wrong = row ? wrongHost(c, row.role) : null;
       if (wrong) return wrong;
     }
     return c.json({ error: "Invalid email or password" }, 401);

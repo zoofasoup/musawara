@@ -131,3 +131,41 @@ test("only the Better Auth endpoints we use are reachable, and nobody can sign t
     assert.equal((await call(m, p, { cookie, body: b })).status, 404, p);
   }
 });
+
+test("a backup code signs in once and is refused the second time", async () => {
+  const { call, cookieOf } = await setup();
+  const cookie = cookieOf(await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } }));
+  const en = (await (await call("POST", "/api/auth/two-factor/enable", { cookie, body: { password: PASSWORD } })).json()) as any;
+  const secret = new URL(en.totpURI).searchParams.get("secret")!;
+  await call("POST", "/api/auth/two-factor/verify-totp", { cookie, body: { code: await generate({ secret }) } });
+  const code = en.backupCodes[0];
+  const first = await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } });
+  const done = await call("POST", "/api/auth/two-factor/verify-backup-code", { cookie: cookieOf(first), body: { code } });
+  assert.equal(done.status, 200);
+  assert.equal((await call("GET", "/api/auth/me", { cookie: cookieOf(done) })).status, 200);
+  const second = await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } });
+  assert.notEqual((await call("POST", "/api/auth/two-factor/verify-backup-code", { cookie: cookieOf(second), body: { code } })).status, 200, "used codes are dead");
+});
+
+test("sign-in answers a wrong password and an unknown email the same way, and takes the same time", async () => {
+  const { call } = await setup();
+  const time = async (email: string) => {
+    const t = performance.now();
+    const r = await call("POST", "/api/auth/login", { body: { email, password: "wrong-wrong-1" } });
+    return { ms: performance.now() - t, status: r.status, body: await r.text() };
+  };
+  const known: number[] = [], unknown: number[] = [];
+  let a: any, b: any;
+  for (let i = 0; i < 6; i++) { a = await time("owner@x.test"); b = await time("nobody@x.test"); known.push(a.ms); unknown.push(b.ms); }
+  assert.deepEqual([a.status, a.body], [b.status, b.body]);
+  const med = (x: number[]) => [...x].sort((p, q) => p - q)[Math.floor(x.length / 2)];
+  assert.ok(Math.abs(med(known) - med(unknown)) < Math.max(med(known), med(unknown)) * 0.6, `known ${med(known)}ms vs unknown ${med(unknown)}ms`);
+});
+
+test("a right password on the wrong host says where to sign in, and creates no session", async () => {
+  const { call, DB } = await setup();
+  const r = await call("POST", "/api/auth/login", { origin: PORTAL, body: { email: "owner@x.test", password: PASSWORD } });
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as any).code, "wrong_host");
+  assert.equal((await DB.prepare("SELECT COUNT(*) n FROM session").first<any>())!.n, 0);
+});
