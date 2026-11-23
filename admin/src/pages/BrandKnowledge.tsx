@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useCan } from "../lib/can";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
 import { Btn, Empty } from "../components/kit";
 
@@ -144,7 +145,7 @@ function LinksPanel({ clientId, links, canEdit, onChanged }: { clientId: number;
 
 export function BrandKnowledge({ clientId }: { clientId: number }) {
   const { user } = useAuth();
-  const canEdit = user?.role === "admin";
+  const canEdit = useCan()("content");
   const { data, error, loading, reload } = useApi<Brand>(`/clients/${clientId}/brand`);
   const [copied, setCopied] = useState(false);
 

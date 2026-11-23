@@ -1,7 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, clearApiCache } from "../lib/api";
 
-export type User = { id: number; email: string; name: string; role: "admin" | "client"; client_id: number | null };
+import type { ClientRole, StaffRole } from "../../shared/permissions";
+
+export type User = {
+  id: number;
+  email: string;
+  name: string;
+  role: "admin" | "client";
+  client_id: number | null;
+  /** Team members only: Owner, Ads, Content or CRM. null = no role yet, so no access. */
+  staff_role: StaffRole | null;
+  /** Client logins only: viewer (reads) or approver (decides on approvals). */
+  client_role: ClientRole | null;
+};
 export type ClientInfo = { id: number; name: string; slug: string; logo_url: string | null; brand_color: string };
 
 type AuthState = {

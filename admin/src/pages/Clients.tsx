@@ -3,20 +3,23 @@ import { Link } from "react-router-dom";
 import { T } from "../context/LangContext";
 import { PageHeader } from "../components/PageHeader";
 import { useApi } from "../lib/api";
+import { useCan } from "../lib/can";
 import { fmtNum, fmtRp } from "../lib/format";
 import { ClientAvatar } from "../components/Layout";
 import { Bento, Empty, Pill } from "../components/kit";
 import { CardSkeleton, ErrorState } from "../components/ui";
 
-type Row = { id: number; name: string; logo_url: string | null; brand_color: string; totals: { spend: number; leads: number; purchases: number }; unacknowledged_alerts: number };
+type Row = { id: number; name: string; logo_url: string | null; brand_color: string; totals?: { spend: number; leads: number; purchases: number }; unacknowledged_alerts?: number };
 
 export function Clients() {
-  const { data, error, loading, reload } = useApi<{ clients: Row[] }>("/admin/overview");
+  const can = useCan();
+  // Ads figures only for roles that have them; everyone else gets the plain list of their clients.
+  const { data, error, loading, reload } = useApi<{ clients: Row[] }>(can("ads") ? "/admin/overview" : "/admin/clients");
   if (loading && !data) return <CardSkeleton lines={4} />;
   if (error || !data) return <ErrorState message={error ?? "No data"} onRetry={reload} />;
   return (
     <div>
-      <PageHeader title="Clients" subtitle="Open a client to see its ads, sales, content and files in one place." actions={<Link to="/settings" className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline"><T>Add a client in Settings</T></Link>} />
+      <PageHeader title="Clients" subtitle="Open a client to see its ads, sales, content and files in one place." actions={can("settings") && <Link to="/settings" className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline"><T>Add a client in Settings</T></Link>} />
       {data.clients.length === 0 ? (
         <Empty title="No clients yet" hint="Add your first client in Settings." />
       ) : (
@@ -27,14 +30,18 @@ export function Clients() {
                 <div className="flex items-center gap-3">
                   <ClientAvatar name={c.name} logoUrl={c.logo_url} color={c.brand_color} size={10} />
                   <p className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{c.name}</p>
-                  {c.unacknowledged_alerts > 0 && <span title="Open alerts"><Pill tone="crit" size="sm" dot={false}>{c.unacknowledged_alerts}</Pill></span>}
+                  {!!c.unacknowledged_alerts && <span title="Open alerts"><Pill tone="crit" size="sm" dot={false}>{c.unacknowledged_alerts}</Pill></span>}
                 </div>
-                <dl className="tnum mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div className="min-w-0"><dt className="text-xs text-muted"><T>Spend</T></dt><dd className="truncate font-semibold text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</dd></div>
-                  <div><dt className="text-xs text-muted"><T>Leads</T></dt><dd className="font-semibold text-ink">{c.totals.leads ? fmtNum(c.totals.leads) : "–"}</dd></div>
-                  <div><dt className="text-xs text-muted"><T>Purchases</T></dt><dd className="font-semibold text-ink">{c.totals.purchases ? fmtNum(c.totals.purchases) : "–"}</dd></div>
-                </dl>
-                <p className="mt-3 text-xs text-muted"><T>This month</T></p>
+                {c.totals && (
+                  <>
+                    <dl className="tnum mt-4 grid grid-cols-3 gap-2 text-sm">
+                      <div className="min-w-0"><dt className="text-xs text-muted"><T>Spend</T></dt><dd className="truncate font-semibold text-ink">{c.totals.spend ? fmtRp(c.totals.spend) : "–"}</dd></div>
+                      <div><dt className="text-xs text-muted"><T>Leads</T></dt><dd className="font-semibold text-ink">{c.totals.leads ? fmtNum(c.totals.leads) : "–"}</dd></div>
+                      <div><dt className="text-xs text-muted"><T>Purchases</T></dt><dd className="font-semibold text-ink">{c.totals.purchases ? fmtNum(c.totals.purchases) : "–"}</dd></div>
+                    </dl>
+                    <p className="mt-3 text-xs text-muted"><T>This month</T></p>
+                  </>
+                )}
               </Bento>
             </Link>
           ))}
