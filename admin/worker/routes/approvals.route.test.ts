@@ -3,43 +3,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
-import { sign } from "hono/jwt";
+import { wrapDb } from "../testkit/d1";
+import { sessionCookie } from "../testkit/session";
 import { app } from "../index";
 
-function d1(db: DatabaseSync) {
-  const stmt = (sql: string, args: unknown[] = []) => ({
-    bind: (...a: unknown[]) => stmt(sql, a),
-    run: async () => {
-      const r = db.prepare(sql).run(...(args as any[]));
-      return { success: true, meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
-    },
-    all: async () => ({ results: db.prepare(sql).all(...(args as any[])) as any[], success: true, meta: {} }),
-    first: async () => (db.prepare(sql).get(...(args as any[])) as any) ?? null,
-  });
-  return {
-    prepare: (sql: string) => stmt(sql),
-    batch: async (stmts: any[]) => {
-      db.exec("BEGIN");
-      try {
-        const out = [];
-        for (const s of stmts) out.push(await s.run());
-        db.exec("COMMIT");
-        return out;
-      } catch (e) {
-        db.exec("ROLLBACK");
-        throw e;
-      }
-    },
-  };
-}
+const d1 = wrapDb;
 
 const SECRET = "test-secret";
 let db: DatabaseSync;
 let env: any;
 
 async function cookie(u: { id: number; role: "admin" | "client"; client_id: number | null; name?: string }) {
-  const token = await sign({ sub: u.id, email: `u${u.id}@x.test`, name: u.name ?? `User ${u.id}`, role: u.role, client_id: u.client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256");
-  return `ma_session=${token}`;
+  return sessionCookie(env, u.id);
 }
 const ADMIN = { id: 1, role: "admin" as const, client_id: null };
 const CLIENT_A = { id: 2, role: "client" as const, client_id: 1 };
@@ -63,7 +38,6 @@ beforeEach(() => {
            INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES
              (1,'a@x.test','x','Admin','admin',NULL,'owner',NULL),(2,'ca@x.test','x','Client A','client',1,NULL,'approver'),(3,'cb@x.test','x','Client B','client',2,NULL,'approver');
            INSERT INTO posts (id,client_id,kind,caption) VALUES (10,1,'feed','hi'),(20,2,'feed','other');`);
-  db.exec("INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) SELECT id, 'test', 1, 1 FROM users WHERE role='admin'");
   env = { DB: d1(db), JWT_SECRET: SECRET, APP_NAME: "t" };
 });
 

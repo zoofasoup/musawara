@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
+import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import clients from "./clients.ts";
 import admin from "./admin.ts";
@@ -14,15 +15,14 @@ async function setup() {
   await DB.exec(`
     INSERT INTO clients (id,name,slug,share_token,share_enabled) VALUES (1,'Alpha','alpha','tok1',1),(2,'Beta','beta','tok2',1);
     INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES
-      (1,'a@x','h','Admin','admin',NULL,'owner',NULL),(2,'c1@x','h','Client1','client',1,NULL,'approver'),(3,'c2@x','h','Client2','client',2,NULL,'approver');
+      (1,'a@x.test','h','Admin','admin',NULL,'owner',NULL),(2,'c1@x.test','h','Client1','client',1,NULL,'approver'),(3,'c2@x.test','h','Client2','client',2,NULL,'approver');
     INSERT INTO channels (id,client_id,platform,external_id,name) VALUES (1,1,'instagram','ig1','@alpha');
   `);
   const app = new Hono<any>();
   app.route("/api/clients", clients);
   app.route("/api/admin", admin);
   const env: any = { DB, JWT_SECRET: SECRET };
-  const cookie = async (id: number, role: string, client_id: number | null) =>
-    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+  const cookie = (id: number, _role?: string, _client_id?: number | null) => sessionCookie(env, id);
   const call = async (method: string, path: string, who: { cookie?: string; share?: string }, body?: unknown) =>
     app.request(path, {
       method,
@@ -86,7 +86,7 @@ test("planning comments and links are scoped to staff and validate links", async
 
 test("content notifications are visible and markable only by their recipient", async () => {
   const { DB, call, cookie } = await setup();
-  await DB.exec("INSERT INTO users (id,email,password_hash,name,role) VALUES (4,'other@x','h','Other','admin'); INSERT INTO content_plans (id,client_id,title) VALUES (7,1,'Example'); INSERT INTO content_workflow_notifications (id,recipient_user_id,plan_id,message) VALUES (9,1,7,'Review needed'),(10,4,7,'Private');");
+  await DB.exec("INSERT INTO users (id,email,password_hash,name,role) VALUES (4,'other@x.test','h','Other','admin'); INSERT INTO content_plans (id,client_id,title) VALUES (7,1,'Example'); INSERT INTO content_workflow_notifications (id,recipient_user_id,plan_id,message) VALUES (9,1,7,'Review needed'),(10,4,7,'Private');");
   const team = { cookie: await cookie(1, "admin", null) };
   const client = { cookie: await cookie(2, "client", 1) };
   assert.equal((await call("GET", "/api/admin/plan/notifications", client)).status, 403);

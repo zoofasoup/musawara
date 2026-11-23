@@ -1,26 +1,23 @@
 import { createMiddleware } from "hono/factory";
-import { getCookie } from "hono/cookie";
-import { verify } from "hono/jwt";
 import type { AuthUser, Env, Vars } from "./types";
-import { SESSION_COOKIE } from "./lib/auth";
+import { makeAuth } from "./lib/betterAuth";
 import { roleAllowedOnHost } from "./lib/audience";
 import { staffCan, type Feature } from "../shared/permissions";
 
 type Ctx = { Bindings: Env; Variables: Vars };
 
-/** Everything about the signed-in person comes from the database on every request, never from the cookie, so a changed role or assignment applies at once. */
+/**
+ * Who is asking. The session itself (a revocable row, found through the signed cookie) is Better Auth's; everything else about the
+ * person comes from our database on every request, so a changed role or assignment applies at once.
+ */
 async function userFromCookie(c: any): Promise<AuthUser | null> {
-  const token = getCookie(c, SESSION_COOKIE);
-  if (!token || !c.env.JWT_SECRET) return null;
-  let userId: unknown;
-  try {
-    userId = (await verify(token, c.env.JWT_SECRET, { alg: "HS256" })).sub;
-  } catch {
-    return null;
-  }
-  if (typeof userId !== "number" || !Number.isSafeInteger(userId)) return null;
-  const row = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE id=?").bind(userId).first();
-  if (!row || !roleAllowedOnHost(row.role, new URL(c.req.url).hostname)) return null;
+  if (!c.env.JWT_SECRET && !c.env.AUTH_SECRET) return null;
+  const url = new URL(c.req.url);
+  const session = await makeAuth(c.env, url.origin).api.getSession({ headers: c.req.raw.headers }).catch(() => null);
+  const userId = Number(session?.user?.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) return null;
+  const row = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role, two_factor_enabled FROM users WHERE id=?").bind(userId).first();
+  if (!row || !roleAllowedOnHost(row.role, url.hostname)) return null;
   let client_ids: number[] | null;
   if (row.role === "client") client_ids = row.client_id == null ? [] : [row.client_id];
   else if (row.staff_role === "owner") client_ids = null;
@@ -28,8 +25,14 @@ async function userFromCookie(c: any): Promise<AuthUser | null> {
     const r = await c.env.DB.prepare("SELECT client_id FROM user_clients WHERE user_id=?").bind(userId).all();
     client_ids = (r.results as Array<{ client_id: number }>).map((x) => x.client_id);
   }
-  return { ...row, client_ids } as AuthUser;
+  const { two_factor_enabled, ...rest } = row;
+  const two_factor = Boolean(two_factor_enabled);
+  // Team accounts must have a second factor once enforcement is on; until they do, only the sign-in and enrolment routes answer.
+  const mfa_required = row.role === "admin" && c.env.REQUIRE_STAFF_MFA === "true" && !two_factor;
+  return { ...rest, client_ids, two_factor, mfa_required } as AuthUser;
 }
+
+const MFA_REQUIRED = { error: "Set up two-factor authentication to continue", code: "mfa_required" } as const;
 
 /** May this person reach this client's data at all? Owners: any. Everyone else: only their own or assigned clients. */
 export const canReachClient = (user: AuthUser, clientId: number) => user.client_ids === null || user.client_ids.includes(clientId);
@@ -56,6 +59,7 @@ export const requireStaff = createMiddleware<Ctx>(async (c, next) => {
   const user = await currentUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   if (user.role !== "admin" || !user.staff_role) return c.json({ error: "Forbidden" }, 403);
+  if (user.mfa_required) return c.json(MFA_REQUIRED, 403);
   c.set("user", user);
   await next();
 });
@@ -66,6 +70,7 @@ export const requirePerm = (feature: Feature) =>
     const user = await currentUser(c);
     if (!user) return c.json({ error: "Unauthorized" }, 401);
     if (user.role !== "admin" || !staffCan(user.staff_role, feature)) return c.json({ error: "Forbidden" }, 403);
+    if (user.mfa_required) return c.json(MFA_REQUIRED, 403);
     c.set("user", user);
     await next();
   });
@@ -121,6 +126,7 @@ export const clientAccess = createMiddleware<Ctx>(async (c, next) => {
   const user = await userFromCookie(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   if (user.role === "admin" && !user.staff_role) return c.json({ error: "Forbidden" }, 403);
+  if (user.mfa_required) return c.json(MFA_REQUIRED, 403);
   if (!canReachClient(user, clientId)) return c.json({ error: "Forbidden" }, 403);
   c.set("access", { type: "user", user, clientId });
   await next();

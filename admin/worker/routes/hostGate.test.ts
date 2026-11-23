@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
+import { backfillAccounts, sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import { hashPassword } from "../lib/auth.ts";
 import auth from "./auth.ts";
@@ -11,14 +12,13 @@ const PASSWORD = "correct-horse-1";
 
 async function setup() {
   const DB = makeDb();
-  await DB.exec(`CREATE TRIGGER test_admin_mfa AFTER INSERT ON users WHEN NEW.role='admin'
-    BEGIN INSERT INTO staff_mfa (user_id, secret_enc, confirmed, version) VALUES (NEW.id, 'test', 1, 1); END;`);
   const hash = await hashPassword(PASSWORD);
   await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (1,'Alpha','alpha')").run();
-  await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES (1,'team@x',?,'Team','admin',NULL,'owner',NULL),(2,'client@x',?,'Client','client',1,NULL,'approver')")
+  await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES (1,'team@x.test',?,'Team','admin',NULL,'owner',NULL),(2,'client@x.test',?,'Client','client',1,NULL,'approver')")
     .bind(hash, hash)
     .run();
-  await DB.prepare("INSERT INTO invites (id,token,email,role,client_role,staff_role,client_id,used) VALUES (1,'inv-client','new@x','client','approver',NULL,1,0),(2,'inv-team','mate@x','admin',NULL,'owner',NULL,0)").run();
+  await DB.prepare("INSERT INTO invites (id,token,email,role,client_role,staff_role,client_id,used) VALUES (1,'inv-client','new@x.test','client','approver',NULL,1,0),(2,'inv-team','mate@x.test','admin',NULL,'owner',NULL,0)").run();
+  await backfillAccounts(DB);
   const app = new Hono<any>();
   app.route("/api/auth", auth);
   const env: any = { DB, JWT_SECRET: SECRET };
@@ -28,8 +28,7 @@ async function setup() {
       headers: { "content-type": "application/json", ...(opts.cookie ? { cookie: opts.cookie } : {}) },
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     }, env);
-  const cookie = async (role: string, client_id: number | null) =>
-    `ma_session=${await sign({ sub: role === "admin" ? 1 : 2, email: "e", name: "n", role, client_id, mfa_version: 1, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+  const cookie = (role: string, _client_id: number | null) => sessionCookie(env, role === "admin" ? 1 : 2, role === "admin" ? "https://app.musawara.id" : "https://portal.musawara.id");
   return { DB, call, cookie };
 }
 
@@ -39,8 +38,8 @@ const OPEN = "https://musawara.id";
 
 test("login: each role signs in only on its own host, and no cookie is set otherwise", async () => {
   const { call } = await setup();
-  const team = { email: "team@x", password: PASSWORD };
-  const client = { email: "client@x", password: PASSWORD };
+  const team = { email: "team@x.test", password: PASSWORD };
+  const client = { email: "client@x.test", password: PASSWORD };
 
   const ok1 = await call("POST", `${TEAM}/api/auth/login`, { body: team });
   assert.equal(ok1.status, 200);
@@ -66,7 +65,7 @@ test("login: each role signs in only on its own host, and no cookie is set other
 
 test("a wrong password is still a 401, never a host hint", async () => {
   const { call } = await setup();
-  const r = await call("POST", `${TEAM}/api/auth/login`, { body: { email: "client@x", password: "nope-nope-1" } });
+  const r = await call("POST", `${TEAM}/api/auth/login`, { body: { email: "client@x.test", password: "nope-nope-1" } });
   assert.equal(r.status, 401);
 });
 
@@ -87,15 +86,15 @@ test("invites: accepted only on the invitee's host, and a refusal leaves the inv
   const accept = (host: string, token: string, email: string) =>
     call("POST", `${host}/api/auth/invites/${token}/accept`, { body: { name: "N", email, password: "a-long-password-1" } });
 
-  const refused = await accept(TEAM, "inv-client", "new@x");
+  const refused = await accept(TEAM, "inv-client", "new@x.test");
   assert.equal(refused.status, 403);
   assert.equal(refused.headers.get("set-cookie"), null);
   assert.equal((await DB.prepare("SELECT used FROM invites WHERE token='inv-client'").first<any>()).used, 0);
-  assert.equal(await DB.prepare("SELECT id FROM users WHERE email='new@x'").first(), null);
+  assert.equal(await DB.prepare("SELECT id FROM users WHERE email='new@x.test'").first(), null);
 
-  assert.equal((await accept(CLIENT, "inv-client", "new@x")).status, 200);
-  assert.equal((await accept(CLIENT, "inv-team", "mate@x")).status, 403);
-  assert.equal((await accept(TEAM, "inv-team", "mate@x")).status, 200);
+  assert.equal((await accept(CLIENT, "inv-client", "new@x.test")).status, 200);
+  assert.equal((await accept(CLIENT, "inv-team", "mate@x.test")).status, 403);
+  assert.equal((await accept(TEAM, "inv-team", "mate@x.test")).status, 200);
 });
 
 test("bootstrap requires an operator credential and creates only the first admin", async () => {

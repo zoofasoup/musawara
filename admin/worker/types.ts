@@ -6,6 +6,8 @@ export type Env = {
   JWT_SECRET: string;
   /** Signs Better Auth cookies. Falls back to JWT_SECRET; set its own value to rotate them independently. */
   AUTH_SECRET?: string;
+  /** "true" = every team account must have two-factor authentication. Starts unset; turn on once the Owners have enrolled. */
+  REQUIRE_STAFF_MFA?: string;
   ADMIN_BOOTSTRAP_TOKEN?: string;
   META_ACCESS_TOKEN?: string;
   /** Shared secret for the Google Sheet sync (wrangler secret). Unset = sync disabled. */
@@ -44,6 +46,10 @@ export type AuthUser = {
   client_role: ClientRole | null;
   /** The clients this person may reach: null = all (owners), otherwise exactly these ids. */
   client_ids: number[] | null;
+  /** Has a second factor set up. */
+  two_factor: boolean;
+  /** Enforcement is on and this team member has no second factor yet: they may only reach sign-in and enrolment. */
+  mfa_required: boolean;
 };
 
 // How the current request is allowed to see a client's data.

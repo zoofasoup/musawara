@@ -2,7 +2,7 @@
 // clients, and a changed role applies on the very next request. The matrix drives the real app.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sign } from "hono/jwt";
+import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import { app } from "../index.ts";
 import { STAFF_ROLES, staffCan, FEATURES } from "../../shared/permissions.ts";
@@ -19,20 +19,18 @@ async function setup() {
   await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (1,'Alpha','alpha'),(2,'Beta','beta')").run();
   await DB.prepare(
     `INSERT INTO users (id,email,password_hash,name,role,client_id,staff_role,client_role) VALUES
-     (1,'o@x','h','Owner','admin',NULL,'owner',NULL), (2,'ads@x','h','Ads','admin',NULL,'ads',NULL),
-     (3,'content@x','h','Content','admin',NULL,'content',NULL), (4,'crm@x','h','Crm','admin',NULL,'crm',NULL),
-     (5,'none@x','h','NoRole','admin',NULL,NULL,NULL),
-     (6,'viewer@x','h','Viewer','client',1,NULL,'viewer'), (7,'approver@x','h','Approver','client',1,NULL,'approver')`
+     (1,'o@x.test','h','Owner','admin',NULL,'owner',NULL), (2,'ads@x.test','h','Ads','admin',NULL,'ads',NULL),
+     (3,'content@x.test','h','Content','admin',NULL,'content',NULL), (4,'crm@x.test','h','Crm','admin',NULL,'crm',NULL),
+     (5,'none@x.test','h','NoRole','admin',NULL,NULL,NULL),
+     (6,'viewer@x.test','h','Viewer','client',1,NULL,'viewer'), (7,'approver@x.test','h','Approver','client',1,NULL,'approver')`
   ).run();
   await DB.prepare("INSERT INTO user_clients (user_id, client_id) VALUES (2,1),(3,1),(4,1)").run();
   await DB.prepare("INSERT INTO tasks (client_id,title) VALUES (1,'mine'),(2,'theirs')").run();
   const env: any = { DB, JWT_SECRET: SECRET };
-  const cookie = async (id: number, role = "admin") =>
-    `ma_session=${await sign({ sub: id, email: "e", name: "n", role, client_id: null, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256")}`;
   const call = async (id: number, method: string, path: string, body?: unknown, host = TEAM) =>
     app.request(host + path, {
       method,
-      headers: { "content-type": "application/json", cookie: await cookie(id, host === PORTAL ? "client" : "admin") },
+      headers: { "content-type": "application/json", cookie: await sessionCookie(env, id, host) },
       body: body === undefined ? undefined : JSON.stringify(body),
     }, env);
   return { DB, env, call };
@@ -167,10 +165,10 @@ test("invites carry a role; assignments follow the invite; the last Owner cannot
   const accepted = await app.request(`${TEAM}/api/auth/invites/${made.token}/accept`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: "New", email: "new@x", password: "longenough1" }),
+    body: JSON.stringify({ name: "New", email: "new@x.test", password: "longenough1" }),
   }, { DB, JWT_SECRET: SECRET } as any);
   assert.equal(accepted.status, 200);
-  const user = (await DB.prepare("SELECT id, staff_role FROM users WHERE email='new@x'").first<any>())!;
+  const user = (await DB.prepare("SELECT id, staff_role FROM users WHERE email='new@x.test'").first<any>())!;
   assert.equal(user.staff_role, "content");
   const rows = await DB.prepare("SELECT client_id FROM user_clients WHERE user_id=?").bind(user.id).all<any>();
   assert.deepEqual(rows.results.map((r) => r.client_id), [2], "unknown client ids are dropped");
@@ -203,7 +201,7 @@ test("CRM: a non-owner only reaches WhatsApp numbers of their own clients, never
   const crm = async (id: number, method: string, path: string, account?: string) =>
     app.request(TEAM + "/api/crm" + path, {
       method,
-      headers: { cookie: `ma_session=${await sign({ sub: id, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET, "HS256")}`, ...(account ? { "x-wa-account": account } : {}) },
+      headers: { cookie: await sessionCookie(env, id, TEAM), ...(account ? { "x-wa-account": account } : {}) },
     }, env);
   try {
     // CRM member assigned to client 1 (user 4)

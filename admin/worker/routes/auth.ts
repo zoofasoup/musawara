@@ -1,43 +1,41 @@
+// Sign-in, sign-out, password, invites and first-run bootstrap. Sessions, two-factor codes and password changes are
+// Better Auth's (worker/lib/betterAuth.ts); who may do what stays ours (middleware.ts, shared/permissions.ts).
 import { Hono } from "hono";
-import { deleteCookie, setCookie } from "hono/cookie";
-import { sign } from "hono/jwt";
 import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Vars } from "../types";
-import { hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPassword } from "../lib/auth";
+import { hashPassword, verifyPassword } from "../lib/auth";
 import { requireAuth } from "../middleware";
 import { CLIENT_HOST, homeHostFor, roleAllowedOnHost, type Role } from "../lib/audience";
 import { isClientRole, isStaffRole } from "../../shared/permissions";
+import { makeAuth } from "../lib/betterAuth";
 
-const publicUser = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role, client_id: u.client_id ?? null, staff_role: u.staff_role ?? null, client_role: u.client_role ?? null });
+const publicUser = (u: any) => ({
+  id: u.id, email: u.email, name: u.name, role: u.role, client_id: u.client_id ?? null,
+  staff_role: u.staff_role ?? null, client_role: u.client_role ?? null,
+});
 
 const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
+const ba = (c: any) => makeAuth(c.env, new URL(c.req.url).origin);
 
-async function startSession(c: any, user: any) {
-  const token = await sign(
-    {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      client_id: user.client_id ?? null,
-      exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
-    },
-    c.env.JWT_SECRET,
-    "HS256"
-  );
-  setCookie(c, SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "Lax",
-    secure: new URL(c.req.url).protocol === "https:",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS,
-  });
+/** Pass the cookies Better Auth set (new session, cleared session) on to the browser. */
+function forwardCookies(c: any, headers: Headers | undefined) {
+  for (const v of headers?.getSetCookie() ?? []) c.header("Set-Cookie", v, { append: true });
 }
 
-async function beginAuthentication(c: any, user: any) {
-  await startSession(c, user);
+/** Sign in with a password we already know is right (just created accounts) and return the user the way /login does. */
+async function startSession(c: any, email: string, password: string) {
+  const { headers } = await ba(c).api.signInEmail({ body: { email, password }, headers: c.req.raw.headers, returnHeaders: true });
+  forwardCookies(c, headers);
+  const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE email=?").bind(email).first();
   return c.json({ user: publicUser(user) });
 }
+
+/** The statement that gives a new user their credential account (the password Better Auth checks); it goes in the same batch as the user. */
+const accountFor = (c: any, email: string, hash: string) =>
+  c.env.DB.prepare(
+    `INSERT INTO account (id, accountId, providerId, userId, password, createdAt, updatedAt)
+     SELECT 'acct-' || u.id, CAST(u.id AS TEXT), 'credential', CAST(u.id AS TEXT), ?, datetime('now'), datetime('now') FROM users u WHERE u.email=?`
+  ).bind(hash, email);
 
 /** 403 telling the user where their account signs in, or null when this host serves their role. */
 function wrongHost(c: any, role: Role) {
@@ -51,17 +49,27 @@ auth.post("/login", async (c) => {
       typeof password !== "string" || !password || password.length > 256) {
     return c.json({ error: "Email and password are required" }, 400);
   }
-  const user = await c.env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email.trim()).first<any>();
-  if (!user || !(await verifyPassword(password, user.password_hash))) {
+  const cleanEmail = email.trim();
+  try {
+    const { headers, response } = await ba(c).api.signInEmail({ body: { email: cleanEmail, password }, headers: c.req.raw.headers, returnHeaders: true });
+    forwardCookies(c, headers);
+    if ((response as any)?.twoFactorRedirect) return c.json({ twoFactor: true, methods: (response as any).twoFactorMethods ?? ["totp"] });
+    const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE id=?").bind(Number((response as any).user.id)).first();
+    return c.json({ user: publicUser(user) });
+  } catch {
+    // A refused sign-in is one of two things: a wrong password, or a right one on the wrong host (no session is ever created there).
+    const row = await c.env.DB.prepare("SELECT u.role, a.password FROM users u JOIN account a ON a.userId=CAST(u.id AS TEXT) AND a.providerId='credential' WHERE u.email=?").bind(cleanEmail).first<{ role: Role; password: string }>();
+    if (row && (await verifyPassword(password, row.password))) {
+      const wrong = wrongHost(c, row.role);
+      if (wrong) return wrong;
+    }
     return c.json({ error: "Invalid email or password" }, 401);
   }
-  const wrong = wrongHost(c, user.role);
-  if (wrong) return wrong;
-  return beginAuthentication(c, user);
 });
 
-auth.post("/logout", (c) => {
-  deleteCookie(c, SESSION_COOKIE, { path: "/" });
+auth.post("/logout", async (c) => {
+  const { headers } = await ba(c).api.signOut({ headers: c.req.raw.headers, returnHeaders: true }).catch(() => ({ headers: undefined }));
+  forwardCookies(c, headers);
   return c.json({ ok: true });
 });
 
@@ -76,7 +84,7 @@ auth.get("/me", requireAuth, async (c) => {
   return c.json({ user, client });
 });
 
-/** Your own display name. Email and role are not editable here. The session is re-issued so the new name shows at once. */
+/** Your own display name. Email and role are not editable here. */
 auth.patch("/profile", requireAuth, async (c) => {
   const { name } = await c.req.json().catch(() => ({}));
   const clean = typeof name === "string" ? name.trim() : "";
@@ -84,20 +92,24 @@ auth.patch("/profile", requireAuth, async (c) => {
   const id = c.get("user").id;
   const user = await c.env.DB.prepare("UPDATE users SET name=? WHERE id=? RETURNING *").bind(clean, id).first<any>();
   if (!user) return c.json({ error: "Account not found" }, 404);
-  await startSession(c, user);
   return c.json({ user: publicUser(user) });
 });
 
-/** Change your own password. Needs the current one, so a borrowed open session cannot take over the account. */
+/** Change your own password. Needs the current one, and signs every other device out. */
 auth.post("/password", requireAuth, async (c) => {
   const { current, next } = await c.req.json().catch(() => ({}));
   if (typeof current !== "string" || typeof next !== "string" || !current || current.length > 256) return c.json({ error: "Enter your current and new password." }, 400);
   if (next.length < 8 || next.length > 200) return c.json({ error: "The new password needs 8 or more characters." }, 400);
   if (next === current) return c.json({ error: "Pick a password different from the current one." }, 400);
   const id = c.get("user").id;
-  const user = await c.env.DB.prepare("SELECT * FROM users WHERE id=?").bind(id).first<any>();
-  if (!user || !(await verifyPassword(current, user.password_hash))) return c.json({ error: "Your current password is not right." }, 403);
-  await c.env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(next), id).run();
+  try {
+    const { headers } = await ba(c).api.changePassword({ body: { currentPassword: current, newPassword: next, revokeOtherSessions: true }, headers: c.req.raw.headers, returnHeaders: true });
+    forwardCookies(c, headers);
+  } catch {
+    return c.json({ error: "Your current password is not right." }, 403);
+  }
+  // Keep the old column in step, so a rollback to the previous release does not bring the old password back.
+  await c.env.DB.prepare("UPDATE users SET password_hash=COALESCE((SELECT password FROM account WHERE userId=CAST(users.id AS TEXT) AND providerId='credential'), password_hash) WHERE id=?").bind(id).run();
   return c.json({ ok: true });
 });
 
@@ -116,14 +128,16 @@ auth.post("/bootstrap", async (c) => {
     return c.json({ error: "Valid email and password of 12 to 256 characters required" }, 400);
   }
   const hash = await hashPassword(password);
+  const cleanEmail = email.trim();
   const user = await c.env.DB.prepare(
     `INSERT INTO users (email, password_hash, name, role, staff_role)
      SELECT ?,?,?,'admin','owner' WHERE NOT EXISTS (SELECT 1 FROM users) RETURNING *`
   )
-    .bind(email.trim(), hash, name?.trim() || "Admin")
+    .bind(cleanEmail, hash, name?.trim() || "Admin")
     .first<any>();
   if (!user) return c.json({ error: "Already initialized" }, 403);
-  return beginAuthentication(c, user);
+  await accountFor(c, cleanEmail, hash).run();
+  return startSession(c, cleanEmail, password);
 });
 
 auth.get("/invites/:token", async (c) => {
@@ -162,7 +176,7 @@ auth.post("/invites/:token/accept", async (c) => {
   if (staffRole && staffRole !== "owner") {
     try { const v = JSON.parse(invite.client_ids_json ?? "[]"); if (Array.isArray(v)) assigned = v.filter((n) => Number.isSafeInteger(n) && n > 0); } catch { /* no assignments */ }
   }
-  // One batch: the account, the used mark and the client assignments land together or not at all.
+  // One batch: the account, the used mark, the client assignments and the sign-in credential land together or not at all.
   const [inserted] = await c.env.DB.batch([
     c.env.DB.prepare(
       `INSERT INTO users (email, password_hash, name, role, client_id, staff_role, client_role)
@@ -172,12 +186,35 @@ auth.post("/invites/:token/accept", async (c) => {
     ...assigned.map((cid) =>
       c.env.DB.prepare("INSERT OR IGNORE INTO user_clients (user_id, client_id) SELECT u.id, c.id FROM users u, clients c WHERE u.email=? AND c.id=?").bind(finalEmail, cid)
     ),
+    accountFor(c, finalEmail, hash),
   ]);
   if (Number(inserted.meta.changes) !== 1) return c.json({ error: "Invite not found or already used" }, 404);
-  const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE email=?")
-    .bind(finalEmail).first<any>();
-  if (!user) return c.json({ error: "Account not found" }, 404);
-  return beginAuthentication(c, user);
+  return startSession(c, finalEmail, password);
+});
+
+/** Choose a new password with a one-time link from an Owner. Signs the account out everywhere. */
+auth.post("/reset", async (c) => {
+  const { token, password } = (await c.req.json().catch(() => null)) ?? {};
+  if (typeof token !== "string" || !token || token.length > 200 || typeof password !== "string" || password.length < 8 || password.length > 256) {
+    return c.json({ error: "Choose a password of 8 or more characters." }, 400);
+  }
+  const link = await c.env.DB.prepare("SELECT value FROM verification WHERE identifier=?").bind(`reset-password:${token}`).first<{ value: string }>();
+  try {
+    await ba(c).api.resetPassword({ body: { newPassword: password, token } });
+  } catch {
+    return c.json({ error: "This link has expired or was already used. Ask for a new one." }, 400);
+  }
+  if (link) await c.env.DB.prepare("UPDATE users SET password_hash=COALESCE((SELECT password FROM account WHERE userId=CAST(users.id AS TEXT) AND providerId='credential'), password_hash) WHERE id=?").bind(Number(link.value)).run();
+  return c.json({ ok: true });
+});
+
+// Everything else Better Auth offers that this app uses: two-factor setup and codes, sessions, one-time reset links.
+// An allow-list, so a new Better Auth endpoint is never reachable by accident (sign-up, account deletion, e-mail change stay shut).
+const BA_PATHS = /^\/(two-factor\/[a-z-]+|get-session|list-sessions|revoke-session|revoke-sessions|revoke-other-sessions)$/;
+auth.all("/*", async (c) => {
+  const path = new URL(c.req.url).pathname.replace(/^\/api\/auth/, "");
+  if (!BA_PATHS.test(path)) return c.json({ error: "Not found" }, 404);
+  return ba(c).handler(c.req.raw);
 });
 
 export default auth;

@@ -712,6 +712,30 @@ admin.put("/users/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+/** A one-time link that lets this person choose a new password (there is no e-mail sender yet, so the Owner passes it on, like an invite). */
+admin.post("/users/:id/reset-link", async (c) => {
+  const id = Number(c.req.param("id"));
+  const target = await c.env.DB.prepare("SELECT id, role FROM users WHERE id=?").bind(id).first<{ id: number; role: "admin" | "client" }>();
+  if (!target) return c.json({ error: "User not found" }, 404);
+  const token = randomToken();
+  await c.env.DB.prepare("INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt) VALUES (?,?,?,?,?,?)")
+    .bind(crypto.randomUUID(), `reset-password:${token}`, String(id), new Date(Date.now() + 24 * 3600_000).toISOString(), new Date().toISOString(), new Date().toISOString())
+    .run();
+  return c.json({ token, path: `/reset/${token}`, role: target.role });
+});
+
+/** Lost phone: remove someone's second factor and sign them out everywhere. They set it up again at the next sign-in. */
+admin.post("/users/:id/reset-2fa", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!(await c.env.DB.prepare("SELECT id FROM users WHERE id=?").bind(id).first())) return c.json({ error: "User not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM twoFactor WHERE userId=CAST(? AS TEXT)").bind(String(id)),
+    c.env.DB.prepare("UPDATE users SET two_factor_enabled=0 WHERE id=?").bind(id),
+    c.env.DB.prepare("DELETE FROM session WHERE userId=?").bind(String(id)),
+  ]);
+  return c.json({ ok: true });
+});
+
 admin.delete("/users/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (id === c.get("user").id) return c.json({ error: "You cannot delete your own account" }, 400);

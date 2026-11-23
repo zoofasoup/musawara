@@ -18,6 +18,8 @@
   // nama baru membuat Worker kosong tanpa secret, dan cron-nya gagal tiap jam.
   "name": "musawara-id",
   "compatibility_date": "2026-08-01",
+  // Better Auth needs AsyncLocalStorage (node:async_hooks).
+  "compatibility_flags": ["nodejs_compat"],
   "main": "worker/index.ts",
 
   "assets": {
