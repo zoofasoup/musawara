@@ -124,3 +124,28 @@ test("custom fields: typed values are checked, choice values must be an option, 
     assert.equal((await call(2, "GET", "/values?account=3")).status, 403);
   } finally { done(); }
 });
+
+test("report: cards now, cards that ever reached a stage, wins, losses and win rate", async () => {
+  const { call, done } = await setup();
+  try {
+    const { stages } = await json(await call(2, "GET", "?account=2"));
+    const byName = (n: string) => stages.find((s: any) => s.name === n).id;
+    const put = (phone: string, stage: number, value?: number) => call(2, "PUT", `/leads/${phone}?account=2`, { stage_id: stage, ...(value ? { value_idr: value } : {}) });
+    await put("6281000000001", byName("New"), 1_000_000);
+    await put("6281000000002", byName("New")); await put("6281000000002", byName("Interested"), 5_000_000);
+    await put("6281000000003", byName("Interested")); await put("6281000000003", byName("Won"), 20_000_000);
+    await put("6281000000004", byName("Interested")); await put("6281000000004", byName("Lost"));
+    const r = await json(await call(2, "GET", "/report?account=2"));
+    const row = (n: string) => r.stages.find((s: any) => s.name === n);
+    assert.deepEqual([row("New").current, row("New").reached], [1, 2], "two cards started in New, one is still there");
+    assert.deepEqual([row("Interested").current, row("Interested").reached], [1, 3]);
+    assert.deepEqual([row("Won").current, row("Won").reached], [1, 1]);
+    assert.deepEqual(r.open, { count: 2, value: 6_000_000 });
+    assert.equal(r.won.count, 1);
+    assert.equal(r.won.value, 20_000_000);
+    assert.equal(r.won.this_month_value, 20_000_000);
+    assert.equal(r.lost.count, 1);
+    assert.equal(r.win_rate, 50);
+    assert.equal((await call(2, "GET", "/report?account=3")).status, 403);
+  } finally { done(); }
+});

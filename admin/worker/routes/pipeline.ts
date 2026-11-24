@@ -5,7 +5,8 @@
 import { Hono, type Context } from "hono";
 import type { Env, Vars } from "../types";
 import { requirePerm } from "../middleware";
-import { mayUseAccount } from "../lib/waAccounts";
+import { acct, crmAccount, eligibleOwners } from "../lib/crmGuard";
+import { ymdInTz } from "../lib/dates";
 
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 const pipeline = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -23,17 +24,7 @@ const DEFAULT_STAGES: Array<[string, (typeof COLORS)[number], (typeof KINDS)[num
   ["Proposal", "amber", "open"], ["Won", "green", "won"], ["Lost", "rose", "lost"],
 ];
 
-const acct = (c: Ctx) => Number(c.req.query("account"));
-
-// Every route needs a number the caller may use.
-pipeline.use("*", async (c, next) => {
-  const id = acct(c);
-  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Pick a WhatsApp number first" }, 400);
-  const ok = await mayUseAccount(c.env, c.get("user"), id);
-  if (ok === "gateway") return c.json({ error: "WhatsApp gateway is unreachable", code: "gateway_down" }, 502);
-  if (ok === "forbidden") return c.json({ error: "Forbidden" }, 403);
-  await next();
-});
+pipeline.use("*", crmAccount);
 
 const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() && v.trim().length <= max ? v.trim() : null);
 
@@ -56,15 +47,48 @@ const parseOptions = (raw: string | null): string[] => {
 pipeline.get("/", async (c) => {
   const account = acct(c);
   await ensureStages(c, account);
-  const [stages, leads, fields] = await Promise.all([
+  const [stages, leads, fields, owners] = await Promise.all([
     c.env.DB.prepare("SELECT id, name, color, kind, position FROM crm_stages WHERE wa_account_id=? ORDER BY position, id").bind(account).all(),
-    c.env.DB.prepare("SELECT phone, stage_id, value_idr, expected_close, stage_changed_at, created_at FROM crm_leads WHERE wa_account_id=? ORDER BY stage_changed_at DESC LIMIT 3000").bind(account).all(),
+    c.env.DB.prepare("SELECT phone, stage_id, value_idr, expected_close, owner_user_id, stage_changed_at, created_at FROM crm_leads WHERE wa_account_id=? ORDER BY stage_changed_at DESC LIMIT 3000").bind(account).all(),
     c.env.DB.prepare("SELECT id, label, type, options_json, position FROM crm_field_defs WHERE wa_account_id=? ORDER BY position, id").bind(account).all<any>(),
+    eligibleOwners(c),
   ]);
   return c.json({
+    owners,
     stages: stages.results,
     leads: leads.results,
     fields: fields.results.map(({ options_json, ...f }: any) => ({ ...f, options: parseOptions(options_json) })),
+  });
+});
+
+// ------------------------------------------------------------------ report
+/** Funnel numbers: how many cards are in each stage now, how many ever reached it, wins and losses, time to win. */
+pipeline.get("/report", async (c) => {
+  const account = acct(c);
+  await ensureStages(c, account);
+  const month = ymdInTz("Asia/Jakarta").slice(0, 7);
+  const [stages, reached, totals] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT s.id, s.name, s.color, s.kind, COUNT(l.id) AS current, COALESCE(SUM(l.value_idr), 0) AS value
+         FROM crm_stages s LEFT JOIN crm_leads l ON l.stage_id=s.id WHERE s.wa_account_id=? GROUP BY s.id ORDER BY s.position, s.id`
+    ).bind(account).all<any>(),
+    c.env.DB.prepare("SELECT to_stage_id AS id, COUNT(DISTINCT phone) AS n FROM crm_stage_events WHERE wa_account_id=? GROUP BY to_stage_id").bind(account).all<{ id: number; n: number }>(),
+    c.env.DB.prepare(
+      `SELECT s.kind, COUNT(*) AS n, COALESCE(SUM(l.value_idr), 0) AS value,
+              AVG(julianday(l.stage_changed_at) - julianday(l.created_at)) AS avg_days,
+              COALESCE(SUM(CASE WHEN substr(l.stage_changed_at, 1, 7) = ? THEN l.value_idr ELSE 0 END), 0) AS month_value
+         FROM crm_leads l JOIN crm_stages s ON s.id=l.stage_id WHERE l.wa_account_id=? GROUP BY s.kind`
+    ).bind(month, account).all<any>(),
+  ]);
+  const by = (k: string) => totals.results.find((r: any) => r.kind === k);
+  const won = by("won"), lost = by("lost"), open = by("open");
+  const reach = new Map(reached.results.map((r) => [r.id, r.n]));
+  return c.json({
+    stages: stages.results.map((s: any) => ({ ...s, reached: Math.max(reach.get(s.id) ?? 0, s.current) })),
+    open: { count: open?.n ?? 0, value: open?.value ?? 0 },
+    won: { count: won?.n ?? 0, value: won?.value ?? 0, avg_days: won?.avg_days == null ? null : Math.round(won.avg_days * 10) / 10, this_month_value: won?.month_value ?? 0 },
+    lost: { count: lost?.n ?? 0 },
+    win_rate: (won?.n ?? 0) + (lost?.n ?? 0) > 0 ? Math.round(((won?.n ?? 0) / ((won?.n ?? 0) + (lost?.n ?? 0))) * 1000) / 10 : null,
   });
 });
 
@@ -139,7 +163,7 @@ pipeline.post("/stages/reorder", async (c) => {
 });
 
 // ------------------------------------------------------------------ leads (cards)
-type LeadPatch = { stage_id?: number; value_idr?: number | null; expected_close?: string | null };
+type LeadPatch = { stage_id?: number; value_idr?: number | null; expected_close?: string | null; owner_user_id?: number | null };
 
 /** Checks a lead body; returns an error text or the cleaned patch. */
 function readLead(b: any): { error: string } | { patch: LeadPatch } {
@@ -155,6 +179,10 @@ function readLead(b: any): { error: string } | { patch: LeadPatch } {
   if (b?.expected_close !== undefined) {
     if (b.expected_close !== null && !(typeof b.expected_close === "string" && YMD.test(b.expected_close))) return { error: "Expected close must be a date (YYYY-MM-DD), or empty." };
     patch.expected_close = b.expected_close;
+  }
+  if (b?.owner_user_id !== undefined) {
+    if (b.owner_user_id !== null && !Number.isInteger(b.owner_user_id)) return { error: "Pick a team member, or leave it empty." };
+    patch.owner_user_id = b.owner_user_id;
   }
   return { patch };
 }
@@ -173,14 +201,15 @@ async function saveLead(c: Ctx, phone: string, patch: LeadPatch): Promise<{ erro
   const moved = existing?.stage_id !== stage;
   const stmts = [
     db.prepare(
-      `INSERT INTO crm_leads (wa_account_id, phone, stage_id, value_idr, expected_close) VALUES (?,?,?,?,?)
+      `INSERT INTO crm_leads (wa_account_id, phone, stage_id, value_idr, expected_close, owner_user_id) VALUES (?,?,?,?,?,?)
        ON CONFLICT(wa_account_id, phone) DO UPDATE SET
          stage_id=excluded.stage_id,
+         owner_user_id=CASE WHEN ?=1 THEN excluded.owner_user_id ELSE crm_leads.owner_user_id END,
          value_idr=CASE WHEN ?=1 THEN excluded.value_idr ELSE crm_leads.value_idr END,
          expected_close=CASE WHEN ?=1 THEN excluded.expected_close ELSE crm_leads.expected_close END,
          stage_changed_at=CASE WHEN crm_leads.stage_id<>excluded.stage_id THEN datetime('now') ELSE crm_leads.stage_changed_at END,
          updated_at=datetime('now')`
-    ).bind(account, phone, stage, patch.value_idr ?? null, patch.expected_close ?? null, patch.value_idr !== undefined ? 1 : 0, patch.expected_close !== undefined ? 1 : 0),
+    ).bind(account, phone, stage, patch.value_idr ?? null, patch.expected_close ?? null, patch.owner_user_id ?? null, patch.owner_user_id !== undefined ? 1 : 0, patch.value_idr !== undefined ? 1 : 0, patch.expected_close !== undefined ? 1 : 0),
   ];
   if (moved) stmts.push(db.prepare("INSERT INTO crm_stage_events (wa_account_id, phone, from_stage_id, to_stage_id, user_id) VALUES (?,?,?,?,?)").bind(account, phone, existing?.stage_id ?? null, stage, userId));
   await db.batch(stmts);
@@ -192,6 +221,9 @@ pipeline.put("/leads/:phone", async (c) => {
   if (!PHONE.test(phone)) return c.json({ error: "Invalid phone number." }, 400);
   const read = readLead(await c.req.json().catch(() => null));
   if ("error" in read) return c.json({ error: read.error }, 400);
+  if (read.patch.owner_user_id != null && !(await eligibleOwners(c)).some((o) => o.id === read.patch.owner_user_id)) {
+    return c.json({ error: "That person cannot own leads on this number." }, 400);
+  }
   const r = await saveLead(c, phone, read.patch);
   if ("error" in r) return c.json({ error: r.error }, r.status);
   return c.json({ ok: true });
