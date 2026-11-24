@@ -72,7 +72,8 @@ function NavGroups({ onNavigate, collapsed = false }: { onNavigate?: () => void;
     <>
       {groups.map((g) => (
         <div key={g.label}>
-          {collapsed ? <div className="mx-2 mb-1.5 border-t border-border" /> : <p className="px-3 pb-1 text-xs font-medium text-muted">{t(g.label)}</p>}
+          {/* the same row height open and collapsed, so every item stays exactly where the pointer was */}
+          {collapsed ? <div className="flex h-5 items-center px-2"><div className="w-full border-t border-border" /></div> : <p className="flex h-5 items-center px-3 text-xs font-medium text-muted">{t(g.label)}</p>}
           <div className="space-y-0.5">
             {g.items.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.end} onClick={onNavigate} title={collapsed ? t(i.label) : undefined} aria-label={collapsed ? t(i.label) : undefined} className={({ isActive }) => `${linkCls(isActive)} ${collapsed ? "justify-center px-0" : ""}`}>
@@ -115,6 +116,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   // moving between sections blurs the new page in; moving between one client's own tabs keeps the client frame still
   const sectionKey = /^\/c\/\d+/.exec(pathname)?.[0] ?? pathname.split("/").slice(0, 2).join("/");
+  const crm = pathname.startsWith("/crm");
   const clientRoute = /^\/c\/(\d+)(\/|$)/.exec(pathname);
   const clientMeta = useApi<{ client: { name: string } }>(clientRoute ? `/clients/${clientRoute[1]}/meta` : null);
   const title = clientRoute ? clientMeta.data?.client.name ?? "Client" : PAGE_TITLE(pathname);
@@ -140,7 +142,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const activeIdx = PHONE_TABS.findIndex((tab) => onTab(tab.to)); // -1 (Planning, Board, Spend, Settings...) hides the pill; those live in the menu at the top right
 
   return (
-    <div className={`min-h-screen transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
+    <div className={`${crm ? "flex h-dvh flex-col overflow-hidden" : "min-h-screen"} transition-[padding] duration-200 md:py-3 md:pr-3 ${collapsed ? "md:pl-[5.5rem]" : "md:pl-[16.5rem]"}`}>
       {/* Desktop and tablet: sidebar */}
       <aside aria-label="Main" className={`fixed inset-y-3 left-3 z-20 hidden flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/70 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-[width,background-color] ${peek ? "bg-white/95" : "bg-white/55"} duration-200 md:flex ${narrow ? "w-16 px-2" : "w-60 px-3"} ${peek ? "shadow-[0_12px_40px_rgba(20,24,36,0.18)]" : ""}`}
         onMouseEnter={() => setHover(true)}
@@ -148,7 +150,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         onFocus={() => setHover(true)}
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHover(false); }}
       >
-        <div className={`flex items-center ${narrow ? "justify-center" : "justify-between"}`}>
+        <div className={`flex h-11 items-center ${narrow ? "justify-center" : "justify-between"}`}>
           {!narrow && <NavLink to="/" className="inline-flex min-h-11 items-center px-1.5"><Wordmark /></NavLink>}
           <button
             type="button"
@@ -183,7 +185,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Phone: slim top bar with the page name */}
-      <header data-glass className={`sticky top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 md:hidden ${glassCls}`}>
+      <header data-glass className={`${crm ? "relative shrink-0" : "sticky"} top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 md:hidden ${glassCls}`}>
         <NavLink to="/" aria-label={t("Overview")} className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{t(title)}</span>
         <LangSwitch compact className="min-h-11 w-11 shrink-0 !rounded-full px-0" />
@@ -198,9 +200,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </button>
       </header>
 
-      <div className="md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]">
-        <Crumb pathname={pathname} />
-        <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pb-8 md:pt-4"><div key={sectionKey} className="swap-in">{children}</div></main>
+      {/* The CRM is an app of its own: it fills the window, nothing around it scrolls, and each pane scrolls inside itself. */}
+      <div className={crm ? "flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]" : "md:min-h-[calc(100dvh-1.5rem)] md:rounded-3xl md:border md:border-white/70 md:bg-white/45 md:shadow-[var(--shadow-soft)]"}>
+        {!crm && <Crumb pathname={pathname} />}
+        {crm ? (
+          <main className="min-h-0 flex-1 overflow-hidden px-3 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-3 md:px-4 md:pb-4"><div key={sectionKey} className="swap-in h-full">{children}</div></main>
+        ) : (
+          <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pb-8 md:pt-4"><div key={sectionKey} className="swap-in">{children}</div></main>
+        )}
       </div>
 
       {/* Phone: four daily tabs plus More */}

@@ -61,16 +61,16 @@ export function CrmInbox() {
     return <GatewayNotice error={convs.error} onRetry={convs.reload} />;
   }
 
-  const height = "h-[calc(100dvh-17rem)] min-h-[26rem] md:h-[calc(100dvh-9rem)]";
+  const height = "min-h-[22rem] flex-1"; // fills what is left of the CRM frame (CrmLayout), which already fits the window
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {convs.error != null && (
         <Callout tone="warn" compact>Lost contact with the WhatsApp gateway. Showing the last data loaded; retrying every few seconds.</Callout>
       )}
       {syncError && (
         <Callout tone="crit" compact action={<Btn tone="ghost" size="sm" onClick={() => setSyncError(undefined)}>Dismiss</Btn>}>Sync failed: {syncError}</Callout>
       )}
-      <Panel className={`flex overflow-hidden ${height}`}>
+      <Panel className={`flex min-h-0 overflow-hidden ${height}`}>
         <div className={`${phone ? "hidden md:flex" : "flex"} min-h-0 w-full shrink-0 flex-col border-border md:w-[340px] md:border-r lg:w-[380px]`}>
           <ConversationList
             convs={convs.data}

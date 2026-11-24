@@ -1,4 +1,5 @@
 import { Textarea } from "@/components/ui/textarea";
+import { Linkified } from "../../../components/Linkified";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, Paperclip, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -37,7 +38,7 @@ export function Bubble({ m, demo }: { m: Msg; demo?: MediaDemo }) {
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl sm:max-w-[70%] ${framed ? "p-1" : "px-3 py-2"} ${mine ? "rounded-br-md bg-[color-mix(in_srgb,var(--accent)_14%,white)]" : "rounded-bl-md bg-surface shadow-[var(--shadow-soft)]"} ${pending ? "opacity-70" : ""}`}>
         <MediaBlock m={m} pending={pending} demo={demo} />
-        {m.body && <p className={`whitespace-pre-wrap break-words text-sm text-ink ${inset} ${framed ? "pt-1.5" : ""}`}>{m.body}</p>}
+        {m.body && <p className={`whitespace-pre-wrap break-words text-sm text-ink ${inset} ${framed ? "pt-1.5" : ""}`}><Linkified text={m.body} /></p>}
         <p className={`flex items-center justify-end gap-1 text-xs text-muted ${framed ? "px-2 pb-1 pt-0.5" : "mt-0.5"}`}>
           {fmtClock(m.ts)}
           {mine && <Ticks m={m} />}

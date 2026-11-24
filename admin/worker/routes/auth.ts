@@ -14,6 +14,9 @@ const publicUser = (u: any) => ({
   staff_role: u.staff_role ?? null, client_role: u.client_role ?? null,
 });
 
+const LOCK_AFTER = 8;
+const LOCK_WINDOW_MS = 15 * 60_000;
+
 const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 const ba = (c: any) => makeAuth(c.env, new URL(c.req.url).origin);
 
@@ -50,9 +53,18 @@ auth.post("/login", async (c) => {
     return c.json({ error: "Email and password are required" }, 400);
   }
   const cleanEmail = email.trim();
+  // Per-address pause on top of the per-IP limit: guessing one account's password from many addresses stops here too.
+  const key = cleanEmail.toLowerCase();
+  const now = Date.now();
+  const recent = await c.env.DB.prepare("SELECT COUNT(*) n, MIN(at) first FROM login_failures WHERE email=? AND at>?").bind(key, now - LOCK_WINDOW_MS).first<{ n: number; first: number | null }>();
+  if ((recent?.n ?? 0) >= LOCK_AFTER) {
+    const wait = Math.max(1, Math.ceil(((recent?.first ?? now) + LOCK_WINDOW_MS - now) / 1000));
+    return c.json({ error: "Too many sign-in attempts. Try again in a few minutes.", code: "too_many_attempts" }, 429, { "Retry-After": String(wait) });
+  }
   try {
     const { headers, response } = await ba(c).api.signInEmail({ body: { email: cleanEmail, password }, headers: c.req.raw.headers, returnHeaders: true });
     forwardCookies(c, headers);
+    await c.env.DB.prepare("DELETE FROM login_failures WHERE email=?").bind(key).run();
     if ((response as any)?.twoFactorRedirect) return c.json({ twoFactor: true, methods: (response as any).twoFactorMethods ?? ["totp"] });
     const user = await c.env.DB.prepare("SELECT id, email, name, role, client_id, staff_role, client_role FROM users WHERE id=?").bind(Number((response as any).user.id)).first();
     return c.json({ user: publicUser(user) });
@@ -64,6 +76,11 @@ auth.post("/login", async (c) => {
       const wrong = row ? wrongHost(c, row.role) : null;
       if (wrong) return wrong;
     }
+    // wrong credentials: count it (old rows are swept on the way), and answer exactly the same for unknown and known addresses
+    await c.env.DB.batch([
+      c.env.DB.prepare("DELETE FROM login_failures WHERE at < ?").bind(now - 3600_000),
+      c.env.DB.prepare("INSERT INTO login_failures (email, at) VALUES (?, ?)").bind(key, now),
+    ]);
     return c.json({ error: "Invalid email or password" }, 401);
   }
 });

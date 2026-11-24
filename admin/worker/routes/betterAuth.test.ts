@@ -169,3 +169,23 @@ test("a right password on the wrong host says where to sign in, and creates no s
   assert.equal(((await r.json()) as any).code, "wrong_host");
   assert.equal((await DB.prepare("SELECT COUNT(*) n FROM session").first<any>())!.n, 0);
 });
+
+test("eight wrong passwords pause that address, for known and unknown emails alike, and a good sign-in clears the count", async () => {
+  const { call, DB } = await setup();
+  for (const email of ["owner@x.test", "nobody@x.test"]) {
+    for (let i = 0; i < 8; i++) assert.equal((await call("POST", "/api/auth/login", { body: { email, password: "wrong-wrong-1" } })).status, 401);
+    const paused = await call("POST", "/api/auth/login", { body: { email, password: PASSWORD } });
+    assert.equal(paused.status === 429 || email === "nobody@x.test", true);
+    if (email === "owner@x.test") {
+      assert.equal(((await paused.json()) as any).code, "too_many_attempts", "even the right password waits");
+      assert.ok(Number(paused.headers.get("retry-after")) > 0);
+    } else {
+      assert.equal((await call("POST", "/api/auth/login", { body: { email, password: "wrong-wrong-1" } })).status, 429, "an address that does not exist is paused the same way");
+    }
+  }
+  // the count is per address: someone else is unaffected, and the pause ends with the window
+  assert.equal((await call("POST", "/api/auth/login", { body: { email: "ads@x.test", password: PASSWORD } })).status, 200);
+  await DB.prepare("UPDATE login_failures SET at = at - 16 * 60 * 1000").run();
+  assert.equal((await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } })).status, 200);
+  assert.equal((await DB.prepare("SELECT COUNT(*) n FROM login_failures WHERE email='owner@x.test'").first<any>())!.n, 0, "a good sign-in clears the failures");
+});

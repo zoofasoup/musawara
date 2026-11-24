@@ -11,6 +11,7 @@ import { PillNav, pillTabCls } from "../../components/PillNav";
 import { Skeleton } from "../../components/ui";
 import { Link } from "react-router-dom";
 import { useCan } from "../../lib/can";
+import { useAppLock } from "../../lib/appLock";
 
 const TABS = [
   { to: "/crm/inbox", label: "Inbox" },
@@ -22,6 +23,7 @@ const TABS = [
 
 /** Shared frame for every CRM page: the number switcher, the section tabs, then the page. */
 export function CrmLayout({ children }: { children: ReactNode }) {
+  useAppLock();
   const stored = useAccountId();
   const owner = useCan()("settings"); // adding, linking and unlinking numbers is Owner work; everyone else only sees the numbers of their own clients
   const [params, setParams] = useSearchParams();
@@ -84,21 +86,22 @@ export function CrmLayout({ children }: { children: ReactNode }) {
     body = <Skeleton className="h-64 w-full" />; // one render while the selection is corrected
   } else {
     // Keyed by account: switching remounts the page, so nothing from the other number lingers.
-    body = <div key={selectedId ?? "none"}>{children}</div>;
+    body = <div key={selectedId ?? "none"} className="h-full">{children}</div>;
   }
 
   return (
     <AccountsContext.Provider value={ctx}>
-      <div className="space-y-4">
-        {list.data && accounts.length > 0 && <AccountSwitcher />}
-        <PillNav label="CRM" className="mb-1">
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {list.data && accounts.length > 0 && <div className="shrink-0"><AccountSwitcher /></div>}
+        <PillNav label="CRM" className="shrink-0">
           {TABS.filter((t) => owner || t.to !== "/crm/connection").map((t) => (
             <NavLink key={t.to} to={t.to} className={({ isActive }) => pillTabCls(isActive)}>
               {t.label}
             </NavLink>
           ))}
         </PillNav>
-        {body}
+        {/* only this area scrolls (long lists); the inbox fills it and scrolls inside its own panes */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{body}</div>
       </div>
     </AccountsContext.Provider>
   );
