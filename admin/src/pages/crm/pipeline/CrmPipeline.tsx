@@ -9,6 +9,9 @@ import { ErrorPanel, fmtPhone, ListSkeleton, PageHead, TagChip, useDebounced, us
 import { AddContactsSheet, type ContactLite } from "./AddContactsSheet";
 import { CustomizeSheet } from "./CustomizeSheet";
 import { LeadSheet } from "./LeadSheet";
+import { Funnel } from "./Funnel";
+import { Segmented } from "../../../components/Segmented";
+import { useAuth } from "../../../context/AuthContext";
 import { STAGE_BAR, useFieldValues, usePipeline, type Lead } from "./api";
 
 const todayYmd = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
@@ -20,6 +23,9 @@ export function CrmPipeline() {
   const board = usePipeline();
   const vals = useFieldValues(board.account);
   const gw = useGateway<Array<{ phone: string; name: string; tags: string[] }>>("/contacts");
+  const { user } = useAuth();
+  const [view, setView] = useState<"board" | "funnel">("board");
+  const [mine, setMine] = useState(false);
   const [q, setQ] = useState("");
   const dq = useDebounced(q.trim().toLowerCase());
   const [openPhone, setOpenPhone] = useState<string | null>(null);
@@ -32,10 +38,11 @@ export function CrmPipeline() {
   const reload = () => { board.reload(); vals.reload(); };
 
   const leads = useMemo(() => (data?.leads ?? []).filter((l) => {
+    if (mine && l.owner_user_id !== user?.id) return false;
     if (!dq) return true;
     const c = byPhone.get(l.phone);
     return l.phone.includes(dq) || (c?.name ?? "").toLowerCase().includes(dq) || (c?.tags ?? []).some((t) => t.includes(dq));
-  }), [data, dq, byPhone]);
+  }), [data, dq, byPhone, mine, user?.id]);
 
   const stageById = useMemo(() => new Map((data?.stages ?? []).map((s) => [s.id, s])), [data]);
   const openValue = (data?.leads ?? []).reduce((n, l) => n + (stageById.get(l.stage_id)?.kind === "open" ? l.value_idr ?? 0 : 0), 0);
@@ -60,13 +67,16 @@ export function CrmPipeline() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input aria-label="Search the board" placeholder="Search" className="w-44 pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
+            <Segmented label="View" value={view} onChange={setView} options={[{ value: "board", label: "Board" }, { value: "funnel", label: "Funnel" }]} />
+            {view === "board" && <Btn tone={mine ? "primary" : "secondary"} aria-pressed={mine} onClick={() => setMine(!mine)}>My cards</Btn>}
             <Btn tone="secondary" icon="plus" onClick={() => setAdding(true)}>Add contacts</Btn>
             <Btn tone="ghost" onClick={() => setCustomizing(true)}><Settings2 className="h-4 w-4" />Customize</Btn>
           </div>
         }
       />
       {data.leads.length === 0 && <Empty icon="users" title="No cards yet" hint="Add contacts to start tracking them from first message to deal." action={<Btn tone="primary" icon="plus" onClick={() => setAdding(true)}>Add contacts</Btn>} />}
-      {data.leads.length > 0 && (
+      {view === "funnel" && <Funnel call={board.call} version={data.leads.length + ":" + data.leads.map((l) => l.stage_id).join(",")} />}
+      {view === "board" && data.leads.length > 0 && (
         <Kanban<Lead>
           columns={data.stages.map((s) => ({ id: String(s.id), label: colSum(s.id) ? `${s.name} · ${compactRp(colSum(s.id))}` : s.name, color: STAGE_BAR[s.color], empty: "Drop a card here" }))}
           items={leads}
@@ -86,6 +96,7 @@ export function CrmPipeline() {
                 <span className="mt-1.5 flex flex-wrap items-center gap-1">
                   {(c?.tags ?? []).slice(0, 2).map((t) => <TagChip key={t}>{t}</TagChip>)}
                   <span className="text-[11px] text-muted">{daysIn(l.stage_changed_at)} d in stage</span>
+                  {l.owner_user_id != null && <span className="text-[11px] text-ink2" title="Owner">· {data.owners.find((o) => o.id === l.owner_user_id)?.name.split(" ")[0] ?? "?"}</span>}
                   {late && <Pill tone="crit" size="sm" dot={false}>Overdue</Pill>}
                 </span>
               </button>
@@ -97,7 +108,7 @@ export function CrmPipeline() {
       {customizing && <CustomizeSheet stages={data.stages} leads={data.leads} fields={data.fields} call={board.call} notify={notify} onClose={() => setCustomizing(false)} onChanged={reload} />}
       {picked && (
         <LeadSheet key={picked.phone} lead={picked} name={byPhone.get(picked.phone)?.name || fmtPhone(picked.phone)} tags={byPhone.get(picked.phone)?.tags ?? []}
-          stages={data.stages} fields={data.fields} values={vals.data?.values[picked.phone] ?? {}} call={board.call} notify={notify}
+          stages={data.stages} owners={data.owners} fields={data.fields} values={vals.data?.values[picked.phone] ?? {}} call={board.call} notify={notify}
           onClose={() => setOpenPhone(null)} onChanged={() => { setOpenPhone(null); reload(); }} />
       )}
     </div>

@@ -12,10 +12,12 @@ import { Skeleton } from "../../components/ui";
 import { Link } from "react-router-dom";
 import { useCan } from "../../lib/can";
 import { useAppLock } from "../../lib/appLock";
+import { useTaskSummary } from "./pipeline/api";
 
 const TABS = [
   { to: "/crm/inbox", label: "Inbox" },
   { to: "/crm/pipeline", label: "Pipeline" },
+  { to: "/crm/tasks", label: "Follow-ups" },
   { to: "/crm/contacts", label: "Contacts" },
   { to: "/crm/templates", label: "Templates" },
   { to: "/crm/broadcasts", label: "Broadcasts" },
@@ -26,7 +28,9 @@ const TABS = [
 export function CrmLayout({ children }: { children: ReactNode }) {
   useAppLock();
   const stored = useAccountId();
-  const owner = useCan()("settings"); // adding, linking and unlinking numbers is Owner work; everyone else only sees the numbers of their own clients
+  const owner = useCan()("settings");
+  const due = useTaskSummary();
+  const dueCount = (due.data?.overdue ?? 0) + (due.data?.due_today ?? 0); // adding, linking and unlinking numbers is Owner work; everyone else only sees the numbers of their own clients
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
   const list = useLive<Account[]>("/accounts", 15000);
@@ -98,6 +102,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           {TABS.filter((t) => owner || t.to !== "/crm/connection").map((t) => (
             <NavLink key={t.to} to={t.to} className={({ isActive }) => pillTabCls(isActive)}>
               {t.label}
+              {t.to === "/crm/tasks" && dueCount > 0 && <span className="ml-1.5 rounded-full bg-crit px-1.5 text-[11px] font-semibold text-white">{dueCount}</span>}
             </NavLink>
           ))}
         </PillNav>
