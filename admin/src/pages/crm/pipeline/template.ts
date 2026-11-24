@@ -1,5 +1,5 @@
 // The downloadable contacts template for one number: the columns the importer understands, with this number's own stages and
-// custom fields filled in as examples. CSV with a byte-order mark so Excel reads the accents and keeps long numbers as text.
+// custom fields filled in as examples. Plain UTF-8 CSV without a byte-order mark (the gateway's reader loses the first header's name when one is present).
 import type { FieldDef, Stage } from "./api";
 
 const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
@@ -14,7 +14,7 @@ export function templateCsv(stages: Stage[], fields: FieldDef[], owner: string):
     ["Budi Santoso", "6281234567890", "umroh, webinar", "Tanya paket Desember", stage(1), "28000000", "2026-12-20", owner, ...fields.map((f) => sample(f, 0))],
     ["Siti Aminah", "6281298765432", "referral", "", stage(0), "", "", "", ...fields.map((f) => sample(f, 1))],
   ];
-  return "﻿" + [head, ...rows].map((r) => r.map(q).join(",")).join("\r\n") + "\r\n";
+  return [head, ...rows].map((r) => r.map(q).join(",")).join("\r\n") + "\r\n";
 }
 
 /** What each column means, shown next to the download button. */

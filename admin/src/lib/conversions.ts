@@ -210,6 +210,16 @@ export async function parseRawRows(file: File): Promise<string[][]> {
   throw new Error("Use a .csv or .xlsx file (for .xls, save it as .xlsx or CSV first).");
 }
 
+/**
+ * What the gateway's spreadsheet reader can take: a CSV starting with a byte-order mark (Excel's "CSV UTF-8" adds one, and so did our
+ * own template) makes it mangle the first header, so the name column is silently lost. The mark is removed before upload; other files pass.
+ */
+export async function withoutBom(file: File): Promise<File> {
+  if (!/\.(csv|txt|tsv)$/i.test(file.name)) return file;
+  const text = await file.text();
+  return text.charCodeAt(0) === 0xfeff ? new File([text.slice(1)], file.name, { type: file.type }) : file;
+}
+
 /** Every sheet of a .xlsx (or the single table of a .csv) as raw string rows. */
 export async function parseWorkbook(file: File): Promise<Sheet[]> {
   if (/\.(csv|txt|tsv)$/i.test(file.name)) return [toSheet("CSV", parseCsv(await file.text()))];

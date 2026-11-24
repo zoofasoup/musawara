@@ -10,6 +10,7 @@ import { useTable, type ColumnDef, type PaginationState, type SortingState } fro
 import { Download, Pencil, Search, Send, Upload } from "lucide-react";
 import { crm, crmUpload } from "./crmApi";
 import { csvCell } from "../../lib/csv";
+import { withoutBom } from "../../lib/conversions";
 import { fmtNum } from "../../lib/format";
 import { Btn, ConfirmBtn, Empty, Panel, Pill, Sheet, useNotify, type Notify } from "../../components/kit";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -191,7 +192,7 @@ function ImportSheet({ pipe, notify, onClose, onChanged }: { pipe: Pipe; notify:
     try {
       const fd = new FormData();
       // Pasted text goes up as a CSV file: the gateway only reads files.
-      fd.set("file", file ?? new File([pasted], "pasted.csv", { type: "text/csv" }));
+      fd.set("file", file ? await withoutBom(file) : new File([pasted], "pasted.csv", { type: "text/csv" }));
       if (extraTags.trim()) fd.set("tags", extraTags);
       const r = await crmUpload<ImportResult>("/contacts/import", fd);
       // Stage, value, closing date, owner and custom-field columns go to the platform, in small groups, after the contacts exist.
