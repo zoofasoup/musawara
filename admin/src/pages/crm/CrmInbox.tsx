@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Callout } from "../../components/Callout";
 import { useSearchParams } from "react-router-dom";
 import { crm } from "./crmApi";
-import { Btn, Empty, Panel } from "../../components/kit";
+import { Btn, Empty, Panel, Sheet } from "../../components/kit";
 import { ConversationList, type Filters } from "./inbox/ConversationList";
 import { GatewayNotice } from "./inbox/GatewayNotice";
 import { ThreadView } from "./inbox/ThreadView";
-import { classify, tagList, useLive, useWaStatus, type Conv, type SyncState } from "./inbox/util";
+import { ContactPanel } from "./inbox/ContactPanel";
+import { classify, fmtPhone, tagList, useLive, useWaStatus, type Conv, type SyncState } from "./inbox/util";
 import { Skeleton } from "../../components/ui";
 
 export function CrmInbox() {
@@ -20,6 +21,7 @@ export function CrmInbox() {
   const [newChat, setNewChat] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string>();
+  const [details, setDetails] = useState(false);
 
   const convs = useLive<Conv[]>("/conversations", 5000);
   const wa = useWaStatus();
@@ -101,6 +103,7 @@ export function CrmInbox() {
               waProblem={wa.data ? undefined : wa.error}
               onBack={() => open(null)}
               onSent={() => void convs.reload()}
+              onDetails={() => setDetails(true)}
             />
           ) : !convs.loaded ? (
             <div className="space-y-3 p-6">
@@ -113,7 +116,17 @@ export function CrmInbox() {
             </div>
           )}
         </div>
+        {phone && (
+          <aside aria-label="Contact details" className="hidden min-h-0 w-[320px] shrink-0 border-l border-border xl:block 2xl:w-[360px]">
+            <ContactPanel key={phone} phone={phone} name={active?.name || fmtPhone(phone)} tags={active ? tagList(active) : []} />
+          </aside>
+        )}
       </Panel>
+      {details && phone && (
+        <Sheet title="Contact details" onClose={() => setDetails(false)}>
+          <div className="-mx-4 h-[75dvh]"><ContactPanel key={phone} phone={phone} name={active?.name || fmtPhone(phone)} tags={active ? tagList(active) : []} /></div>
+        </Sheet>
+      )}
     </div>
   );
 }

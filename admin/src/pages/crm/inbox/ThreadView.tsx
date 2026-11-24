@@ -1,7 +1,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Linkified } from "../../../components/Linkified";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, NotebookPen, Paperclip, SendHorizontal, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, NotebookPen, Paperclip, UserRound, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { crmUpload, useAccountId } from "../crmApi";
 import { api, useApi } from "../../../lib/api";
@@ -197,6 +197,7 @@ export function ThreadView({
   waProblem,
   onBack,
   onSent,
+  onDetails,
 }: {
   phone: string;
   listName?: string;
@@ -205,6 +206,7 @@ export function ThreadView({
   waProblem: unknown;
   onBack: () => void;
   onSent: () => void;
+  onDetails?: () => void;
 }) {
   // Opening a conversation marks it read on the gateway (GET /conversations/:phone), and so does every poll while it is open.
   const { data, error, loaded, reload } = useLive<Thread>(`/conversations/${encodeURIComponent(phone)}`, 3000);
@@ -302,6 +304,11 @@ export function ThreadView({
             ))}
           </p>
         </div>
+        {onDetails && (
+          <button type="button" onClick={onDetails} aria-label="Contact details" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink2 hover:bg-surface2 xl:hidden">
+            <UserRound className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       <div className="relative min-h-0 flex-1">
