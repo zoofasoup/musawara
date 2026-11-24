@@ -192,6 +192,24 @@ export function toSheet(name: string, rows: string[][]): Sheet {
   return { name, headers, body, recognised: bestScore };
 }
 
+/**
+ * The first table of a .csv or .xlsx exactly as written, row by row, header row first. The contacts import uses this: unlike
+ * parseWorkbook it does not go looking for a sales-style header row, so any file with headers in its first row reads.
+ */
+export async function parseRawRows(file: File): Promise<string[][]> {
+  if (/\.(csv|txt|tsv)$/i.test(file.name)) return parseCsv(await file.text());
+  if (/\.xlsx$/i.test(file.name)) {
+    const { default: readXlsxFile } = await import("read-excel-file/universal");
+    const sheets = await readXlsxFile(file);
+    const first = sheets[0];
+    if (!first) return [];
+    return first.data
+      .map((r) => r.map((c) => (c == null ? "" : c instanceof Date ? wall(c) : typeof c === "number" ? String(c) : String(c).trim())))
+      .filter((r) => r.some((c) => c !== ""));
+  }
+  throw new Error("Use a .csv or .xlsx file (for .xls, save it as .xlsx or CSV first).");
+}
+
 /** Every sheet of a .xlsx (or the single table of a .csv) as raw string rows. */
 export async function parseWorkbook(file: File): Promise<Sheet[]> {
   if (/\.(csv|txt|tsv)$/i.test(file.name)) return [toSheet("CSV", parseCsv(await file.text()))];

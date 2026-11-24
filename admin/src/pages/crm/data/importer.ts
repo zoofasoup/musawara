@@ -1,7 +1,7 @@
 // Client-side preview of a contact import. The gateway does the real import (POST /contacts/import);
 // this mirrors its column detection and phone rule so the preview matches what will happen.
 
-import { parseCsv, parseWorkbook } from "../../../lib/conversions";
+import { parseCsv, parseRawRows } from "../../../lib/conversions";
 import { normalizePhone, parseTags } from "./shared";
 
 const PHONE_KEYS = /\b(phone|nomor|no|nohp|hp|handphone|whatsapp|wa|telepon|telp|tlp|number|mobile)\b/;
@@ -32,10 +32,7 @@ export type ImportPreview = {
 export async function readRows(file: File | null, pasted: string): Promise<string[][]> {
   if (file) {
     if (/\.xls$/i.test(file.name)) throw new Error("PREVIEW_UNSUPPORTED");
-    const sheets = await parseWorkbook(file);
-    const s = sheets[0];
-    if (!s) return [];
-    return [s.headers, ...s.body.map((b) => b.cells)];
+    return parseRawRows(file);
   }
   return parseCsv(pasted);
 }
