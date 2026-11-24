@@ -7,6 +7,7 @@ import type { Env, Vars } from "../types";
 import { requirePerm } from "../middleware";
 import { acct, crmAccount, eligibleOwners } from "../lib/crmGuard";
 import { ymdInTz } from "../lib/dates";
+import { PRESETS } from "../lib/crmPresets";
 
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 const pipeline = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -50,14 +51,14 @@ pipeline.get("/", async (c) => {
   const [stages, leads, fields, owners] = await Promise.all([
     c.env.DB.prepare("SELECT id, name, color, kind, position FROM crm_stages WHERE wa_account_id=? ORDER BY position, id").bind(account).all(),
     c.env.DB.prepare("SELECT phone, stage_id, value_idr, expected_close, owner_user_id, stage_changed_at, created_at FROM crm_leads WHERE wa_account_id=? ORDER BY stage_changed_at DESC LIMIT 3000").bind(account).all(),
-    c.env.DB.prepare("SELECT id, label, type, options_json, position FROM crm_field_defs WHERE wa_account_id=? ORDER BY position, id").bind(account).all<any>(),
+    c.env.DB.prepare("SELECT id, label, type, options_json, position, required FROM crm_field_defs WHERE wa_account_id=? ORDER BY position, id").bind(account).all<any>(),
     eligibleOwners(c),
   ]);
   return c.json({
     owners,
     stages: stages.results,
     leads: leads.results,
-    fields: fields.results.map(({ options_json, ...f }: any) => ({ ...f, options: parseOptions(options_json) })),
+    fields: fields.results.map(({ options_json, required, ...f }: any) => ({ ...f, required: required === 1, options: parseOptions(options_json) })),
   });
 });
 
@@ -196,9 +197,18 @@ async function saveLead(c: Ctx, phone: string, patch: LeadPatch): Promise<{ erro
   if (stage === undefined) {
     await ensureStages(c, account);
     stage = (await db.prepare("SELECT id FROM crm_stages WHERE wa_account_id=? ORDER BY position, id LIMIT 1").bind(account).first<{ id: number }>())!.id;
-  } else if (!(await ownStage(c, stage))) return { error: "Stage not found", status: 404 };
+  }
+  const target = await ownStage(c, stage);
+  if (!target) return { error: "Stage not found", status: 404 };
   const userId = c.get("user").id;
   const moved = existing?.stage_id !== stage;
+  if (moved && target.kind === "won") {
+    const { results: missing } = await db.prepare(
+      `SELECT d.label FROM crm_field_defs d WHERE d.wa_account_id=? AND d.required=1
+         AND NOT EXISTS (SELECT 1 FROM crm_field_values v WHERE v.field_id=d.id AND v.phone=?) ORDER BY d.position, d.id`
+    ).bind(account, phone).all<{ label: string }>();
+    if (missing.length) return { error: `Fill in ${missing.map((m) => m.label).join(", ")} before marking this as won.`, status: 400 };
+  }
   const stmts = [
     db.prepare(
       `INSERT INTO crm_leads (wa_account_id, phone, stage_id, value_idr, expected_close, owner_user_id) VALUES (?,?,?,?,?,?)
@@ -366,9 +376,9 @@ pipeline.post("/fields", async (c) => {
   const n = await c.env.DB.prepare("SELECT COUNT(*) n, COALESCE(MAX(position), -1) p FROM crm_field_defs WHERE wa_account_id=?").bind(account).first<{ n: number; p: number }>();
   if ((n?.n ?? 0) >= MAX_FIELDS) return c.json({ error: `Up to ${MAX_FIELDS} fields per number.` }, 400);
   try {
-    const row = await c.env.DB.prepare("INSERT INTO crm_field_defs (wa_account_id, label, type, options_json, position) VALUES (?,?,?,?,?) RETURNING id, label, type, position")
-      .bind(account, label, b.type, options ? JSON.stringify(options) : null, (n?.p ?? -1) + 1).first<any>();
-    return c.json({ field: { ...row, options: options ?? [] } }, 201);
+    const row = await c.env.DB.prepare("INSERT INTO crm_field_defs (wa_account_id, label, type, options_json, position, required) VALUES (?,?,?,?,?,?) RETURNING id, label, type, position, required")
+      .bind(account, label, b.type, options ? JSON.stringify(options) : null, (n?.p ?? -1) + 1, b.required === true ? 1 : 0).first<any>();
+    return c.json({ field: { ...row, required: row.required === 1, options: options ?? [] } }, 201);
   } catch {
     return c.json({ error: "A field with this name already exists." }, 409);
   }
@@ -390,12 +400,37 @@ pipeline.patch("/fields/:id", async (c) => {
     options = o;
   }
   try {
-    await c.env.DB.prepare("UPDATE crm_field_defs SET label=COALESCE(?,label), options_json=COALESCE(?,options_json) WHERE id=?")
-      .bind(label ?? null, options ? JSON.stringify(options) : null, id).run();
+    if (b?.required !== undefined && typeof b.required !== "boolean") return c.json({ error: "required must be true or false." }, 400);
+    await c.env.DB.prepare("UPDATE crm_field_defs SET label=COALESCE(?,label), options_json=COALESCE(?,options_json), required=COALESCE(?,required) WHERE id=?")
+      .bind(label ?? null, options ? JSON.stringify(options) : null, b?.required === undefined ? null : b.required ? 1 : 0, id).run();
   } catch {
     return c.json({ error: "A field with this name already exists." }, 409);
   }
   return c.json({ ok: true });
+});
+
+/** The ready-made field sets (id, name, what it adds) and how many of each this number already has. */
+pipeline.get("/presets", async (c) => {
+  const have = new Set((await c.env.DB.prepare("SELECT label FROM crm_field_defs WHERE wa_account_id=?").bind(acct(c)).all<{ label: string }>()).results.map((r) => r.label));
+  return c.json({ presets: PRESETS.map((p) => ({ id: p.id, name: p.name, description: p.description, fields: p.fields.length, missing: p.fields.filter((f) => !have.has(f.label)).length })) });
+});
+
+/** Adds the fields of a preset that this number does not have yet (by label); never touches existing ones. */
+pipeline.post("/fields/preset", async (c) => {
+  const account = acct(c);
+  const b: any = await c.req.json().catch(() => null);
+  const preset = PRESETS.find((p) => p.id === b?.preset);
+  if (!preset) return c.json({ error: "Unknown field set." }, 400);
+  const have = await c.env.DB.prepare("SELECT label FROM crm_field_defs WHERE wa_account_id=?").bind(account).all<{ label: string }>();
+  const labels = new Set(have.results.map((r) => r.label));
+  const add = preset.fields.filter((f) => !labels.has(f.label));
+  if (have.results.length + add.length > MAX_FIELDS) return c.json({ error: `That would pass ${MAX_FIELDS} fields on this number. Remove some first.` }, 400);
+  const top = (await c.env.DB.prepare("SELECT COALESCE(MAX(position), -1) p FROM crm_field_defs WHERE wa_account_id=?").bind(account).first<{ p: number }>())?.p ?? -1;
+  if (add.length) {
+    await c.env.DB.batch(add.map((f, i) => c.env.DB.prepare("INSERT INTO crm_field_defs (wa_account_id, label, type, options_json, position, required) VALUES (?,?,?,?,?,?)")
+      .bind(account, f.label, f.type, f.options ? JSON.stringify(f.options) : null, top + 1 + i, f.required ? 1 : 0)));
+  }
+  return c.json({ added: add.length, kept: preset.fields.length - add.length });
 });
 
 pipeline.delete("/fields/:id", async (c) => {

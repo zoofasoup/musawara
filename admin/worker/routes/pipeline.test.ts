@@ -188,3 +188,34 @@ test("import: stage, value, date, owner and field columns land on the board and 
     assert.equal((await call(2, "POST", "/import?account=3", { rows: [{ phone: "6281000000001" }] })).status, 403);
   } finally { done(); }
 });
+
+test("a ready-made field set is added once, and required fields block moving a card to Won until they are filled", async () => {
+  const { call, DB, done } = await setup();
+  try {
+    const listed = (await json(await call(2, "GET", "/presets?account=2"))).presets;
+    assert.deepEqual(listed.map((p: any) => p.id), ["musafar", "nuralive"]);
+    assert.equal(listed[1].missing, listed[1].fields, "nothing added yet");
+    const first = await json(await call(2, "POST", "/fields/preset?account=2", { preset: "nuralive" }));
+    assert.deepEqual([first.added, first.kept], [6, 0]);
+    const again = await json(await call(2, "POST", "/fields/preset?account=2", { preset: "nuralive" }));
+    assert.deepEqual([again.added, again.kept], [0, 6], "pressing it again changes nothing");
+    assert.equal((await call(2, "POST", "/fields/preset?account=2", { preset: "nope" })).status, 400);
+    const ov = await json(await call(2, "GET", "?account=2"));
+    const required = ov.fields.filter((f: any) => f.required).map((f: any) => f.label);
+    assert.deepEqual(required, ["Kategori", "Kehadiran"]);
+    const won = ov.stages.find((s: any) => s.kind === "won");
+    const open = ov.stages[1];
+    assert.equal((await call(2, "PUT", "/leads/6281917403797?account=2", { stage_id: open.id })).status, 200, "required fields do not block ordinary moves");
+    const blocked = await call(2, "PUT", "/leads/6281917403797?account=2", { stage_id: won.id });
+    assert.equal(blocked.status, 400);
+    assert.match((await json(blocked)).error, /Kategori, Kehadiran/);
+    const cat = ov.fields.find((f: any) => f.label === "Kategori"), att = ov.fields.find((f: any) => f.label === "Kehadiran");
+    await call(2, "PUT", "/values/6281917403797?account=2", { values: { [cat.id]: "KOL" } });
+    assert.match((await json(await call(2, "PUT", "/leads/6281917403797?account=2", { stage_id: won.id }))).error, /Kehadiran/, "only what is still missing is named");
+    await call(2, "PUT", "/values/6281917403797?account=2", { values: { [att.id]: "Hadir" } });
+    assert.equal((await call(2, "PUT", "/leads/6281917403797?account=2", { stage_id: won.id })).status, 200);
+    // a field can be made optional again
+    assert.equal((await call(2, "PATCH", `/fields/${cat.id}?account=2`, { required: false })).status, 200);
+    assert.equal((await DB.prepare("SELECT required FROM crm_field_defs WHERE id=?").bind(cat.id).first<any>())!.required, 0);
+  } finally { done(); }
+});

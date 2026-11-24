@@ -10,7 +10,8 @@ export type Stage = { id: number; name: string; color: StageColor; kind: StageKi
 export type Owner = { id: number; name: string };
 export type Lead = { phone: string; stage_id: number; value_idr: number | null; expected_close: string | null; owner_user_id: number | null; stage_changed_at: string; created_at: string };
 export type FieldType = "text" | "number" | "date" | "select" | "checkbox" | "url";
-export type FieldDef = { id: number; label: string; type: FieldType; options: string[]; position: number };
+export type FieldDef = { id: number; label: string; type: FieldType; options: string[]; position: number; required: boolean };
+export type FieldPreset = { id: string; name: string; description: string; fields: number; missing: number };
 export type Overview = { stages: Stage[]; leads: Lead[]; fields: FieldDef[]; owners: Owner[] };
 export type HistoryEvent = { at: string; from_name: string | null; to_name: string; user_name: string | null };
 

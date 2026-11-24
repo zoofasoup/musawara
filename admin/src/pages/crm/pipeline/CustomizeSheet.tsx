@@ -6,8 +6,11 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Segmented } from "../../../components/Segmented";
 import { Btn, Sheet, type Notify } from "../../../components/kit";
 import { Callout } from "../../../components/Callout";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useApi } from "../../../lib/api";
+import { useAccountId } from "../crmApi";
 import { Field } from "../data/shared";
-import { FIELD_TYPE_LABEL, STAGE_BAR, STAGE_COLORS, type FieldDef, type Lead, type FieldType, type Stage, type StageKind } from "./api";
+import { FIELD_TYPE_LABEL, type FieldPreset, STAGE_BAR, STAGE_COLORS, type FieldDef, type Lead, type FieldType, type Stage, type StageKind } from "./api";
 
 type Call = <T = any>(method: string, sub: string, body?: unknown) => Promise<T>;
 const KIND_LABEL: Record<StageKind, string> = { open: "In progress", won: "Won", lost: "Lost" };
@@ -74,6 +77,32 @@ function Stages({ stages, leads, call, done, notify }: { stages: Stage[]; leads:
   );
 }
 
+/** One click adds the fields a brand needs beyond the general CRM (Musafar: umrah trip details; NurAlive: guest and KOL). */
+function Presets({ call, done, notify }: { call: Call; done: () => void; notify: Notify }) {
+  const account = useAccountId();
+  const list = useApi<{ presets: FieldPreset[] }>(account ? `/pipeline/presets?account=${account}` : null, { key: String(account) });
+  const [busy, setBusy] = useState("");
+  if (!list.data?.presets.length) return null;
+  return (
+    <div className="space-y-2 rounded-2xl bg-surface2/60 p-3">
+      <p className="text-xs font-medium text-ink">Ready-made field sets</p>
+      {list.data.presets.map((p) => (
+        <div key={p.id} className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-ink">{p.name}</p>
+            <p className="text-xs text-muted">{p.description} {p.missing === 0 ? "Already added." : `${p.missing} of ${p.fields} to add.`}</p>
+          </div>
+          <Btn tone="secondary" size="sm" loading={busy === p.id} disabled={p.missing === 0} onClick={async () => {
+            setBusy(p.id);
+            try { const r = await call<{ added: number }>("POST", "/fields/preset", { preset: p.id }); notify(`${r.added} field(s) added.`); list.reload(); done(); } catch (e: any) { notify(e.message, "err"); }
+            setBusy("");
+          }}>Add</Btn>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Fields({ fields, call, done, notify }: { fields: FieldDef[]; call: Call; done: () => void; notify: Notify }) {
   const [label, setLabel] = useState("");
   const [type, setType] = useState<FieldType>("text");
@@ -84,6 +113,7 @@ function Fields({ fields, call, done, notify }: { fields: FieldDef[]; call: Call
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">Extra details you keep on every contact of this number, for example package, departure month, or budget. They show on the card and in the contact form.</p>
+      <Presets call={call} done={done} notify={notify} />
       <ul className="space-y-2">
         {fields.map((f, i) => (
           <li key={f.id} className="rounded-2xl bg-surface p-2.5 shadow-[var(--shadow-soft)]">
@@ -95,6 +125,10 @@ function Fields({ fields, call, done, notify }: { fields: FieldDef[]; call: Call
               <Btn tone="ghost" size="sm" aria-label="Move down" disabled={i === fields.length - 1} onClick={() => run(() => call("POST", "/fields/reorder", { ids: move(fields, f.id, 1) }))}><ArrowDown className="h-4 w-4" /></Btn>
               <Btn tone="ghost" size="sm" aria-label={`Remove field ${f.label}`} onClick={() => { if (window.confirm(`Remove "${f.label}" and everything saved in it?`)) void run(() => call("DELETE", `/fields/${f.id}`)); }}><Trash2 className="h-4 w-4 text-crit" /></Btn>
             </div>
+            <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 pl-0.5 text-xs text-ink2">
+              <Checkbox checked={f.required} onCheckedChange={(on) => void run(() => call("PATCH", `/fields/${f.id}`, { required: on === true }))} aria-label={`${f.label} is required to mark as won`} />
+              Required before a card can be marked as won
+            </label>
             {f.type === "select" && (
               <Input aria-label={`Options of ${f.label}`} className="mt-2" defaultValue={f.options.join(", ")} placeholder="Options, separated by commas"
                 onBlur={(e) => { const o = opts(e.target.value); if (o.length && o.join("|") !== f.options.join("|")) void run(() => call("PATCH", `/fields/${f.id}`, { options: o })); }} />

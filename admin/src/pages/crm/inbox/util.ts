@@ -28,7 +28,9 @@ export type Msg = {
   ts: number;
 };
 
-export type Thread = { phone: string; name: string; messages: Msg[] };
+/** The Click-to-WhatsApp ad that brought the person in (first message that carried one); `ts` is when that message arrived. */
+export type ThreadAd = { source_id: string | null; source_url: string | null; source_type: string | null; title: string | null; body: string | null; thumbnail: string | null; ctwa_clid: string | null; ts: number };
+export type Thread = { phone: string; name: string; messages: Msg[]; ad?: ThreadAd };
 
 export type WaState = {
   status: "starting" | "qr" | "loading" | "ready" | "disconnected" | "error";

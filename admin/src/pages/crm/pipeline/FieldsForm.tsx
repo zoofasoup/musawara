@@ -16,12 +16,12 @@ export function FieldsForm({ fields, values, onChange }: { fields: FieldDef[]; v
           return (
             <label key={f.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink">
               <Checkbox checked={v === "1"} onCheckedChange={(on) => onChange(f.id, on ? "1" : "")} />
-              {f.label}
+              {f.label}{f.required && <span className="text-crit" title="Required to mark as won"> *</span>}
             </label>
           );
         }
         return (
-          <Field key={f.id} label={f.label}>
+          <Field key={f.id} label={f.required ? `${f.label} *` : f.label}>
             {f.type === "select" ? (
               <NativeSelect id={id} className="w-full" value={v} onChange={(e) => onChange(f.id, e.target.value)}>
                 <option value="">Not set</option>

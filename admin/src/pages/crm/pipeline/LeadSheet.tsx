@@ -30,9 +30,10 @@ export function LeadSheet({ lead, name, tags, stages, owners, fields, values, ca
     if (amount !== null && !Number.isInteger(amount)) return notify("The deal value must be a whole amount in Rp.", "err");
     setBusy(true);
     try {
-      await call("PUT", `/leads/${lead.phone}`, { stage_id: Number(stageId), value_idr: amount, expected_close: close || null, owner_user_id: ownerId ? Number(ownerId) : null });
+      // Values first: a required field filled in this same sheet must count when the card is moved to Won.
       const changed = changedValues(values, vals, fields);
       if (Object.keys(changed).length) await call("PUT", `/values/${lead.phone}`, { values: changed });
+      await call("PUT", `/leads/${lead.phone}`, { stage_id: Number(stageId), value_idr: amount, expected_close: close || null, owner_user_id: ownerId ? Number(ownerId) : null });
       notify("Saved.");
       onChanged();
     } catch (e: any) {

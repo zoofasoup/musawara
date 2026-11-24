@@ -1,9 +1,14 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Linkified } from "../../../components/Linkified";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, Paperclip, SendHorizontal, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, NotebookPen, Paperclip, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { crmUpload } from "../crmApi";
+import { crmUpload, useAccountId } from "../crmApi";
+import { api, useApi } from "../../../lib/api";
+import { Segmented } from "../../../components/Segmented";
+import { TONE } from "../../../lib/tone";
+import { AdCard } from "./AdCard";
+import type { TimelineItem } from "../pipeline/api";
 
 import { Skeleton } from "../../../components/ui";
 import { GatewayNotice } from "./GatewayNotice";
@@ -48,13 +53,33 @@ export function Bubble({ m, demo }: { m: Msg; demo?: MediaDemo }) {
   );
 }
 
-function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void> }) {
+/** An internal note in the thread: only the team sees it, it is never sent to the customer. */
+function NoteBubble({ note }: { note: Note }) {
+  return (
+    <div className="flex justify-center">
+      <div className={`max-w-[90%] rounded-2xl px-3 py-2 sm:max-w-[70%] ${TONE.warn.soft}`}>
+        <p className="flex items-center gap-1 text-xs font-medium"><NotebookPen className="h-3.5 w-3.5" aria-hidden />Internal note, not sent to the customer</p>
+        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-ink"><Linkified text={note.text} /></p>
+        <p className="mt-0.5 text-xs text-ink2">{note.user_name ? `${note.user_name} · ` : ""}{fmtClock(note.ts)}</p>
+      </div>
+    </div>
+  );
+}
+
+type Note = { id: number; ts: number; text: string; user_name: string | null };
+type Entry = { key: string; ts: number; msg?: Msg; note?: Note };
+const sqlUtcToUnix = (at: string) => Math.floor(Date.parse(at.replace(" ", "T") + "Z") / 1000);
+
+function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void>; onNote: (text: string) => Promise<void> }) {
+  const [mode, setMode] = useState<"reply" | "note">("reply");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string>();
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const canSend = !disabled && !busy && (text.trim() !== "" || file !== null);
+  const noting = mode === "note";
+  const blocked = disabled && !noting; // a note works even when WhatsApp is not connected
+  const canSend = !blocked && !busy && (text.trim() !== "" || (!noting && file !== null));
 
   async function submit() {
     if (!canSend) return;
@@ -66,7 +91,7 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
     setFile(null);
     if (fileRef.current) fileRef.current.value = "";
     try {
-      await onSend(t.trim(), f);
+      if (noting) await onNote(t.trim()); else await onSend(t.trim(), f);
     } catch (e) {
       setErr(classify(e).message);
       setText((cur) => cur || t);
@@ -78,7 +103,10 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
 
   return (
     <div className="bg-surface p-3 shadow-[0_-8px_24px_-16px_rgba(20,24,36,0.18)]">
-      {disabled && (
+      <div className="mb-2">
+        <Segmented label="Reply or note" value={mode} onChange={setMode} options={[{ value: "reply", label: "Reply" }, { value: "note", label: "Internal note", icon: <NotebookPen className="h-3.5 w-3.5" aria-hidden /> }]} />
+      </div>
+      {disabled && !noting && (
         <Callout tone="warn" compact className="mb-2">
           {reason}{" "}
           <Link to="/crm/connection" className="font-medium underline">
@@ -88,10 +116,10 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
       )}
       {err && (
         <Callout tone="crit" compact className="mb-2">
-          Not sent: {err}
+          {noting ? "Not saved" : "Not sent"}: {err}
         </Callout>
       )}
-      {file && (
+      {file && !noting && (
         <p className="mb-2 flex items-center gap-2 text-xs text-ink2">
           <Paperclip className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 truncate">{file.name}</span>
@@ -125,7 +153,7 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
         />
         <button
           type="button"
-          disabled={disabled || busy}
+          disabled={blocked || busy || noting}
           onClick={() => fileRef.current?.click()}
           aria-label="Attach a file"
           title="Attach a file (max 64 MB)"
@@ -143,15 +171,15 @@ function Composer({ disabled, reason, onSend }: { disabled: boolean; reason: str
             }
           }}
           rows={1}
-          disabled={disabled}
-          aria-label="Message"
-          placeholder={disabled ? "Sending is off" : "Write a message"}
+          disabled={blocked}
+          aria-label={noting ? "Internal note" : "Message"}
+          placeholder={noting ? "Write a note for the team (the customer never sees it)" : disabled ? "Sending is off" : "Write a message"}
           className="max-h-32 min-h-11 resize-none rounded-2xl py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={!canSend}
-          aria-label="Send"
+          aria-label={noting ? "Save note" : "Send"}
           className="press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_6px_16px_-6px_color-mix(in_srgb,var(--accent)_60%,transparent)] hover:brightness-105 disabled:opacity-50"
         >
           <SendHorizontal className="h-4 w-4" />
@@ -194,20 +222,27 @@ export function ThreadView({
     seen.current = { phone: "", len: 0 };
   }, [phone]);
 
+  const account = useAccountId();
+  const timeline = useApi<{ items: TimelineItem[] }>(account ? `/crm-tasks/timeline/${phone}?account=${account}` : null, { key: String(account) });
+  const notes = useMemo<Note[]>(() => (timeline.data?.items ?? []).filter((i) => i.kind === "note" && i.id != null).map((i) => ({ id: i.id!, ts: sqlUtcToUnix(i.at), text: i.text, user_name: i.user_name ?? null })), [timeline.data]);
   const messages = useMemo(() => [...(data?.messages ?? []), ...pending], [data, pending]);
+  const entries = useMemo<Entry[]>(
+    () => [...messages.map((m): Entry => ({ key: m.wa_id, ts: m.ts, msg: m })), ...notes.map((n): Entry => ({ key: `note-${n.id}`, ts: n.ts, note: n }))].sort((a, b) => a.ts - b.ts),
+    [messages, notes]
+  );
 
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el) return;
     const prev = seen.current;
-    const added = prev.phone === phone ? messages.length - prev.len : 0;
-    seen.current = { phone, len: messages.length };
+    const added = prev.phone === phone ? entries.length - prev.len : 0;
+    seen.current = { phone, len: entries.length };
     if (stick.current) {
       el.scrollTop = el.scrollHeight;
-    } else if (added > 0 && !messages[messages.length - 1]?.from_me) {
+    } else if (added > 0 && entries[entries.length - 1]?.msg && !entries[entries.length - 1].msg!.from_me) {
       setUnseen((n) => n + added);
     }
-  }, [messages, phone]);
+  }, [entries, phone]);
 
   const toBottom = useCallback(() => {
     const el = scroller.current;
@@ -215,6 +250,12 @@ export function ThreadView({
     stick.current = true;
     setUnseen(0);
   }, []);
+
+  async function saveNote(text: string) {
+    await api("/crm-tasks/notes?account=" + account, { method: "POST", body: { phone, body: text } });
+    stick.current = true;
+    timeline.reload();
+  }
 
   async function send(text: string, file: File | null) {
     const tmp: Msg = { wa_id: PENDING + ++counter.current, phone, from_me: 1, body: text, media_type: file ? "document" : null, ack: 0, is_read: 1, ts: Math.floor(Date.now() / 1000) };
@@ -281,19 +322,22 @@ export function ThreadView({
             </div>
           ) : !data && error ? (
             <GatewayNotice error={error} onRetry={reload} compact />
-          ) : messages.length === 0 ? (
+          ) : entries.length === 0 && !data?.ad ? (
             <p className="py-10 text-center text-xs text-muted">No messages recorded for this number yet. Messages you send below start the conversation.</p>
           ) : (
-            messages.map((m, i) => (
-              <Fragment key={m.wa_id}>
-                {(i === 0 || dayKey(messages[i - 1].ts) !== dayKey(m.ts)) && (
-                  <p className="py-2 text-center">
-                    <span className="rounded-full bg-surface3 px-3 py-1 text-xs text-ink2">{fmtDayLabel(m.ts)}</span>
-                  </p>
-                )}
-                <Bubble m={m} />
-              </Fragment>
-            ))
+            <>
+              {data?.ad && <AdCard ad={data.ad} account={account} />}
+              {entries.map((e, i) => (
+                <Fragment key={e.key}>
+                  {(i === 0 || dayKey(entries[i - 1].ts) !== dayKey(e.ts)) && (
+                    <p className="py-2 text-center">
+                      <span className="rounded-full bg-surface3 px-3 py-1 text-xs text-ink2">{fmtDayLabel(e.ts)}</span>
+                    </p>
+                  )}
+                  {e.msg ? <Bubble m={e.msg} /> : <NoteBubble note={e.note!} />}
+                </Fragment>
+              ))}
+            </>
           )}
         </div>
         {data && error != null && (
@@ -309,7 +353,7 @@ export function ThreadView({
         )}
       </div>
 
-      <Composer key={phone} disabled={!canSend} reason={reason} onSend={send} />
+      <Composer key={phone} disabled={!canSend} reason={reason} onSend={send} onNote={saveNote} />
     </div>
   );
 }
