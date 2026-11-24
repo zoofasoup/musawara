@@ -14,7 +14,7 @@ const crm = new Hono<{ Bindings: Env; Variables: Vars }>();
 crm.use("*", requirePerm("crm"));
 
 // Which platform client (brand) each WhatsApp number belongs to, as the gateway reports it. Cached briefly per isolate.
-type GatewayAccount = { id: number; client_id: number | null };
+type GatewayAccount = { id: number; client_id: number | string | null };
 let accountCache: { at: number; list: GatewayAccount[] } | null = null;
 async function gatewayAccounts(base: string, token: string): Promise<GatewayAccount[]> {
   if (accountCache && Date.now() - accountCache.at < 30_000) return accountCache.list;
@@ -50,7 +50,11 @@ crm.all("/*", async (c) => {
     } catch {
       return c.json({ error: "WhatsApp gateway is unreachable", code: "gateway_down" }, 502);
     }
-    const mine = known.filter((a) => a.client_id !== null && canReachClient(user, a.client_id));
+    // The gateway stores client_id as text ("1"), so compare as numbers.
+    const mine = known.filter((a) => {
+      const cid = a.client_id == null ? NaN : Number(a.client_id);
+      return Number.isInteger(cid) && canReachClient(user, cid);
+    });
     if (area === "accounts" && c.req.method === "GET" && path === "/accounts") {
       filterList = true; // the list of numbers, cut down below
     } else {

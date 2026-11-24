@@ -194,7 +194,7 @@ test("CRM: a non-owner only reaches WhatsApp numbers of their own clients, never
   globalThis.fetch = (async (input: any, init: any) => {
     const url = String(input);
     calls.push({ url, account: new Headers(init?.headers).get("x-wa-account") });
-    if (url.endsWith("/api/accounts")) return Response.json([{ id: 1, client_id: null }, { id: 2, client_id: 1 }, { id: 3, client_id: 2 }]);
+    if (url.endsWith("/api/accounts")) return Response.json([{ id: 1, client_id: null }, { id: 2, client_id: "1" }, { id: 3, client_id: "2" }]); // the real gateway sends client_id as text
     return Response.json({ ok: true });
   }) as any;
   const env: any = { DB, JWT_SECRET: SECRET, WA_GATEWAY_URL: "https://gw.test", WA_GATEWAY_TOKEN: "t" };

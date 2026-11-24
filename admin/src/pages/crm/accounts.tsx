@@ -54,4 +54,5 @@ export const useAccounts = () => {
   return c;
 };
 
-export const clientName = (clients: Client[], id: number | null) => (id == null ? null : clients.find((c) => c.id === id)?.name ?? null);
+// the gateway returns client_id as text ("1"), the platform's client ids are numbers
+export const clientName = (clients: Client[], id: number | string | null) => (id == null || id === "" ? null : clients.find((c) => c.id === Number(id))?.name ?? null);
