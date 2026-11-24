@@ -8,22 +8,11 @@
 
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
-import { canReachClient, requirePerm } from "../middleware";
+import { requirePerm } from "../middleware";
+import { accountsOf, gatewayAccounts, type GatewayAccount } from "../lib/waAccounts";
 
 const crm = new Hono<{ Bindings: Env; Variables: Vars }>();
 crm.use("*", requirePerm("crm"));
-
-// Which platform client (brand) each WhatsApp number belongs to, as the gateway reports it. Cached briefly per isolate.
-type GatewayAccount = { id: number; client_id: number | string | null };
-let accountCache: { at: number; list: GatewayAccount[] } | null = null;
-async function gatewayAccounts(base: string, token: string): Promise<GatewayAccount[]> {
-  if (accountCache && Date.now() - accountCache.at < 30_000) return accountCache.list;
-  const res = await fetch(`${base}/api/accounts`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
-  if (!res.ok) throw new Error("accounts");
-  const list = (await res.json()) as GatewayAccount[];
-  accountCache = { at: Date.now(), list };
-  return list;
-}
 
 /** What a team member who is not an Owner may ask the gateway for: only data of numbers whose brand is one of their clients. */
 const SCOPED_AREAS = new Set(["contacts", "tags", "templates", "campaigns", "conversations", "messages", "media", "wa"]);
@@ -50,11 +39,7 @@ crm.all("/*", async (c) => {
     } catch {
       return c.json({ error: "WhatsApp gateway is unreachable", code: "gateway_down" }, 502);
     }
-    // The gateway stores client_id as text ("1"), so compare as numbers.
-    const mine = known.filter((a) => {
-      const cid = a.client_id == null ? NaN : Number(a.client_id);
-      return Number.isInteger(cid) && canReachClient(user, cid);
-    });
+    const mine = accountsOf(user, known);
     if (area === "accounts" && c.req.method === "GET" && path === "/accounts") {
       filterList = true; // the list of numbers, cut down below
     } else {

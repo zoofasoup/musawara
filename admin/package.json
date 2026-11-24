@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check": "tsc --noEmit",
-    "test": "node --import ./worker/testkit/register.mjs --test src/lib/*.test.ts worker/lib/*.test.ts worker/routes/planning.test.ts worker/routes/hostGate.test.ts worker/routes/login.test.ts worker/routes/shopee.test.ts worker/routes/notion.test.ts worker/routes/profile.test.ts worker/routes/roles.test.ts worker/routes/betterAuth.test.ts && vitest run worker/routes/approvals.route.test.ts",
+    "test": "node --import ./worker/testkit/register.mjs --test src/lib/*.test.ts worker/lib/*.test.ts worker/routes/planning.test.ts worker/routes/hostGate.test.ts worker/routes/login.test.ts worker/routes/shopee.test.ts worker/routes/notion.test.ts worker/routes/profile.test.ts worker/routes/roles.test.ts worker/routes/betterAuth.test.ts worker/routes/pipeline.test.ts && vitest run worker/routes/approvals.route.test.ts",
     "start": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply musawara-ads --local",
