@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Btn, Panel } from "../../../components/kit";
 import { fmtNum } from "../../../lib/format";
+import { crm } from "../crmApi";
 import { Field, fmtDuration, fmtPhone } from "../data/shared";
 import { renderMessage, unknownTokens, type Contact } from "./audience";
 import type { AudienceData } from "./useAudienceData";
 import { WaPreview } from "./WaPreview";
 import { Chip } from "./Chip";
 
-export type Template = { id: number; name: string; body: string };
+export type Template = { id: number; name: string; body: string; category: string; use_count: number };
 
 export function MessageStep({ data, templates, template, setTemplate, file, setFile, delayMin, delayMax, setDelayMin, setDelayMax, sample, count }: {
   data: AudienceData; templates: Template[]; template: string; setTemplate: (v: string) => void; file: File | null; setFile: (f: File | null) => void;
@@ -22,7 +23,7 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
   const area = useRef<HTMLTextAreaElement>(null);
   const [q, setQ] = useState("");
   const [undo, setUndo] = useState<string | null>(null);
-  const shown = useMemo(() => { const n = q.trim().toLowerCase(); return templates.filter((t) => !n || t.name.toLowerCase().includes(n) || t.body.toLowerCase().includes(n)); }, [templates, q]);
+  const shown = useMemo(() => { const n = q.trim().toLowerCase(); return templates.filter((t) => !n || `${t.name} ${t.category} ${t.body}`.toLowerCase().includes(n)); }, [templates, q]);
 
   /** Put text at the cursor (or around the selection) and keep the cursor after it. */
   const insert = (before: string, after = "") => {
@@ -51,8 +52,8 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
             <ul className="max-h-48 space-y-1.5 overflow-y-auto">
               {shown.map((t) => (
                 <li key={t.id}>
-                  <button type="button" onClick={() => { if (template.trim() && template !== t.body) setUndo(template); setTemplate(t.body); }} className="press block w-full min-h-11 rounded-xl bg-surface px-3 py-2 text-left shadow-[var(--shadow-soft)] hover:bg-surface2">
-                    <span className="block truncate text-sm font-medium text-ink">{t.name}</span>
+                  <button type="button" onClick={() => { if (template.trim() && template !== t.body) setUndo(template); setTemplate(t.body); void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {}); }} className="press block w-full min-h-11 rounded-xl bg-surface px-3 py-2 text-left shadow-[var(--shadow-soft)] hover:bg-surface2">
+                    <span className="flex items-center gap-2"><span className="truncate text-sm font-medium text-ink">{t.name}</span>{t.category && <span className="shrink-0 rounded-lg bg-surface3 px-1.5 py-0.5 text-[11px] text-ink2">{t.category}</span>}</span>
                     <span className="block truncate text-xs text-muted">{t.body.replace(/\s+/g, " ")}</span>
                   </button>
                 </li>

@@ -3,7 +3,7 @@ import { Linkified } from "../../../components/Linkified";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, NotebookPen, Paperclip, UserRound, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { crmUpload, useAccountId, useCrm } from "../crmApi";
+import { crm, crmUpload, useAccountId, useCrm } from "../crmApi";
 import { usePipeline, useFieldValues } from "../pipeline/api";
 import { renderMessage, valuesForPerson, variablesFor } from "../broadcast/audience";
 import { api, useApi } from "../../../lib/api";
@@ -73,7 +73,7 @@ type Note = { id: number; ts: number; text: string; user_name: string | null };
 type Entry = { key: string; ts: number; msg?: Msg; note?: Note };
 const sqlUtcToUnix = (at: string) => Math.floor(Date.parse(at.replace(" ", "T") + "Z") / 1000);
 
-type QuickReply = { id: number; name: string; body: string };
+type QuickReply = { id: number; name: string; body: string; category: string; use_count: number };
 
 function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void>; onNote: (text: string) => Promise<void>; replies: QuickReply[]; fill: (body: string) => string }) {
   const [mode, setMode] = useState<"reply" | "note">("reply");
@@ -87,9 +87,9 @@ function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disable
   const [hi, setHi] = useState(0);
   const [closed, setClosed] = useState(false);
   const query = !noting && !closed && text.startsWith("/") && !text.includes("\n") ? text.slice(1).trim().toLowerCase() : null;
-  const options = query === null ? [] : replies.filter((t) => !query || t.name.toLowerCase().includes(query) || t.body.toLowerCase().includes(query)).slice(0, 8);
+  const options = query === null ? [] : replies.filter((t) => !query || `${t.name} ${t.category} ${t.body}`.toLowerCase().includes(query)).slice(0, 8);
   const menu = query !== null && replies.length > 0;
-  const pick = (t: QuickReply) => { setText(fill(t.body)); setHi(0); setClosed(false); };
+  const pick = (t: QuickReply) => { setText(fill(t.body)); setHi(0); setClosed(false); void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {}); };
   const blocked = disabled && !noting; // a note works even when WhatsApp is not connected
   const canSend = !blocked && !busy && (text.trim() !== "" || (!noting && file !== null));
 
@@ -121,7 +121,7 @@ function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disable
           {options.map((t, i) => (
             <li key={t.id} role="option" aria-selected={i === hi}>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); pick(t); }} onMouseEnter={() => setHi(i)} className={`block w-full min-h-11 rounded-xl px-3 py-1.5 text-left ${i === hi ? "bg-surface2" : ""}`}>
-                <span className="block truncate text-sm font-medium text-ink">/{t.name}</span>
+                <span className="flex items-center gap-2"><span className="truncate text-sm font-medium text-ink">/{t.name}</span>{t.category && <span className="shrink-0 rounded-lg bg-surface3 px-1.5 py-0.5 text-[11px] text-ink2">{t.category}</span>}</span>
                 <span className="block truncate text-xs text-muted">{t.body.replace(/\s+/g, " ")}</span>
               </button>
             </li>
@@ -260,7 +260,7 @@ export function ThreadView({
   const replies = useMemo<QuickReply[]>(() => {
     const raw: any = tplQ.data;
     const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.templates) ? raw.templates : [];
-    return arr.map((t: any) => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? "") })).filter((t: QuickReply) => t.body);
+    return arr.map((t: any): QuickReply => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0) })).filter((t: QuickReply) => t.body).sort((a: QuickReply, b: QuickReply) => b.use_count - a.use_count || a.name.localeCompare(b.name));
   }, [tplQ.data]);
   const board = usePipeline();
   const fieldValues = useFieldValues(board.account);
