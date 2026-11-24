@@ -262,6 +262,85 @@ pipeline.get("/leads/:phone/history", async (c) => {
   return c.json({ events: results });
 });
 
+// ------------------------------------------------------------------ import (pipeline columns of a contacts file)
+type ImportRow = { phone?: unknown; stage?: unknown; value_idr?: unknown; expected_close?: unknown; owner?: unknown; fields?: unknown };
+const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+
+/**
+ * The second half of a contacts import: after the gateway has the contacts, the stage, deal value, closing date, owner and custom
+ * field columns of the same file land here, matched by name (stage name, owner name, field label). A row with a stage, value, date or
+ * owner puts the contact on the board; rows with only field values just fill the fields. Bad cells are reported, never guessed.
+ * At most 100 rows per call (each card is a few database calls).
+ */
+pipeline.post("/import", async (c) => {
+  const account = acct(c);
+  const b: any = await c.req.json().catch(() => null);
+  const rows: ImportRow[] = Array.isArray(b?.rows) ? b.rows : [];
+  if (rows.length === 0 || rows.length > 100) return c.json({ error: "Send between 1 and 100 rows per call." }, 400);
+  await ensureStages(c, account);
+  const [stages, defs, owners] = await Promise.all([
+    c.env.DB.prepare("SELECT id, name FROM crm_stages WHERE wa_account_id=?").bind(account).all<{ id: number; name: string }>(),
+    c.env.DB.prepare("SELECT id, label, type, options_json FROM crm_field_defs WHERE wa_account_id=?").bind(account).all<{ id: number; label: string; type: string; options_json: string | null }>(),
+    eligibleOwners(c),
+  ]);
+  const stageBy = new Map(stages.results.map((s) => [norm(s.name), s.id]));
+  const fieldBy = new Map(defs.results.map((d) => [norm(d.label), d]));
+  const ownerBy = new Map(owners.map((o) => [norm(o.name), o.id]));
+  const errors: Array<{ phone: string; message: string }> = [];
+  const note = (phone: string, message: string) => { if (errors.length < 60) errors.push({ phone, message }); };
+  let cards = 0, values = 0;
+  const stmts: D1PreparedStatement[] = [];
+
+  for (const r of rows) {
+    const phone = String(r.phone ?? "");
+    if (!PHONE.test(phone)) { note(phone || "(empty)", "Invalid phone number."); continue; }
+    const patch: LeadPatch = {};
+    let wants = false;
+    if (r.stage !== undefined && String(r.stage).trim() !== "") {
+      const id = stageBy.get(norm(r.stage));
+      if (id === undefined) { note(phone, `Unknown stage "${String(r.stage).slice(0, 40)}".`); continue; }
+      patch.stage_id = id; wants = true;
+    }
+    if (r.value_idr !== undefined && r.value_idr !== null && r.value_idr !== "") {
+      const n = Number(r.value_idr);
+      if (!(Number.isInteger(n) && n >= 0 && n <= 1e12)) note(phone, "The deal value must be a whole amount in Rp.");
+      else { patch.value_idr = n; wants = true; }
+    }
+    if (r.expected_close !== undefined && r.expected_close !== null && r.expected_close !== "") {
+      if (typeof r.expected_close === "string" && YMD.test(r.expected_close)) { patch.expected_close = r.expected_close; wants = true; }
+      else note(phone, "The closing date must be YYYY-MM-DD.");
+    }
+    if (r.owner !== undefined && String(r.owner).trim() !== "") {
+      const id = ownerBy.get(norm(r.owner));
+      if (id === undefined) note(phone, `"${String(r.owner).slice(0, 40)}" cannot own leads on this number.`);
+      else { patch.owner_user_id = id; wants = true; }
+    }
+    if (wants) {
+      const res = await saveLead(c, phone, patch);
+      if ("error" in res) { note(phone, res.error); continue; }
+      cards++;
+    }
+    if (r.fields && typeof r.fields === "object" && !Array.isArray(r.fields)) {
+      for (const [label, raw] of Object.entries(r.fields as Record<string, unknown>)) {
+        const def = fieldBy.get(norm(label));
+        if (!def) continue; // a column that is not one of this number's fields is simply not a field
+        const clean = cleanValue(def.type, parseOptions(def.options_json), raw);
+        if ("error" in clean) { note(phone, `${def.label}: ${clean.error}`); continue; }
+        if (clean.value === null) continue; // an empty cell never erases what is already saved
+        stmts.push(
+          c.env.DB.prepare(
+            `INSERT INTO crm_field_values (wa_account_id, phone, field_id, value) VALUES (?,?,?,?)
+             ON CONFLICT(wa_account_id, phone, field_id) DO UPDATE SET value=excluded.value, updated_at=datetime('now')`
+          ).bind(account, phone, def.id, clean.value)
+        );
+        values++;
+      }
+    }
+  }
+  for (let i = 0; i < stmts.length; i += 90) await c.env.DB.batch(stmts.slice(i, i + 90));
+  return c.json({ ok: true, cards, values, errors });
+});
+
 // ------------------------------------------------------------------ custom fields
 async function ownField(c: Ctx, id: number) {
   return c.env.DB.prepare("SELECT id, type, options_json FROM crm_field_defs WHERE id=? AND wa_account_id=?").bind(id, acct(c)).first<{ id: number; type: string; options_json: string | null }>();

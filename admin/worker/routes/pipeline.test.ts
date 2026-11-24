@@ -149,3 +149,42 @@ test("report: cards now, cards that ever reached a stage, wins, losses and win r
     assert.equal((await call(2, "GET", "/report?account=3")).status, 403);
   } finally { done(); }
 });
+
+test("import: stage, value, date, owner and field columns land on the board and in the fields; bad cells are reported, not guessed", async () => {
+  const { call, done } = await setup();
+  try {
+    const f = async (body: unknown) => json(await call(2, "POST", "/fields?account=2", body));
+    const pkg = (await f({ label: "Package", type: "select", options: ["Reguler", "VIP"] })).field;
+    const budget = (await f({ label: "Budget", type: "number" })).field;
+    const imp = (rows: unknown[]) => call(2, "POST", "/import?account=2", { rows });
+    const r = await json(await imp([
+      { phone: "6281000000001", stage: "interested", value_idr: 28000000, expected_close: "2026-12-20", owner: "CRM", fields: { package: "VIP", BUDGET: "25000000" } },
+      { phone: "6281000000002", fields: { Package: "Reguler" } },
+      { phone: "6281000000003", stage: "Nonexistent" },
+      { phone: "6281000000004", stage: "New", expected_close: "20/12/2026", owner: "Stranger", fields: { Package: "Platinum", Budget: "lots", Unknown: "x" } },
+      { phone: "abc", stage: "New" },
+    ]));
+    assert.deepEqual([r.cards, r.values], [2, 3]);
+    const msgs = r.errors.map((e: any) => `${e.phone}: ${e.message}`);
+    assert.ok(msgs.some((m: string) => m.startsWith("6281000000003: Unknown stage")), msgs.join("\n"));
+    assert.ok(msgs.some((m: string) => m.includes("closing date must be YYYY-MM-DD")));
+    assert.ok(msgs.some((m: string) => m.includes('"Stranger" cannot own')));
+    assert.ok(msgs.some((m: string) => m.includes("Package: Pick one of the options")));
+    assert.ok(msgs.some((m: string) => m.includes("Budget: Enter a number")));
+    assert.ok(msgs.some((m: string) => m.startsWith("abc: Invalid phone")));
+    const ov = await json(await call(2, "GET", "?account=2"));
+    const byPhone = Object.fromEntries(ov.leads.map((l: any) => [l.phone, l]));
+    assert.deepEqual(Object.keys(byPhone).sort(), ["6281000000001", "6281000000004"], "only rows with pipeline data (and a valid stage) become cards; the unknown-stage row is skipped");
+    const a = byPhone["6281000000001"];
+    assert.deepEqual([ov.stages.find((s: any) => s.id === a.stage_id).name, a.value_idr, a.expected_close, a.owner_user_id], ["Interested", 28000000, "2026-12-20", 2]);
+    const vals = (await json(await call(2, "GET", "/values?account=2"))).values;
+    assert.deepEqual(vals["6281000000001"], { [pkg.id]: "VIP", [budget.id]: "25000000" });
+    assert.deepEqual(vals["6281000000002"], { [pkg.id]: "Reguler" });
+    // an empty cell never erases what is saved
+    await imp([{ phone: "6281000000001", fields: { Package: "" } }]);
+    assert.equal((await json(await call(2, "GET", "/values?account=2"))).values["6281000000001"][pkg.id], "VIP");
+    assert.equal((await imp([])).status, 400);
+    assert.equal((await imp(Array.from({ length: 101 }, () => ({ phone: "6281000000009" })))).status, 400);
+    assert.equal((await call(2, "POST", "/import?account=3", { rows: [{ phone: "6281000000001" }] })).status, 403);
+  } finally { done(); }
+});
