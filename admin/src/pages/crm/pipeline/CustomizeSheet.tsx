@@ -78,7 +78,7 @@ function Stages({ stages, leads, call, done, notify }: { stages: Stage[]; leads:
 }
 
 /** One click adds the fields a brand needs beyond the general CRM (Musafar: umrah trip details; NurAlive: guest and KOL). */
-function Presets({ call, done, notify }: { call: Call; done: () => void; notify: Notify }) {
+export function Presets({ call, done, notify }: { call: Call; done: () => void; notify: Notify }) {
   const account = useAccountId();
   const list = useApi<{ presets: FieldPreset[] }>(account ? `/pipeline/presets?account=${account}` : null, { key: String(account) });
   const [busy, setBusy] = useState("");

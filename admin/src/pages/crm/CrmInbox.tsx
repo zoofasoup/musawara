@@ -2,6 +2,7 @@
 // (no websocket). List every 5 s, open thread every 3 s, connection status 3 s / 15 s.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PanelRightOpen } from "lucide-react";
 import { Callout } from "../../components/Callout";
 import { useSearchParams } from "react-router-dom";
 import { crm } from "./crmApi";
@@ -22,6 +23,9 @@ export function CrmInbox() {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string>();
   const [details, setDetails] = useState(false);
+  // The details column can be folded away to the right; the choice is remembered on this device.
+  const [panelOpen, setPanelOpen] = useState(() => { try { return localStorage.getItem("crm.panel") !== "closed"; } catch { return true; } });
+  const setPanel = (open: boolean) => { setPanelOpen(open); try { localStorage.setItem("crm.panel", open ? "open" : "closed"); } catch { /* ignore */ } };
 
   const convs = useLive<Conv[]>("/conversations", 5000);
   const wa = useWaStatus();
@@ -117,9 +121,15 @@ export function CrmInbox() {
           )}
         </div>
         {phone && (
-          <aside aria-label="Contact details" className="hidden min-h-0 w-[320px] shrink-0 border-l border-border xl:block 2xl:w-[360px]">
-            <ContactPanel key={phone} phone={phone} name={active?.name || fmtPhone(phone)} tags={active ? tagList(active) : []} />
-          </aside>
+          panelOpen ? (
+            <aside aria-label="Contact details" className="hidden min-h-0 w-[320px] shrink-0 border-l border-border xl:block 2xl:w-[360px]">
+              <ContactPanel key={phone} phone={phone} name={active?.name || fmtPhone(phone)} tags={active ? tagList(active) : []} onCollapse={() => setPanel(false)} />
+            </aside>
+          ) : (
+            <aside aria-label="Contact details (hidden)" className="hidden w-12 shrink-0 flex-col items-center border-l border-border py-2 xl:flex">
+              <Btn tone="ghost" size="sm" aria-label="Show details" onClick={() => setPanel(true)}><PanelRightOpen className="h-4 w-4" /></Btn>
+            </aside>
+          )
         )}
       </Panel>
       {details && phone && (

@@ -7,8 +7,9 @@ import { TONE } from "../../../lib/tone";
 import { Download, ExternalLink, FileText, Pause, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { mediaLabel, type Msg } from "./util";
+import { accountParam } from "../crmApi";
 
-const mediaHref = (waId: string) => `/api/crm/media/${encodeURIComponent(waId)}`;
+const mediaHref = (waId: string) => `/api/crm/media/${encodeURIComponent(waId)}${accountParam() ? `?${accountParam()}` : ""}`;
 const linkCls = "inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-medium underline underline-offset-2";
 
 export type DocMeta = { name: string | null; size: number | null; type: string | null };

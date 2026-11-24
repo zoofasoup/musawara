@@ -41,6 +41,9 @@ export function useAccountId() {
   );
 }
 
+/** `account=<id>` for URLs that cannot carry the X-WA-Account header (images, downloads); empty on the default number. */
+export const accountParam = () => (accountId === null ? "" : `account=${accountId}`);
+
 const accountHeaders = (): Record<string, string> => (accountId === null ? {} : { "X-WA-Account": String(accountId) });
 
 /* ---------- calls ---------- */

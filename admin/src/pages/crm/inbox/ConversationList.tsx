@@ -1,4 +1,5 @@
 import { NativeSelect } from "@/components/ui/native-select";
+import { Avatar } from "./Avatar";
 import { Segmented } from "../../../components/Segmented";
 import { Input } from "@/components/ui/input";
 import { useMemo } from "react";
@@ -207,8 +208,10 @@ export function ConversationList({
                   type="button"
                   onClick={() => onOpen(c.phone)}
                   aria-current={c.phone === activePhone ? "true" : undefined}
-                  className={`block min-h-14 w-full border-b border-border/60 px-3 py-2.5 text-left hover:bg-surface2/70 ${c.phone === activePhone ? "bg-[color-mix(in_srgb,var(--accent)_8%,white)]" : ""}`}
+                  className={`flex min-h-14 w-full items-start gap-3 border-b border-border/60 px-3 py-2.5 text-left hover:bg-surface2/70 ${c.phone === activePhone ? "bg-[color-mix(in_srgb,var(--accent)_8%,white)]" : ""}`}
                 >
+                  <Avatar phone={c.phone} name={c.name} size={40} />
+                  <span className="block min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className={`min-w-0 truncate text-sm ${c.unread ? "font-bold text-ink" : "font-medium text-ink"}`}>{convTitle(c)}</span>
                     <span className="shrink-0 text-xs text-muted">{fmtListTime(c.ts)}</span>
@@ -226,6 +229,7 @@ export function ConversationList({
                     )}
                   </span>
                   <Chips tags={tagList(c)} />
+                  </span>
                 </button>
               </li>
             ))}

@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PanelRightClose } from "lucide-react";
 import { Skeleton } from "../../../components/ui";
+import { Btn } from "../../../components/kit";
+import { Avatar } from "./Avatar";
+import { Presets } from "../pipeline/CustomizeSheet";
 import { useNotify, type Notify } from "../../../components/kit";
 import { Field, fmtPhone, TagChip } from "../data/shared";
 import { changedValues, FieldsForm } from "../pipeline/FieldsForm";
@@ -66,6 +70,13 @@ function Body({ phone, lead, board, saved, notify, reload }: { phone: string; le
           </div>
         </>
       )}
+      {fields.length === 0 && (
+        <div className="space-y-2 rounded-2xl bg-surface2/60 p-3">
+          <p className="text-sm font-medium text-ink">No details to fill in yet</p>
+          <p className="text-xs text-muted">Add the details this number keeps on every contact (for example how many people and the departure plan). You can also build your own under Pipeline → Customize.</p>
+          <Presets call={board.call} done={reload} notify={notify} />
+        </div>
+      )}
       <FieldsForm fields={fields} values={vals} onChange={(id, v) => setVals((x) => ({ ...x, [id]: v }))} />
       <ContactTasks phone={phone} today={todayYmd()} notify={notify} />
       <Timeline phone={phone} notify={notify} />
@@ -73,7 +84,7 @@ function Body({ phone, lead, board, saved, notify, reload }: { phone: string; le
   );
 }
 
-export function ContactPanel({ phone, name, tags }: { phone: string; name: string; tags: string[] }) {
+export function ContactPanel({ phone, name, tags, onCollapse }: { phone: string; name: string; tags: string[]; onCollapse?: () => void }) {
   const board = usePipeline();
   const vals = useFieldValues(board.account);
   const { notify, node } = useNotify();
@@ -81,10 +92,14 @@ export function ContactPanel({ phone, name, tags }: { phone: string; name: strin
   const lead = board.data?.leads.find((l) => l.phone === phone);
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="px-4 pb-2 pt-3">
-        <p className="truncate text-base font-semibold text-ink">{name}</p>
-        <p className="text-sm text-ink2">{fmtPhone(phone)}</p>
-        {tags.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tags.map((t) => <TagChip key={t}>{t}</TagChip>)}</div>}
+      <div className="flex items-start gap-3 px-4 pb-2 pt-3">
+        <Avatar phone={phone} name={name} size={48} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-semibold text-ink">{name}</p>
+          <p className="text-sm text-ink2">{fmtPhone(phone)}</p>
+          {tags.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tags.map((t) => <TagChip key={t}>{t}</TagChip>)}</div>}
+        </div>
+        {onCollapse && <Btn tone="ghost" size="sm" aria-label="Hide details" onClick={onCollapse}><PanelRightClose className="h-4 w-4" /></Btn>}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {board.data && vals.data ? (

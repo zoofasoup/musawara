@@ -3,11 +3,14 @@ import { Linkified } from "../../../components/Linkified";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Clock3, NotebookPen, Paperclip, UserRound, SendHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { crmUpload, useAccountId } from "../crmApi";
+import { crmUpload, useAccountId, useCrm } from "../crmApi";
+import { usePipeline, useFieldValues } from "../pipeline/api";
+import { renderMessage, valuesForPerson, variablesFor } from "../broadcast/audience";
 import { api, useApi } from "../../../lib/api";
 import { Segmented } from "../../../components/Segmented";
 import { TONE } from "../../../lib/tone";
 import { AdCard } from "./AdCard";
+import { Avatar } from "./Avatar";
 import type { TimelineItem } from "../pipeline/api";
 
 import { Skeleton } from "../../../components/ui";
@@ -70,7 +73,9 @@ type Note = { id: number; ts: number; text: string; user_name: string | null };
 type Entry = { key: string; ts: number; msg?: Msg; note?: Note };
 const sqlUtcToUnix = (at: string) => Math.floor(Date.parse(at.replace(" ", "T") + "Z") / 1000);
 
-function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void>; onNote: (text: string) => Promise<void> }) {
+type QuickReply = { id: number; name: string; body: string };
+
+function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void>; onNote: (text: string) => Promise<void>; replies: QuickReply[]; fill: (body: string) => string }) {
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -78,6 +83,13 @@ function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; rea
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const noting = mode === "note";
+  // Typing "/" at the start opens the saved templates (quick replies): keep typing to narrow, arrows and Enter to pick.
+  const [hi, setHi] = useState(0);
+  const [closed, setClosed] = useState(false);
+  const query = !noting && !closed && text.startsWith("/") && !text.includes("\n") ? text.slice(1).trim().toLowerCase() : null;
+  const options = query === null ? [] : replies.filter((t) => !query || t.name.toLowerCase().includes(query) || t.body.toLowerCase().includes(query)).slice(0, 8);
+  const menu = query !== null && replies.length > 0;
+  const pick = (t: QuickReply) => { setText(fill(t.body)); setHi(0); setClosed(false); };
   const blocked = disabled && !noting; // a note works even when WhatsApp is not connected
   const canSend = !blocked && !busy && (text.trim() !== "" || (!noting && file !== null));
 
@@ -102,7 +114,20 @@ function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; rea
   }
 
   return (
-    <div className="bg-surface p-3 shadow-[0_-8px_24px_-16px_rgba(20,24,36,0.18)]">
+    <div className="relative bg-surface p-3 shadow-[0_-8px_24px_-16px_rgba(20,24,36,0.18)]">
+      {menu && (
+        <ul role="listbox" aria-label="Templates" className="absolute inset-x-3 bottom-full z-20 mb-1 max-h-64 overflow-y-auto rounded-2xl bg-surface p-1.5 shadow-[var(--shadow-panel)]">
+          {options.length === 0 && <li className="px-3 py-2 text-xs text-muted">No template matches "{query}".</li>}
+          {options.map((t, i) => (
+            <li key={t.id} role="option" aria-selected={i === hi}>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); pick(t); }} onMouseEnter={() => setHi(i)} className={`block w-full min-h-11 rounded-xl px-3 py-1.5 text-left ${i === hi ? "bg-surface2" : ""}`}>
+                <span className="block truncate text-sm font-medium text-ink">/{t.name}</span>
+                <span className="block truncate text-xs text-muted">{t.body.replace(/\s+/g, " ")}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="mb-2">
         <Segmented label="Reply or note" value={mode} onChange={setMode} options={[{ value: "reply", label: "Reply" }, { value: "note", label: "Internal note", icon: <NotebookPen className="h-3.5 w-3.5" aria-hidden /> }]} />
       </div>
@@ -163,8 +188,14 @@ function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; rea
         </button>
         <Textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setHi(0); setClosed(false); }}
           onKeyDown={(e) => {
+            if (menu && options.length > 0) {
+              if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => (h + 1) % options.length); return; }
+              if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => (h - 1 + options.length) % options.length); return; }
+              if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); pick(options[Math.min(hi, options.length - 1)]); return; }
+            }
+            if (menu && e.key === "Escape") { e.preventDefault(); setClosed(true); return; }
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void submit();
@@ -173,7 +204,7 @@ function Composer({ disabled, reason, onSend, onNote }: { disabled: boolean; rea
           rows={1}
           disabled={blocked}
           aria-label={noting ? "Internal note" : "Message"}
-          placeholder={noting ? "Write a note for the team (the customer never sees it)" : disabled ? "Sending is off" : "Write a message"}
+          placeholder={noting ? "Write a note for the team (the customer never sees it)" : disabled ? "Sending is off" : replies.length ? "Write a message, or type / for templates" : "Write a message"}
           className="max-h-32 min-h-11 resize-none rounded-2xl py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
@@ -225,6 +256,24 @@ export function ThreadView({
   }, [phone]);
 
   const account = useAccountId();
+  const tplQ = useCrm<unknown>("/templates");
+  const replies = useMemo<QuickReply[]>(() => {
+    const raw: any = tplQ.data;
+    const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.templates) ? raw.templates : [];
+    return arr.map((t: any) => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? "") })).filter((t: QuickReply) => t.body);
+  }, [tplQ.data]);
+  const board = usePipeline();
+  const fieldValues = useFieldValues(board.account);
+  const fill = (body: string) => {
+    const vars = variablesFor(board.data?.fields ?? []);
+    const lead = board.data?.leads.find((l) => l.phone === phone);
+    const values = valuesForPerson(vars, { phone }, {
+      stageName: () => board.data?.stages.find((s) => s.id === lead?.stage_id)?.name ?? "",
+      ownerName: () => board.data?.owners.find((o) => o.id === lead?.owner_user_id)?.name ?? "",
+      fieldValue: (_p, id) => fieldValues.data?.values[phone]?.[id] ?? "",
+    });
+    return renderMessage(body, { name: data?.name || listName, phone, vars: values });
+  };
   const timeline = useApi<{ items: TimelineItem[] }>(account ? `/crm-tasks/timeline/${phone}?account=${account}` : null, { key: String(account) });
   const notes = useMemo<Note[]>(() => (timeline.data?.items ?? []).filter((i) => i.kind === "note" && i.id != null).map((i) => ({ id: i.id!, ts: sqlUtcToUnix(i.at), text: i.text, user_name: i.user_name ?? null })), [timeline.data]);
   const messages = useMemo(() => [...(data?.messages ?? []), ...pending], [data, pending]);
@@ -293,6 +342,7 @@ export function ThreadView({
         <button type="button" onClick={onBack} aria-label="Back to conversations" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink2 hover:bg-surface2 md:hidden">
           <ArrowLeft className="h-5 w-5" />
         </button>
+        <Avatar phone={data?.phone ?? phone} name={data?.name || listName} size={36} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-ink">{title}</p>
           <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
@@ -360,7 +410,7 @@ export function ThreadView({
         )}
       </div>
 
-      <Composer key={phone} disabled={!canSend} reason={reason} onSend={send} onNote={saveNote} />
+      <Composer key={phone} disabled={!canSend} reason={reason} onSend={send} onNote={saveNote} replies={replies} fill={fill} />
     </div>
   );
 }
