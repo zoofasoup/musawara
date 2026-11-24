@@ -70,6 +70,8 @@ export function CrmPipeline() {
         <Kanban<Lead>
           columns={data.stages.map((s) => ({ id: String(s.id), label: colSum(s.id) ? `${s.name} · ${compactRp(colSum(s.id))}` : s.name, color: STAGE_BAR[s.color], empty: "Drop a card here" }))}
           items={leads}
+          // one row that scrolls sideways, however many stages there are
+          className="lg:grid-cols-none! lg:grid-flow-col lg:auto-cols-[minmax(16rem,1fr)] lg:overflow-x-auto lg:pb-2"
           getId={(l) => l.phone}
           getColumn={(l) => String(l.stage_id)}
           onMove={async (l, to) => { await board.call("PUT", `/leads/${l.phone}`, { stage_id: Number(to) }); reload(); }}

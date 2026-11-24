@@ -131,3 +131,9 @@ The code's own English text is the translation key. `lib/i18n.ts` holds the Indo
 - The CRM is an app-like screen: `AdminShell` gives `/crm/*` a window-high frame (nothing around it scrolls), `CrmLayout` fills it, the inbox panel fills what is left and each pane scrolls inside itself; other CRM pages scroll inside the frame. `lib/appLock.ts` also locks pinch/ctrl+wheel zoom and the viewport scale while a CRM page is open (browser Cmd/Ctrl +/- cannot be blocked).
 - Links in message text are made clickable by `lib/linkify.ts` + `components/Linkified.tsx`: only http(s) and www. addresses, rendered as React nodes (no HTML), opened in a new tab with `noopener noreferrer nofollow`.
 - The sidebar keeps identical row heights collapsed and open (`h-5` group rows, `h-11` header), so items do not move when it opens or closes.
+
+## CRM pipeline and custom fields
+- Per WhatsApp number (the switcher's number), stored on the platform in D1 (migration 0028), keyed by (gateway number id, phone); contacts stay in the gateway. Routes: `worker/routes/pipeline.ts` at `/api/pipeline?account=<id>` (CRM feature; non-owners only reach numbers linked to their clients via `lib/waAccounts.ts`, the same rule as the CRM proxy).
+- Stages: name, colour (token names only), kind open/won/lost, order; a number gets New/Contacted/Interested/Proposal/Won/Lost on first use. A card = one contact on the board with stage, deal value (Rp), expected close, and a history of moves (`crm_stage_events`). Deleting a stage that has cards needs `move_to`.
+- Fields: text, number, date, choice, yes/no, link; typed and validated server side; values per contact. Shown on the card sheet and the contact form; the Contacts table has Stage and Details columns.
+- UI: `pages/crm/pipeline/` (board uses the shared `Kanban`; sheets for card, add contacts, customize). Deploy order: apply migration 0028, then deploy.
