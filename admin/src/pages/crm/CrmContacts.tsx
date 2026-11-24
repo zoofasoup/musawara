@@ -19,6 +19,8 @@ import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagina
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { downloadText, ErrorPanel, Field, fmtPhone, ListSkeleton, normalizePhone, PageHead, parseTags, TagChip, useDebounced, useGateway } from "./data/shared";
 import { buildPreview, readRows, type ImportPreview } from "./data/importer";
+import { STAGE_CHIP, useFieldValues, usePipeline, type Overview } from "./pipeline/api";
+import { changedValues, FieldsForm } from "./pipeline/FieldsForm";
 
 type Contact = { id: number; phone: string; name: string; notes: string; created_at: number; tags: string[] };
 type ImportResult = { created: number; updated: number; invalid: Array<{ row: number; value: string }> };
@@ -35,7 +37,13 @@ function Check({ checked, onChange, label }: { checked: boolean; onChange: (v: b
 
 /* ---------- add / edit ---------- */
 
-function ContactEditor({ contact, allTags, notify, onClose, onChanged }: { contact: Contact | null; allTags: string[]; notify: Notify; onClose: () => void; onChanged: () => void }) {
+type Pipe = { data: Overview | undefined; call: <T = any>(m: string, s: string, b?: unknown) => Promise<T>; values: Record<string, Record<string, string>>; reload: () => void };
+
+function ContactEditor({ contact, allTags, pipe, notify, onClose, onChanged }: { contact: Contact | null; allTags: string[]; pipe: Pipe; notify: Notify; onClose: () => void; onChanged: () => void }) {
+  const lead = contact ? pipe.data?.leads.find((l) => l.phone === contact.phone) : undefined;
+  const [stageId, setStageId] = useState(lead ? String(lead.stage_id) : "");
+  const before = (contact && pipe.values[contact.phone]) || {};
+  const [vals, setVals] = useState<Record<string, string>>(before);
   const [f, setF] = useState({ name: contact?.name ?? "", phone: contact?.phone ?? "", tags: contact?.tags.join(", ") ?? "", notes: contact?.notes ?? "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
@@ -52,6 +60,19 @@ function ContactEditor({ contact, allTags, notify, onClose, onChanged }: { conta
       } else {
         const r = await crm<{ id: number; created: boolean }>("/contacts", { method: "POST", body: f });
         notify(r.created ? "Contact added." : "That number already existed, so the existing contact was updated.");
+      }
+      // Pipeline stage and custom fields are saved on the platform; the contact itself is already safe in the gateway.
+      const phone = contact?.phone ?? normalized;
+      if (phone && pipe.data) {
+        try {
+          if (stageId && (!lead || String(lead.stage_id) !== stageId)) await pipe.call("PUT", `/leads/${phone}`, { stage_id: Number(stageId) });
+          if (!stageId && lead) await pipe.call("DELETE", `/leads/${phone}`);
+          const changed = changedValues(before, vals, pipe.data.fields);
+          if (Object.keys(changed).length) await pipe.call("PUT", `/values/${phone}`, { values: changed });
+          pipe.reload();
+        } catch (e: any) {
+          notify(`Contact saved, but the pipeline details were not: ${e.message}`, "err");
+        }
       }
       onChanged();
       onClose();
@@ -100,6 +121,17 @@ function ContactEditor({ contact, allTags, notify, onClose, onChanged }: { conta
         <Field label="Notes">
           <Textarea value={f.notes} onChange={set("notes")} rows={3} className="py-2" />
         </Field>
+        {pipe.data && (
+          <>
+            <Field label="Pipeline stage">
+              <NativeSelect className="w-full" value={stageId} onChange={(e) => setStageId(e.target.value)}>
+                <option value="">Not in the pipeline</option>
+                {pipe.data.stages.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </NativeSelect>
+            </Field>
+            <FieldsForm fields={pipe.data.fields} values={vals} onChange={(id, v) => setVals((x) => ({ ...x, [id]: v }))} />
+          </>
+        )}
         {err && (
           <p role="alert" className="text-xs text-crit">
             {err}
@@ -295,6 +327,9 @@ export function CrmContacts() {
   const { notify, node } = useNotify();
   const navigate = useNavigate();
   const list = useGateway<Contact[]>("/contacts");
+  const board = usePipeline();
+  const fieldValues = useFieldValues(board.account);
+  const pipe: Pipe = { data: board.data, call: board.call, values: fieldValues.data?.values ?? {}, reload: () => { board.reload(); fieldValues.reload(); } };
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 200);
   const [tag, setTag] = useState("");
@@ -375,6 +410,30 @@ export function CrmContacts() {
         meta: { headerTitle: "Tags" },
       },
       {
+        id: "stage",
+        size: 140,
+        enableSorting: false,
+        accessorFn: (r) => board.data?.stages.find((st) => st.id === board.data?.leads.find((l) => l.phone === r.phone)?.stage_id)?.name ?? "",
+        header: () => <span>Stage</span>,
+        cell: ({ row }) => {
+          const st = board.data?.stages.find((x) => x.id === board.data?.leads.find((l) => l.phone === row.original.phone)?.stage_id);
+          return st ? <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${STAGE_CHIP[st.color]}`}>{st.name}</span> : dash;
+        },
+        meta: { headerTitle: "Stage" },
+      },
+      {
+        id: "fields",
+        size: 220,
+        enableSorting: false,
+        header: () => <span>Details</span>,
+        cell: ({ row }) => {
+          const v = fieldValues.data?.values[row.original.phone];
+          const parts = (board.data?.fields ?? []).filter((f) => v?.[f.id]).map((f) => `${f.label}: ${f.type === "checkbox" ? "yes" : v![f.id]}`);
+          return parts.length ? <span className="block max-w-[16rem] truncate text-ink2" title={parts.join(" · ")}>{parts.join(" · ")}</span> : dash;
+        },
+        meta: { headerTitle: "Details" },
+      },
+      {
         accessorKey: "notes",
         size: 220,
         enableSorting: false,
@@ -396,7 +455,7 @@ export function CrmContacts() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, allSelected, filtered]
+    [selected, allSelected, filtered, board.data, fieldValues.data]
   );
 
   const table = useTable({
@@ -573,7 +632,7 @@ export function CrmContacts() {
         </>
       )}
 
-      {editing && <ContactEditor key={editing === "new" ? "new" : editing.id} contact={editing === "new" ? null : editing} allTags={tagCounts.map(([t]) => t)} notify={notify} onClose={() => setEditing(null)} onChanged={list.reload} />}
+      {editing && <ContactEditor key={editing === "new" ? "new" : editing.id} contact={editing === "new" ? null : editing} allTags={tagCounts.map(([t]) => t)} pipe={pipe} notify={notify} onClose={() => setEditing(null)} onChanged={list.reload} />}
       {importing && <ImportSheet notify={notify} onClose={() => setImporting(false)} onChanged={list.reload} />}
     </div>
   );

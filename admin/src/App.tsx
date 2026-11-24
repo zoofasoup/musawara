@@ -38,6 +38,7 @@ const ClientAlerts = lazy(() => import("./pages/ClientAlerts").then((m) => ({ de
 const Approvals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.Approvals })));
 const TeamApprovals = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.TeamApprovals })));
 const CrmInbox = lazy(() => import("./pages/crm/CrmInbox").then((m) => ({ default: m.CrmInbox })));
+const CrmPipeline = lazy(() => import("./pages/crm/pipeline/CrmPipeline").then((m) => ({ default: m.CrmPipeline })));
 const CrmContacts = lazy(() => import("./pages/crm/CrmContacts").then((m) => ({ default: m.CrmContacts })));
 const CrmTemplates = lazy(() => import("./pages/crm/CrmTemplates").then((m) => ({ default: m.CrmTemplates })));
 const CrmCampaigns = lazy(() => import("./pages/crm/CrmCampaigns").then((m) => ({ default: m.CrmCampaigns })));
@@ -223,6 +224,7 @@ export function App() {
                 <Route path="/crm" element={<Navigate to="/crm/inbox" replace />} />
                 <Route element={<CrmFrame />}>
                   <Route path="/crm/inbox" element={<CrmInbox />} />
+                  <Route path="/crm/pipeline" element={<CrmPipeline />} />
                   <Route path="/crm/contacts" element={<CrmContacts />} />
                   <Route path="/crm/templates" element={<CrmTemplates />} />
                   <Route path="/crm/broadcasts" element={<CrmCampaigns />} />

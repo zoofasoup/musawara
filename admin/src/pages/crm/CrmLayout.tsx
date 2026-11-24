@@ -15,6 +15,7 @@ import { useAppLock } from "../../lib/appLock";
 
 const TABS = [
   { to: "/crm/inbox", label: "Inbox" },
+  { to: "/crm/pipeline", label: "Pipeline" },
   { to: "/crm/contacts", label: "Contacts" },
   { to: "/crm/templates", label: "Templates" },
   { to: "/crm/broadcasts", label: "Broadcasts" },

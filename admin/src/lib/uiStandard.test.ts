@@ -60,7 +60,7 @@ test("every raw <button> is a deliberate custom control (tabs, chips, icon butto
     "pages/Planning.tsx", "pages/Approvals.tsx", "pages/Assets.tsx", "pages/Organic.tsx", "pages/BrandKnowledge.tsx", "pages/Conversions.tsx",
     "pages/SalesGrid.tsx", "pages/Login.tsx", "pages/Invite.tsx", "pages/Shopee.tsx", "pages/settings/MetaSection.tsx", "pages/settings/TeamSection.tsx",
     "pages/crm/AccountSwitcher.tsx", "pages/crm/CrmCampaigns.tsx", "pages/crm/CrmContacts.tsx", "pages/crm/CrmTemplates.tsx",
-    "pages/crm/inbox/ConversationList.tsx", "pages/crm/inbox/ThreadView.tsx",
+    "pages/crm/inbox/ConversationList.tsx", "pages/crm/inbox/ThreadView.tsx", "pages/crm/pipeline/CrmPipeline.tsx",
   ]);
   const extra = offenders(/<button\b/g).filter((h) => !allowed.has(h.split(":")[0]));
   assert.deepEqual(extra, []);
