@@ -21,9 +21,12 @@ import { downloadText, ErrorPanel, Field, fmtPhone, ListSkeleton, normalizePhone
 import { buildPreview, readRows, type ImportPreview } from "./data/importer";
 import { STAGE_CHIP, useFieldValues, usePipeline, type Overview } from "./pipeline/api";
 import { changedValues, FieldsForm } from "./pipeline/FieldsForm";
+import { cleanFieldCell, keepKnownOwners, pipelineRows, type PipelineImportRow } from "./pipeline/importMap";
+import { TEMPLATE_HELP, templateCsv } from "./pipeline/template";
+import { useAuth } from "../../context/AuthContext";
 
 type Contact = { id: number; phone: string; name: string; notes: string; created_at: number; tags: string[] };
-type ImportResult = { created: number; updated: number; invalid: Array<{ row: number; value: string }> };
+type ImportResult = { created: number; updated: number; invalid: Array<{ row: number; value: string }>; pipeline?: { cards: number; values: number; errors: Array<{ phone: string; message: string }>; unknownOwners: string[] } };
 
 const dash = <span className="text-muted">–</span>;
 
@@ -150,7 +153,9 @@ function ContactEditor({ contact, allTags, pipe, notify, onClose, onChanged }: {
 
 /* ---------- import ---------- */
 
-function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: () => void; onChanged: () => void }) {
+function ImportSheet({ pipe, notify, onClose, onChanged }: { pipe: Pipe; notify: Notify; onClose: () => void; onChanged: () => void }) {
+  const { user } = useAuth();
+  const [rawRows, setRawRows] = useState<string[][]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [pasted, setPasted] = useState("");
   const [extraTags, setExtraTags] = useState("");
@@ -172,6 +177,7 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
     reset();
     try {
       const rows = await readRows(file, pasted);
+      setRawRows(rows);
       setPreview(buildPreview(rows));
     } catch (e: any) {
       if (e.message === "PREVIEW_UNSUPPORTED") setNoPreview(true);
@@ -188,6 +194,17 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
       fd.set("file", file ?? new File([pasted], "pasted.csv", { type: "text/csv" }));
       if (extraTags.trim()) fd.set("tags", extraTags);
       const r = await crmUpload<ImportResult>("/contacts/import", fd);
+      // Stage, value, closing date, owner and custom-field columns go to the platform, in small groups, after the contacts exist.
+      if (pipeRows.length) {
+        const tally = { cards: 0, values: 0, errors: [] as Array<{ phone: string; message: string }>, unknownOwners: ownersUnknown };
+        for (let i = 0; i < pipeRows.length; i += 100) {
+          const res = await pipe.call<{ cards: number; values: number; errors: Array<{ phone: string; message: string }> }>("POST", "/import", { rows: pipeRows.slice(i, i + 100) });
+          tally.cards += res.cards; tally.values += res.values;
+          if (tally.errors.length < 40) tally.errors.push(...res.errors.slice(0, 40 - tally.errors.length));
+        }
+        r.pipeline = tally;
+        pipe.reload();
+      }
       setResult(r);
       notify(`Import done: ${r.created} new, ${r.updated} updated.`);
       onChanged();
@@ -197,6 +214,23 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
     setBusy(false);
   };
 
+  // What the file says beyond name, number, tags and notes: stage, value, closing date, owner and this number's custom fields.
+  const mapped = useMemo(() => {
+    if (!preview || !pipe.data) return null;
+    const fields = pipe.data.fields;
+    const base = pipelineRows(rawRows, preview.cols.phone ?? "", fields.map((f) => f.label), normalizePhone);
+    const typeOf = new Map(fields.map((f) => [f.label, f.type]));
+    for (const r of base.rows) if (r.fields) for (const k of Object.keys(r.fields)) r.fields[k] = cleanFieldCell(typeOf.get(k) ?? "text", r.fields[k]);
+    const kept = keepKnownOwners(base.rows, pipe.data.owners.map((o) => o.name));
+    return { ...kept, usedColumns: base.usedColumns };
+  }, [preview, rawRows, pipe.data]);
+  const pipeRows: PipelineImportRow[] = mapped?.rows ?? [];
+  const ownersUnknown = mapped?.unknown ?? [];
+
+  const download = () => {
+    const stages = pipe.data?.stages ?? [];
+    downloadText("template-kontak-crm.csv", templateCsv(stages, pipe.data?.fields ?? [], user?.name ?? ""));
+  };
   const hasInput = Boolean(file) || pasted.trim().length > 0;
   const count = preview?.valid.length ?? 0;
 
@@ -208,6 +242,17 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
           <p className="text-sm text-ink">
             <b>{fmtNum(result.created)}</b> new contacts, <b>{fmtNum(result.updated)}</b> updated.
           </p>
+          {result.pipeline && (
+            <div className="rounded-lg border border-border p-3 text-xs text-ink2">
+              <p className="text-ink"><b>{fmtNum(result.pipeline.cards)}</b> card(s) put on the pipeline, <b>{fmtNum(result.pipeline.values)}</b> field value(s) saved.</p>
+              {result.pipeline.errors.length > 0 && (
+                <>
+                  <p className="mt-1.5 font-medium text-crit">{fmtNum(result.pipeline.errors.length)}{result.pipeline.errors.length >= 40 ? "+" : ""} cell(s) were not accepted</p>
+                  <ul className="mt-1 space-y-0.5">{result.pipeline.errors.slice(0, 12).map((e, i) => <li key={i} className="break-words">{fmtPhone(e.phone)}: {e.message}</li>)}</ul>
+                </>
+              )}
+            </div>
+          )}
           {result.invalid.length > 0 && (
             <div className="rounded-lg border border-crit/30 bg-crit/5 p-3 text-xs text-crit">
               <p className="font-medium">{fmtNum(result.invalid.length)} invalid numbers were skipped</p>
@@ -223,6 +268,15 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
         </div>
       ) : (
         <div className="mt-3 space-y-3">
+          {pipe.data && (
+            <details className="rounded-2xl bg-surface2/60 p-3 text-xs text-ink2">
+              <summary className="cursor-pointer font-medium text-ink">Template with pipeline and fields</summary>
+              <p className="mt-2">Columns this number understands, beyond name, number, tags and notes: stage, deal value, closing date, owner{pipe.data.fields.length ? ", and your fields (" + pipe.data.fields.map((f) => f.label).join(", ") + ")" : ""}.</p>
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-4">{TEMPLATE_HELP.map((h) => <li key={h}>{h}</li>)}</ul>
+              <p className="mt-1.5">Stages: {pipe.data.stages.map((s) => s.name).join(", ")}.</p>
+              <Btn className="mt-2" tone="secondary" size="sm" onClick={download}><Download className="size-4" />Download template (CSV)</Btn>
+            </details>
+          )}
           <p className="text-xs text-muted">
             A .csv, .xlsx or .xls file, or pasted CSV text, with headers in the first row. A phone column is required (Nomor, No HP, WA, Phone). Optional: Nama, Tag, Catatan. Numbers that already exist are updated, never duplicated, and a blank name or note never overwrites an existing one.
           </p>
@@ -280,6 +334,12 @@ function ImportSheet({ notify, onClose, onChanged }: { notify: Notify; onClose: 
                 )}
                 {preview.duplicates > 0 && <>, {fmtNum(preview.duplicates)} repeat a number in this file</>}.
               </p>
+              {mapped && mapped.usedColumns.length > 0 && (
+                <p className="text-ink">
+                  Also importing from columns: <b>{mapped.usedColumns.join(", ")}</b> — {fmtNum(pipeRows.length)} row(s) with pipeline or field data
+                  {ownersUnknown.length > 0 && <span className="text-muted">; {ownersUnknown.length} owner name(s) are not on this number's team and are ignored ({ownersUnknown.slice(0, 4).join(", ")}{ownersUnknown.length > 4 ? ", …" : ""})</span>}.
+                </p>
+              )}
               <p className="text-muted">
                 Columns: phone = {preview.cols.phone}; name = {preview.cols.name ?? "none"}; tags = {preview.cols.tags ?? "none"}; notes = {preview.cols.notes ?? "none"}
               </p>
@@ -633,7 +693,7 @@ export function CrmContacts() {
       )}
 
       {editing && <ContactEditor key={editing === "new" ? "new" : editing.id} contact={editing === "new" ? null : editing} allTags={tagCounts.map(([t]) => t)} pipe={pipe} notify={notify} onClose={() => setEditing(null)} onChanged={list.reload} />}
-      {importing && <ImportSheet notify={notify} onClose={() => setImporting(false)} onChanged={list.reload} />}
+      {importing && <ImportSheet pipe={pipe} notify={notify} onClose={() => setImporting(false)} onChanged={list.reload} />}
     </div>
   );
 }
