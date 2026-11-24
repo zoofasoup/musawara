@@ -219,3 +219,22 @@ test("a ready-made field set is added once, and required fields block moving a c
     assert.equal((await DB.prepare("SELECT required FROM crm_field_defs WHERE id=?").bind(cat.id).first<any>())!.required, 0);
   } finally { done(); }
 });
+
+test("new chats (contacts tagged inbox) join the first stage once, and a card that was removed stays removed", async () => {
+  const { call, DB, done } = await setup();
+  const gw = globalThis.fetch;
+  globalThis.fetch = (async (url: any) => String(url).includes("/api/contacts")
+    ? Response.json([{ phone: "6281111111111" }, { phone: "6282222222222" }, { phone: "bad" }])
+    : Response.json([{ id: 2, client_id: "1" }])) as any;
+  try {
+    const first = await json(await call(2, "POST", "/sync-inbox?account=2"));
+    assert.equal(first.added, 2, "the invalid number is skipped");
+    const ov = await json(await call(2, "GET", "?account=2"));
+    assert.deepEqual(ov.leads.map((l: any) => [l.phone, l.stage_id === ov.stages[0].id]).sort(), [["6281111111111", true], ["6282222222222", true]]);
+    assert.equal((await json(await call(2, "POST", "/sync-inbox?account=2"))).added, 0, "nothing new the second time");
+    await call(2, "DELETE", "/leads/6281111111111?account=2");
+    assert.equal((await json(await call(2, "POST", "/sync-inbox?account=2"))).added, 0, "a removed card is not brought back");
+    assert.equal((await DB.prepare("SELECT COUNT(*) n FROM crm_leads").first<any>())!.n, 1);
+    assert.equal((await call(3, "POST", "/sync-inbox?account=2")).status, 403, "Ads has no CRM feature");
+  } finally { globalThis.fetch = gw; done(); }
+});

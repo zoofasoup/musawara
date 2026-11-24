@@ -14,6 +14,7 @@ import crmRoutes from "./routes/crm";
 import pipelineRoutes from "./routes/pipeline";
 import crmTaskRoutes from "./routes/crmTasks";
 import crmAdRoutes from "./routes/crmAds";
+import { syncAllInboxLeads } from "./lib/inboxLeads";
 import reportRoutes from "./routes/report";
 import approvalRoutes from "./routes/approvals";
 import shopeeRoutes from "./routes/shopee";
@@ -62,6 +63,7 @@ export function scheduled(controller: ScheduledController, env: Env, ctx: Execut
   const deep = new Date(controller.scheduledTime).getUTCHours() === 20;
   ctx.waitUntil(trackCron(env, "organic", () => pollAllOrganic(env, deep)));
   ctx.waitUntil(trackCron(env, "ads", () => syncAllAccounts(env, !deep)));
+  ctx.waitUntil(syncAllInboxLeads(env).catch((e) => console.error(JSON.stringify({ event: "inbox_leads_failed", error: String(e?.message ?? e).slice(0, 200) }))));
   if (notionCfg(env)) ctx.waitUntil(trackCron(env, "notion", () => runNotionSync(env)));
 }
 

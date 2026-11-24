@@ -8,6 +8,7 @@ import { requirePerm } from "../middleware";
 import { acct, crmAccount, eligibleOwners } from "../lib/crmGuard";
 import { ymdInTz } from "../lib/dates";
 import { PRESETS } from "../lib/crmPresets";
+import { ensureStageRows, syncAllInboxLeads } from "../lib/inboxLeads";
 
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 const pipeline = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -20,24 +21,12 @@ const MAX_STAGES = 20;
 const MAX_FIELDS = 40;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const PHONE = /^\d{6,20}$/;
-const DEFAULT_STAGES: Array<[string, (typeof COLORS)[number], (typeof KINDS)[number]]> = [
-  ["New", "neutral", "open"], ["Contacted", "blue", "open"], ["Interested", "violet", "open"],
-  ["Proposal", "amber", "open"], ["Won", "green", "won"], ["Lost", "rose", "lost"],
-];
-
 pipeline.use("*", crmAccount);
 
 const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() && v.trim().length <= max ? v.trim() : null);
 
-/** A number's first visit gets the usual stages, so the board is never empty and nothing needs set-up. */
 async function ensureStages(c: Ctx, account: number) {
-  const n = await c.env.DB.prepare("SELECT COUNT(*) n FROM crm_stages WHERE wa_account_id=?").bind(account).first<{ n: number }>();
-  if (n?.n) return;
-  await c.env.DB.batch(
-    DEFAULT_STAGES.map(([name, color, kind], i) =>
-      c.env.DB.prepare("INSERT OR IGNORE INTO crm_stages (wa_account_id, name, color, kind, position) VALUES (?,?,?,?,?)").bind(account, name, color, kind, i)
-    )
-  );
+  await ensureStageRows(c.env.DB, account);
 }
 
 const parseOptions = (raw: string | null): string[] => {
@@ -60,6 +49,15 @@ pipeline.get("/", async (c) => {
     leads: leads.results,
     fields: fields.results.map(({ options_json, required, ...f }: any) => ({ ...f, required: required === 1, options: parseOptions(options_json) })),
   });
+});
+
+/** Puts the number's new chats (contacts tagged "inbox") on the board; the board page calls this when it opens. */
+pipeline.post("/sync-inbox", async (c) => {
+  try {
+    return c.json({ added: await syncAllInboxLeads(c.env, acct(c)) });
+  } catch {
+    return c.json({ added: 0 }); // the gateway being down must not break the board
+  }
 });
 
 // ------------------------------------------------------------------ report

@@ -1,5 +1,5 @@
 // The pipeline board: one card per contact on the number picked in the switcher, columns are the stages. Drag a card to move it.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Settings2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Kanban } from "../../../components/Kanban";
@@ -36,6 +36,11 @@ export function CrmPipeline() {
   const byPhone = useMemo(() => new Map(contacts.map((c) => [c.phone, c])), [contacts]);
   const data = board.data;
   const reload = () => { board.reload(); vals.reload(); };
+  // New chats of this number (saved by the gateway as "inbox" contacts) join the first stage by themselves.
+  useEffect(() => {
+    if (!board.account) return;
+    board.call<{ added: number }>("POST", "/sync-inbox").then((r) => { if (r.added > 0) reload(); }).catch(() => {});
+  }, [board.account]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const leads = useMemo(() => (data?.leads ?? []).filter((l) => {
     if (mine && l.owner_user_id !== user?.id) return false;
