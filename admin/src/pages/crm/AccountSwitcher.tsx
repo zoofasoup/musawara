@@ -1,102 +1,69 @@
-// Picks which WhatsApp number the CRM tabs work on. One number collapses to a quiet label.
-import { useEffect, useRef, useState } from "react";
+// Picks which WhatsApp number the CRM tabs work on: the brand's logo, the number's name and a status dot. It sits at the right of the
+// section tabs. One number is shown as a quiet label; several open a menu.
+import { Check, ChevronsUpDown } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Icon } from "../../components/icons";
-import { clientName, statusInfo, useAccounts, type Account } from "./accounts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ClientAvatar } from "../../components/Layout";
+import { useCan } from "../../lib/can";
+import { clientName, statusInfo, useAccounts, type Account, type Client } from "./accounts";
 import { fmtPhone } from "./inbox/util";
 
-function Dot({ status }: { status: string }) {
-  const s = statusInfo(status);
-  return <span aria-hidden className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${s.dot}`} />;
+/** The brand's logo (or its initial in the brand colour) with the number's connection status as a dot on its corner. */
+function Logo({ a, clients }: { a: Account; clients: Client[] }) {
+  const brand = a.client_id == null ? undefined : clients.find((c) => c.id === Number(a.client_id));
+  return (
+    <span className="relative inline-flex shrink-0">
+      <ClientAvatar name={brand?.name ?? a.name} logoUrl={brand?.logo_url} color={brand?.brand_color ?? "var(--accent)"} size={8} />
+      <span aria-hidden className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-surface ${statusInfo(a.status).dot}`} />
+    </span>
+  );
 }
 
-function Label({ a, brand }: { a: Account; brand: string | null }) {
+function Text({ a, clients, sub = true }: { a: Account; clients: Client[]; sub?: boolean }) {
+  const brand = clientName(clients, a.client_id);
   return (
-    <span className="min-w-0 flex-1 text-left">
+    <span className="min-w-0 text-left">
       <span className="block truncate text-sm font-medium text-ink">{a.name}</span>
-      <span className="block truncate text-xs text-muted">
-        {[brand, a.phone ? fmtPhone(a.phone) : null, statusInfo(a.status).short].filter(Boolean).join(" · ")}
-      </span>
+      {sub && <span className="block truncate text-xs text-muted">{[brand, a.phone ? fmtPhone(a.phone) : null, statusInfo(a.status).short].filter(Boolean).join(" · ")}</span>}
     </span>
   );
 }
 
 export function AccountSwitcher() {
   const { accounts, clients, selectedId, select } = useAccounts();
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
+  const owner = useCan()("settings");
   const current = accounts.find((a) => a.id === selectedId) ?? accounts[0];
-
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
-
   if (!current) return null;
-  const brand = (a: Account) => clientName(clients, a.client_id);
 
   if (accounts.length === 1) {
     return (
-      <div className="flex min-h-11 items-center gap-2 px-1" aria-label="WhatsApp number">
-        <Dot status={current.status} />
-        <p className="min-w-0 truncate text-sm text-ink2">
-          <span className="font-medium text-ink">{current.name}</span>
-          {brand(current) ? ` · ${brand(current)}` : ""}
-          <span className="text-muted">{` · ${statusInfo(current.status).short}`}</span>
-        </p>
-        <Link to="/crm/connection" className="ml-auto inline-flex min-h-11 items-center px-2 text-xs font-medium text-musawara-ink">
-          Add number
-        </Link>
+      <div className="flex min-h-11 max-w-xs items-center gap-2.5 rounded-2xl bg-surface px-2.5 py-1 shadow-[var(--shadow-soft)]" aria-label="WhatsApp number" title={statusInfo(current.status).label}>
+        <Logo a={current} clients={clients} />
+        <Text a={current} clients={clients} />
+        {owner && <Link to="/crm/connection" className="ml-1 shrink-0 text-xs font-medium text-musawara-ink hover:underline">Add</Link>}
       </div>
     );
   }
 
   return (
-    <div ref={box} className="relative max-w-md">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border2 bg-surface px-3 py-1.5 hover:bg-surface2"
-      >
-        <Dot status={current.status} />
-        <Label a={current} brand={brand(current)} />
-        <Icon name="sliders" className="h-4 w-4 shrink-0 text-muted" />
-        <span className="sr-only">Change WhatsApp number</span>
-      </button>
-      {open && (
-        <ul role="listbox" aria-label="WhatsApp numbers" className="absolute left-0 right-0 z-30 mt-1 max-h-80 overflow-y-auto rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-1 shadow-lg">
-          {accounts.map((a) => (
-            <li key={a.id} role="option" aria-selected={a.id === current.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  if (a.id !== current.id) select(a.id);
-                }}
-                className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface2 ${a.id === current.id ? "bg-surface2" : ""}`}
-              >
-                <Dot status={a.status} />
-                <Label a={a} brand={brand(a)} />
-                {a.id === current.id && <Icon name="check" className="h-4 w-4 shrink-0 text-musawara-ink" />}
-              </button>
-            </li>
-          ))}
-          <li>
-            <Link to="/crm/connection" onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-musawara-ink hover:bg-surface2">
-              Manage numbers
-            </Link>
-          </li>
-        </ul>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger aria-label="Change WhatsApp number" className="flex min-h-11 w-full max-w-xs items-center gap-2.5 rounded-2xl bg-surface px-2.5 py-1 text-left shadow-[var(--shadow-soft)] hover:bg-surface2">
+        <Logo a={current} clients={clients} />
+        <Text a={current} clients={clients} />
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-64">
+        {accounts.map((a) => (
+          <DropdownMenuItem key={a.id} onClick={() => a.id !== current.id && select(a.id)} className="gap-2.5 py-2">
+            <Logo a={a} clients={clients} />
+            <Text a={a} clients={clients} />
+            {a.id === current.id && <Check className="ml-auto h-4 w-4 shrink-0 text-musawara-ink" />}
+          </DropdownMenuItem>
+        ))}
+        {owner && (
+          <DropdownMenuItem render={<Link to="/crm/connection" />} className="text-xs font-medium text-musawara-ink">Manage numbers</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

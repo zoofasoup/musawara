@@ -10,18 +10,19 @@ import { Empty } from "../../components/kit";
 import { PillNav, pillTabCls } from "../../components/PillNav";
 import { Skeleton } from "../../components/ui";
 import { Link } from "react-router-dom";
+import { FileText, Inbox, Kanban, ListChecks, Megaphone, Smartphone, Users } from "lucide-react";
 import { useCan } from "../../lib/can";
 import { useAppLock } from "../../lib/appLock";
 import { useTaskSummary } from "./pipeline/api";
 
 const TABS = [
-  { to: "/crm/inbox", label: "Inbox" },
-  { to: "/crm/pipeline", label: "Pipeline" },
-  { to: "/crm/tasks", label: "Follow-ups" },
-  { to: "/crm/contacts", label: "Contacts" },
-  { to: "/crm/templates", label: "Templates" },
-  { to: "/crm/broadcasts", label: "Broadcasts" },
-  { to: "/crm/connection", label: "Numbers" },
+  { to: "/crm/inbox", label: "Inbox", Icon: Inbox },
+  { to: "/crm/pipeline", label: "Pipeline", Icon: Kanban },
+  { to: "/crm/tasks", label: "Follow-ups", Icon: ListChecks },
+  { to: "/crm/contacts", label: "Contacts", Icon: Users },
+  { to: "/crm/templates", label: "Templates", Icon: FileText },
+  { to: "/crm/broadcasts", label: "Broadcasts", Icon: Megaphone },
+  { to: "/crm/connection", label: "Numbers", Icon: Smartphone },
 ];
 
 /** Shared frame for every CRM page: the number switcher, the section tabs, then the page. */
@@ -97,15 +98,19 @@ export function CrmLayout({ children }: { children: ReactNode }) {
   return (
     <AccountsContext.Provider value={ctx}>
       <div className="flex h-full min-h-0 flex-col gap-3">
-        {list.data && accounts.length > 0 && <div className="shrink-0"><AccountSwitcher /></div>}
-        <PillNav label="CRM" className="shrink-0">
+        {/* one row on a wide screen: the section tabs at the left, the number at the right; the number sits above the tabs on a phone */}
+        <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {list.data && accounts.length > 0 && <div className="min-w-0 md:order-2"><AccountSwitcher /></div>}
+        <PillNav label="CRM" className="min-w-0 md:order-1">
           {TABS.filter((t) => owner || t.to !== "/crm/connection").map((t) => (
             <NavLink key={t.to} to={t.to} className={({ isActive }) => pillTabCls(isActive)}>
+              <t.Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
               {t.label}
               {t.to === "/crm/tasks" && dueCount > 0 && <span className="ml-1.5 rounded-full bg-crit px-1.5 text-[11px] font-semibold text-white">{dueCount}</span>}
             </NavLink>
           ))}
         </PillNav>
+        </div>
         {/* only this area scrolls (long lists); the inbox fills it and scrolls inside its own panes */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{body}</div>
       </div>

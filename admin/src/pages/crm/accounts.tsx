@@ -25,7 +25,7 @@ export type AccountStatusDetail = {
   since: number | null;
 };
 
-export type Client = { id: number; name: string };
+export type Client = { id: number; name: string; logo_url?: string | null; brand_color?: string | null };
 
 export const STATUS: Record<AccountStatus, { label: string; short: string; tone: Tone; dot: string; hint: string }> = {
   starting: { label: "Starting", short: "Starting", tone: "neutral", dot: "bg-muted", hint: "The gateway is opening WhatsApp Web. This usually takes under a minute." },
