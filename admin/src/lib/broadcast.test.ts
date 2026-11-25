@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canonical, emptyCounts, emptyRules, hasSelection, NONE, pickAudience, renderMessage, slug, tokensIn, unknownTokens, valuesForPerson, variablesFor, type Contact, type Ctx } from "../pages/crm/broadcast/audience.ts";
+import { canonical, describeRules, effectiveRules, emptyCounts, suggestVars, tokenAtCaret, varGroup, emptyRules, hasSelection, NONE, pickAudience, renderMessage, slug, tokensIn, unknownTokens, valuesForPerson, variablesFor, type Contact, type Ctx } from "../pages/crm/broadcast/audience.ts";
 
 const contacts: Contact[] = [
   { id: 1, phone: "6281", name: "Ani", tags: ["vip", "umroh"] },
@@ -64,4 +64,29 @@ test("per-person values and the empty-value warning", () => {
   const people = contacts.slice(0, 3);
   assert.deepEqual(emptyCounts("Halo {nama}, {paket} {owner}", vars, people, vals).map((x) => [x.token, x.missing]), [["owner", 2], ["paket", 1]]);
   assert.deepEqual(emptyCounts("Halo {nama}", vars, people, vals), [], "nothing to warn about");
+});
+
+test("'Everyone' mode ignores the include filters but keeps exclusions and chosen contacts; the summary lists what is left", () => {
+  const r = { ...emptyRules([4]), everyone: true, tags: ["vip"], stages: [10], excludeTags: ["optout"] };
+  const e = effectiveRules(r);
+  assert.deepEqual([e.everyone, e.tags, e.stages, e.excludeTags, e.chosen], [true, [], [], ["optout"], [4]]);
+  assert.deepEqual(effectiveRules({ ...r, everyone: false }).tags, ["vip"], "filters come back when switched off");
+  const names = { stage: (id: number | string) => (id === NONE ? "Not on the board" : `S${id}`), owner: () => "Roro", field: () => "Paket" };
+  const d = describeRules({ ...emptyRules(), tags: ["a", "b"], stages: [10], chat: "within", chatDays: 7, fields: [{ fieldId: 1, mode: "filled", values: [] }], excludeTags: ["x"] }, names);
+  assert.deepEqual(d.include.map((p) => [p.kind, p.values]), [["tag", ["a", "b"]], ["stage", ["S10"]], ["field", ["has a value"]], ["chat", ["chatted in the last 7 days"]]]);
+  assert.deepEqual(d.exclude, ["x"]);
+  assert.equal(describeRules({ ...emptyRules(), everyone: true }, names).everyone, true);
+});
+
+test("typing a placeholder: the open brace before the caret is found, anything else is not", () => {
+  assert.deepEqual(tokenAtCaret("Halo {na", 8), { start: 5, query: "na" });
+  assert.deepEqual(tokenAtCaret("Halo {", 6), { start: 5, query: "" });
+  assert.equal(tokenAtCaret("Halo {Halo|", 11), null, "inside a spintax group");
+  assert.equal(tokenAtCaret("Halo {a b", 9), null, "a space ends it");
+  assert.equal(tokenAtCaret("Halo {nama} ok", 14), null, "after a closing brace");
+  assert.equal(tokenAtCaret("Halo {x\nbaris", 13), null, "a new line ends it");
+  const vars = variablesFor([{ id: 7, label: "Paket Umroh", type: "text", options: [] }, { id: 8, label: "Nama anak", type: "text", options: [] }]);
+  assert.deepEqual(suggestVars(vars, "na").map((v) => v.token), ["nama", "nama_anak"], "prefix matches first");
+  assert.deepEqual(suggestVars(vars, "umroh").map((v) => v.token), ["paket_umroh"], "then the label");
+  assert.deepEqual(vars.map(varGroup), ["Contact", "Contact", "Pipeline", "Pipeline", "Custom fields", "Custom fields"]);
 });

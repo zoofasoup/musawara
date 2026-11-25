@@ -69,12 +69,13 @@ export function Pill({
 
 const BTN_VARIANT = { primary: "default", secondary: "outline", ghost: "ghost", danger: "destructive" } as const;
 
-export type BtnSize = "default" | "sm" | "lg";
+export type BtnSize = "default" | "sm" | "lg" | "icon";
 
 const BTN_SIZE_CLASSES: Record<BtnSize, string> = {
   default: "h-auto min-h-11 md:min-h-10 px-4 text-sm rounded-2xl",
   sm: "h-auto min-h-8 px-3 py-1 text-xs rounded-xl",
   lg: "h-auto min-h-12 px-5 text-base rounded-2xl",
+  icon: "h-auto min-h-11 min-w-11 p-0 rounded-xl md:min-h-8 md:min-w-8",
 };
 
 const glowStyle = {

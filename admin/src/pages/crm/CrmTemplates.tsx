@@ -3,19 +3,19 @@
 // The editor inserts placeholders from the number's own custom fields and previews the message as it looks in WhatsApp.
 
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useMemo, useRef, useState } from "react";
-import { Bold, Copy, Italic, Pencil, Search, Strikethrough } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Copy, Pencil, Search } from "lucide-react";
 import { crm } from "./crmApi";
 import { fmtNum } from "../../lib/format";
 import { Btn, ConfirmBtn, Empty, Panel, Pill, Sheet, useNotify, type Notify } from "../../components/kit";
 import { Segmented } from "../../components/Segmented";
+import { NativeSelect } from "@/components/ui/native-select";
 import { ErrorPanel, Field, gatewayProblem, ListSkeleton, PageHead, useGateway } from "./data/shared";
 import { usePipeline } from "./pipeline/api";
-import { renderMessage, unknownTokens, variablesFor } from "./broadcast/audience";
+import { renderMessage, variablesFor } from "./broadcast/audience";
+import { MessageComposer } from "./broadcast/MessageComposer";
 import { WaPreview } from "./broadcast/WaPreview";
-import { Chip } from "./broadcast/Chip";
 
 type Template = { id: number; name: string; body: string; category: string; use_count: number; updated_at?: number };
 type Sort = "name" | "recent" | "used";
@@ -35,16 +35,8 @@ function TemplateEditor({ template, categories, notify, onClose, onChanged }: { 
   const [sampleName, setSampleName] = useState("Budi");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
-  const area = useRef<HTMLTextAreaElement>(null);
+  const [view, setView] = useState<"write" | "preview">("write");
 
-  const insert = (before: string, after = "") => {
-    const el = area.current;
-    const a = el?.selectionStart ?? body.length, b = el?.selectionEnd ?? body.length;
-    setBody(body.slice(0, a) + before + body.slice(a, b) + after + body.slice(b));
-    requestAnimationFrame(() => { el?.focus(); const p = b > a ? b + before.length + after.length : a + before.length; el?.setSelectionRange(p, p); });
-  };
-
-  const unknown = unknownTokens(body, vars);
   const shown = renderMessage(body, { name: sampleName, phone: "6281234567890", vars: Object.fromEntries(vars.filter((v) => v.fieldId !== undefined).map((v) => [v.token, `[${v.label}]`])) }, () => 0);
 
   const save = async () => {
@@ -67,44 +59,32 @@ function TemplateEditor({ template, categories, notify, onClose, onChanged }: { 
 
   return (
     <Sheet title={template ? "Edit template" : "New template"} onClose={onClose}>
-      <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Name" hint='Shown after "/" in the chat box'>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Info DP dan cicilan" autoComplete="off" maxLength={80} />
-          </Field>
-          <Field label="Category" hint="Pick one or type a new one">
+      <div className="space-y-3 pb-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Info DP dan cicilan" autoComplete="off" maxLength={80} /></Field>
+          <Field label="Category">
             <Input value={category} onChange={(e) => setCategory(e.target.value)} list="template-categories" placeholder="Follow-up" autoComplete="off" maxLength={40} />
             <datalist id="template-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
           </Field>
         </div>
-        <Field label="Message">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-1.5" role="toolbar" aria-label="Insert into the message">
-              {vars.map((v) => <Chip key={v.token} on={false} onClick={() => insert(`{${v.token}}`)}>{`{${v.token}}`}</Chip>)}
-              <Chip on={false} onClick={() => insert("{Halo|Hai}")}>{"{Halo|Hai}"}</Chip>
-              <span className="mx-1 h-6 w-px bg-border" aria-hidden />
-              <Btn tone="secondary" size="sm" aria-label="Bold" onClick={() => insert("*", "*")}><Bold className="h-4 w-4" /></Btn>
-              <Btn tone="secondary" size="sm" aria-label="Italic" onClick={() => insert("_", "_")}><Italic className="h-4 w-4" /></Btn>
-              <Btn tone="secondary" size="sm" aria-label="Strikethrough" onClick={() => insert("~", "~")}><Strikethrough className="h-4 w-4" /></Btn>
+        <Segmented label="Editor view" value={view} onChange={setView} fill options={[{ value: "write", label: "Write" }, { value: "preview", label: "Preview" }]} />
+        {view === "write" ? (
+          <MessageComposer value={body} onChange={setBody} vars={vars} rows={12} placeholder="{Halo|Hai} Kak {nama}, …" />
+        ) : (
+          <div className="space-y-2 rounded-2xl bg-surface2/60 p-3">
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-xs font-medium text-ink2">Preview in WhatsApp</p>
+              <Input aria-label="Sample name" className="w-32" value={sampleName} onChange={(e) => setSampleName(e.target.value)} placeholder="Sample name" />
             </div>
-            <Textarea ref={area} value={body} onChange={(e) => setBody(e.target.value)} rows={9} className="py-2" maxLength={4000} placeholder="{Halo|Hai} Kak {nama}, ..." />
-            <p className="text-xs text-muted">{fmtNum(body.length)} / 4.000 characters. Placeholders are filled per person; {"{Halo|Hai}"} picks one option at random.</p>
+            <WaPreview text={shown} title={sampleName || "Kak"} subtitle="+62 812-3456-7890" />
+            <p className="text-xs text-muted">Custom fields show as [Field name] here; real values fill in when sent.</p>
           </div>
-        </Field>
-        {unknown.length > 0 && <p className="text-xs text-warn">{unknown.map((t) => `{${t}}`).join(", ")} {unknown.length === 1 ? "is" : "are"} not a known placeholder and would be sent as typed.</p>}
-        <div className="space-y-2 rounded-2xl bg-surface2/60 p-3">
-          <div className="flex items-center gap-2">
-            <p className="flex-1 text-xs font-medium text-ink2">Preview in WhatsApp</p>
-            <Input aria-label="Sample name" className="w-32" value={sampleName} onChange={(e) => setSampleName(e.target.value)} placeholder="Sample name" />
-          </div>
-          <WaPreview text={shown} title={sampleName || "Kak"} subtitle="+62 812-3456-7890" />
-          <p className="text-xs text-muted">Custom fields show as [Field name] here; real values fill in when sent.</p>
-        </div>
+        )}
         {err && <p role="alert" className="text-xs text-crit">{err}</p>}
-        <div className="flex flex-wrap items-center gap-2">
-          <Btn tone="primary" loading={busy} onClick={() => void save()}>Save template</Btn>
-          {template && <ConfirmBtn label="Delete" confirmLabel="Delete template" onConfirm={async () => { try { await crm(`/templates/${template.id}`, { method: "DELETE" }); notify("Template deleted. Broadcasts already created are not affected."); onChanged(); onClose(); } catch (e: any) { setErr(e.message); } }} />}
-        </div>
+      </div>
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2 bg-background px-4 py-3 shadow-[0_-8px_24px_-16px_rgba(20,24,36,0.18)]">
+        <Btn tone="primary" loading={busy} onClick={() => void save()}>Save template</Btn>
+        {template && <ConfirmBtn label="Delete" confirmLabel="Delete template" onConfirm={async () => { try { await crm(`/templates/${template.id}`, { method: "DELETE" }); notify("Template deleted. Broadcasts already created are not affected."); onChanged(); onClose(); } catch (e: any) { setErr(e.message); } }} />}
       </div>
     </Sheet>
   );
@@ -127,9 +107,11 @@ export function CrmTemplates() {
   const shown = useMemo(() => {
     const n = q.trim().toLowerCase();
     const rows = items.filter((t) => (cat === "" || (cat === NONE ? !t.category : t.category === cat)) && (!n || `${t.name} ${t.body} ${t.category}`.toLowerCase().includes(n)));
-    return rows.sort((a, b) => sort === "used" ? b.use_count - a.use_count || a.name.localeCompare(b.name) : sort === "recent" ? (b.updated_at ?? 0) - (a.updated_at ?? 0) : a.name.localeCompare(b.name));
-  }, [items, q, cat, sort]);
+    return rows.sort((a, b) => sort === "name" && cat === "" && categories.length > 0 ? (a.category ? 0 : 1) - (b.category ? 0 : 1) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name) : sort === "used" ? b.use_count - a.use_count || a.name.localeCompare(b.name) : sort === "recent" ? (b.updated_at ?? 0) - (a.updated_at ?? 0) : a.name.localeCompare(b.name));
+  }, [items, q, cat, sort, categories.length]);
 
+  // With A–Z and no category picked, rows sit under their category heading; any other sort or filter shows a flat list with the category as a pill.
+  const grouped = sort === "name" && cat === "" && categories.length > 0;
   const allShown = shown.length > 0 && shown.every((t) => picked.has(t.id));
   const toggle = (id: number) => setPicked((s) => { const x = new Set(s); x.has(id) ? x.delete(id) : x.add(id); return x; });
   const bulk = async (body: Record<string, unknown>, done: string) => {
@@ -162,16 +144,22 @@ export function CrmTemplates() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
               <Input aria-label="Search templates" className="pl-9" placeholder={`Search ${fmtNum(items.length)} templates by name, text or category`} value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <Segmented label="Sort" value={sort} onChange={setSort} options={[{ value: "name", label: "A–Z" }, { value: "recent", label: "Recent" }, { value: "used", label: "Most used" }]} />
-          </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Category">
-            <Chip on={cat === ""} count={items.length} onClick={() => setCat("")}>All</Chip>
-            {categories.map((c) => <Chip key={c} on={cat === c} count={items.filter((t) => t.category === c).length} onClick={() => setCat(cat === c ? "" : c)}>{c}</Chip>)}
-            {uncategorized > 0 && categories.length > 0 && <Chip on={cat === NONE} count={uncategorized} onClick={() => setCat(cat === NONE ? "" : NONE)}>No category</Chip>}
+            {categories.length > 0 && (
+              <NativeSelect aria-label="Category" value={cat} onChange={(e) => setCat(e.target.value)}>
+                <option value="">All categories ({fmtNum(items.length)})</option>
+                {categories.map((c) => <option key={c} value={c}>{c} ({fmtNum(items.filter((t) => t.category === c).length)})</option>)}
+                {uncategorized > 0 && <option value={NONE}>No category ({fmtNum(uncategorized)})</option>}
+              </NativeSelect>
+            )}
+            <NativeSelect aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              <option value="name">Sort: A–Z</option>
+              <option value="recent">Sort: Recently edited</option>
+              <option value="used">Sort: Most used</option>
+            </NativeSelect>
           </div>
 
           {picked.size > 0 && (
-            <Panel className="flex flex-wrap items-center gap-2 p-3">
+            <Panel className="sticky top-0 z-10 flex flex-wrap items-center gap-2 p-3">
               <span className="text-sm font-medium text-ink">{fmtNum(picked.size)} selected</span>
               <Input aria-label="Move to category" list="template-categories-bulk" className="w-44" placeholder="Move to category…" value={moveTo} onChange={(e) => setMoveTo(e.target.value)} maxLength={40} />
               <datalist id="template-categories-bulk">{categories.map((c) => <option key={c} value={c} />)}</datalist>
@@ -189,19 +177,24 @@ export function CrmTemplates() {
                 <Checkbox checked={allShown} onCheckedChange={(on) => setPicked(on ? new Set(shown.map((t) => t.id)) : new Set())} aria-label="Select all shown" />
                 <span>{fmtNum(shown.length)} {shown.length === 1 ? "template" : "templates"}</span>
               </div>
-              {shown.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 px-3 py-2">
-                  <Checkbox checked={picked.has(t.id)} onCheckedChange={() => toggle(t.id)} aria-label={`Select ${t.name}`} />
-                  <button type="button" onClick={() => setEditing(t)} className="min-h-11 min-w-0 flex-1 text-left" aria-label={`Edit ${t.name}`}>
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-sm font-medium text-ink">{t.name}</span>
-                      {t.category && <Pill tone="neutral">{t.category}</Pill>}
-                      {t.use_count > 0 && <span className="text-xs text-muted">used {fmtNum(t.use_count)}×</span>}
-                    </span>
-                    <span className="block truncate text-xs text-ink2">{t.body.replace(/\s+/g, " ")}</span>
-                  </button>
-                  <Btn tone="ghost" size="sm" aria-label={`Duplicate ${t.name}`} onClick={() => void duplicate(t)}><Copy className="h-4 w-4" /></Btn>
-                  <Btn tone="ghost" size="sm" aria-label={`Edit ${t.name}`} onClick={() => setEditing(t)}><Pencil className="h-4 w-4" /></Btn>
+              {shown.map((t, i) => (
+                <div key={t.id}>
+                  {grouped && (i === 0 || shown[i - 1].category !== t.category) && (
+                    <p className="bg-surface2/60 px-3 py-1.5 text-xs font-medium text-ink2">{t.category || "No category"}</p>
+                  )}
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <Checkbox checked={picked.has(t.id)} onCheckedChange={() => toggle(t.id)} aria-label={`Select ${t.name}`} />
+                    <button type="button" onClick={() => setEditing(t)} className="min-h-11 min-w-0 flex-1 text-left" aria-label={`Edit ${t.name}`}>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-medium text-ink">{t.name}</span>
+                        {!grouped && t.category && <Pill tone="neutral">{t.category}</Pill>}
+                        {t.use_count > 0 && <span className="text-xs text-muted">used {fmtNum(t.use_count)}×</span>}
+                      </span>
+                      <span className="block truncate text-xs text-ink2">{t.body.replace(/\s+/g, " ")}</span>
+                    </button>
+                    <Btn tone="ghost" size="icon" aria-label={`Duplicate ${t.name}`} onClick={() => void duplicate(t)}><Copy className="h-4 w-4" /></Btn>
+                    <Btn tone="ghost" size="icon" aria-label={`Edit ${t.name}`} onClick={() => setEditing(t)}><Pencil className="h-4 w-4" /></Btn>
+                  </div>
                 </div>
               ))}
             </Panel>

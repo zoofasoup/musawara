@@ -3,6 +3,7 @@
 // WhatsApp messages, so the final button states the recipient count and needs a connected WhatsApp.
 
 import { Callout } from "../../components/Callout";
+import { Segmented } from "../../components/Segmented";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, Pause } from "lucide-react";
@@ -30,6 +31,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   failed: { label: "Failed", tone: "crit" },
 };
 const num = (n: number | null | undefined) => n ?? 0;
+const ORDER: Record<string, number> = { running: 0, paused: 1, done: 2, cancelled: 3 }; // what needs attention first
 const MAX_FILE = 64 * 1024 * 1024;
 
 function StatusPill({ status }: { status: string }) {
@@ -156,13 +158,8 @@ function CampaignDetail({ id, ready, notify, onBack }: { id: number; ready: bool
           </div>
 
           <div className="space-y-2">
-            <div role="group" aria-label="Filter recipients" className="flex flex-wrap gap-1">
-              {FILTERS.map(([k, l]) => (
-                <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setShown(100); }} className={`inline-flex min-h-11 items-center rounded-xl px-3 text-xs font-medium ${filter === k ? "bg-surface3 text-ink" : "text-ink2 hover:text-ink"}`}>
-                  {l} <span className="tnum ml-1 text-muted">{fmtNum(count(k))}</span>
-                </button>
-              ))}
-            </div>
+            <Segmented label="Filter recipients" value={filter} onChange={(k) => { setFilter(k); setShown(100); }}
+              options={FILTERS.map(([k, l]) => ({ value: k as string, label: l, badge: <span className="tnum text-muted">{fmtNum(count(k))}</span> }))} />
             {rows.length === 0 ? (
               <Empty icon="users" title="No recipients here" hint="Nothing matches this filter." />
             ) : (
@@ -226,9 +223,9 @@ export function CrmCampaigns() {
           ) : (list.data ?? []).length === 0 ? (
             <Empty icon="mail" title="No broadcasts yet" hint="Create one to message a tag or a list of numbers. You review the recipients and a sample before anything is sent." action={<Btn tone="primary" icon="plus" onClick={() => setView({ kind: "new", ids: [] })}>New broadcast</Btn>} />
           ) : (
-            <div className="space-y-3">
-              {list.data!.map((c) => (
-                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block w-full min-h-11 rounded-2xl bg-surface shadow-[var(--shadow-soft)] p-4 text-left hover:bg-surface2">
+            <Panel className="divide-y divide-border overflow-hidden">
+              {[...list.data!].sort((x, y) => (ORDER[x.status] ?? 9) - (ORDER[y.status] ?? 9) || y.created_at - x.created_at).map((c) => (
+                <button key={c.id} type="button" onClick={() => setView({ kind: "detail", id: c.id })} className="block min-h-11 w-full p-4 text-left hover:bg-surface2">
                   <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="min-w-0 break-words text-sm font-semibold text-ink">{c.name}</span>
                     <StatusPill status={c.status} />
@@ -238,7 +235,7 @@ export function CrmCampaigns() {
                   <span className="mt-1 block text-xs text-muted">{fmtWhen(c.created_at)} · pause {c.delay_min}-{c.delay_max} s{c.media_name ? ` · ${c.media_name}` : ""}</span>
                 </button>
               ))}
-            </div>
+            </Panel>
           )}
         </>
       )}

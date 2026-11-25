@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Callout } from "../../../components/Callout";
-import { Btn, Panel, type Notify } from "../../../components/kit";
+import { Btn, type Notify } from "../../../components/kit";
 import { PageHead } from "../data/shared";
 import { TONE } from "../../../lib/tone";
 import { fmtNum } from "../../../lib/format";
 import { crm, crmUpload } from "../crmApi";
 import { normalizePhone, useGateway } from "../data/shared";
-import { canonical, emptyRules, pickAudience, tokensIn, type Contact, type Rules } from "./audience";
+import { canonical, effectiveRules, emptyRules, pickAudience, tokensIn, type Contact, type Names, type Rules } from "./audience";
+import { StepBar } from "./StepBar";
 import { useAudienceData } from "./useAudienceData";
 import { RecipientsStep } from "./RecipientsStep";
 import { MessageStep, type Template } from "./MessageStep";
@@ -22,7 +23,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   const data = useAudienceData();
   const tplQ = useGateway<unknown>("/templates");
   const [step, setStep] = useState(0);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => `Broadcast ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`);
   const [rules, setRules] = useState<Rules>(() => emptyRules(initialIds));
   const [numbers, setNumbers] = useState("");
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
@@ -41,7 +42,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
     return arr.map((t: any): Template => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0) })).sort((a: Template, b: Template) => b.use_count - a.use_count || a.name.localeCompare(b.name));
   }, [tplQ.data]);
 
-  const picked = useMemo(() => pickAudience(data.contacts, rules, data.ctx), [data.contacts, rules, data.ctx.now, data.ctx.stageOf, data.ctx.valuesOf, data.ctx.lastChatTs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const picked = useMemo(() => pickAudience(data.contacts, effectiveRules(rules), data.ctx), [data.contacts, rules, data.ctx.now, data.ctx.stageOf, data.ctx.valuesOf, data.ctx.lastChatTs]); // eslint-disable-line react-hooks/exhaustive-deps
   const active = useMemo(() => picked.filter((p) => !skipped.has(p.id)), [picked, skipped]);
 
   // Typed numbers: counted the way the gateway will, minus people already in the audience.
@@ -56,6 +57,12 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   }, [numbers]);
   const extraCount = useMemo(() => { const have = new Set(active.map((p) => p.phone)); return [...typed.valid].filter((p) => !have.has(p)).length; }, [typed, active]);
   const count = active.length + extraCount;
+
+  const names: Names = useMemo(() => ({
+    stage: (id) => (id === "none" ? "Not on the board" : data.stages.find((s) => s.id === id)?.name ?? String(id)),
+    owner: (id) => (id === "none" ? "Nobody" : data.owners.find((o) => o.id === id)?.name ?? String(id)),
+    field: (id) => data.fields.find((f) => f.id === id)?.label ?? String(id),
+  }), [data.stages, data.owners, data.fields]);
 
   const min = Math.round(Number(delayMin) || 0), max = Math.round(Number(delayMax) || 0);
   const paceOk = min >= 3 && max >= min;
@@ -74,8 +81,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   const next = () => {
     setProblem(undefined);
     if (step === 0) {
-      if (!name.trim()) return setProblem("Give the broadcast a name so you can find it later.");
-      if (count === 0) return setProblem("Nobody is selected yet. Pick a tag, stage or another group, or choose Everyone.");
+      if (count === 0) return setProblem("Nobody is selected yet. Add a filter, or choose Everyone.");
     }
     if (step === 1) {
       if (!template.trim() && !file) return setProblem("Write a message or attach a file.");
@@ -86,6 +92,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   };
 
   const create = async () => {
+    if (!name.trim()) return setProblem("Give the broadcast a name so you can find it later.");
     setBusy(true);
     setProblem(undefined);
     try {
@@ -129,23 +136,23 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
       </ol>
 
       {data.error && <Callout tone="crit" compact>Could not load contacts: {String((data.error as Error).message ?? data.error)}</Callout>}
-      {step === 0 && <RecipientsStep data={data} rules={rules} setRules={setRules} numbers={numbers} setNumbers={setNumbers} name={name} setName={setName} picked={active} extraCount={extraCount} invalid={typed.bad} />}
+      {step === 0 && <RecipientsStep data={data} rules={rules} setRules={setRules} numbers={numbers} setNumbers={setNumbers} extraCount={extraCount} invalid={typed.bad} names={names} />}
       {step === 1 && <MessageStep data={data} templates={templates} template={template} setTemplate={setTemplate} file={file} setFile={setFile} delayMin={delayMin} delayMax={delayMax} setDelayMin={setDelayMin} setDelayMax={setDelayMax} sample={sample} count={count} />}
-      {step === 2 && <ReviewStep data={data} rules={rules} people={picked} skipped={skipped} setSkipped={setSkipped} template={template} file={file} name={name.trim()} delayMin={min} delayMax={max} extraCount={extraCount} serverCount={serverCount} />}
+      {step === 2 && <ReviewStep data={data} rules={rules} names={names} people={picked} skipped={skipped} setSkipped={setSkipped} template={template} file={file} name={name} setName={setName} delayMin={min} delayMax={max} extraCount={extraCount} total={serverCount ?? count} />}
       {step === 2 && serverInvalid.length > 0 && <Callout tone="warn" compact>{fmtNum(serverInvalid.length)} typed lines are not valid numbers and will be skipped: {serverInvalid.slice(0, 4).join(", ")}{serverInvalid.length > 4 ? ", ..." : ""}</Callout>}
-
       {problem && <Callout tone="crit" compact>{problem}</Callout>}
-      <Panel className="flex flex-wrap items-center gap-2 p-3">
-        {step > 0 && <Btn onClick={() => { setProblem(undefined); setStep(step - 1); }} disabled={busy}>Back</Btn>}
-        {step < 2 ? (
-          <Btn tone="primary" onClick={next}>Continue{step === 0 && count > 0 ? ` with ${fmtNum(count)}` : ""}</Btn>
+
+      <StepBar
+        count={step === 2 ? serverCount ?? count : count}
+        detail={sample ? `${sample.name || "No name"}${count > 1 ? ` and ${fmtNum(count - 1)} more` : ""}` : undefined}
+        note={step === 0 && count === 0 ? "Add a filter, or choose Everyone." : step === 2 && !ready ? "Connect WhatsApp first. Sending is disabled until it is connected." : undefined}
+        onBack={step > 0 ? () => { setProblem(undefined); setStep(step - 1); } : undefined}
+        primary={step < 2 ? (
+          <Btn tone="primary" onClick={next} disabled={step === 0 && count === 0}>Continue</Btn>
         ) : (
-          <Btn tone="primary" loading={busy} disabled={!ready || !reviewReady || serverCount === 0} onClick={() => void create()}>
-            Send to {fmtNum(serverCount ?? count)} {(serverCount ?? count) === 1 ? "person" : "people"}
-          </Btn>
+          <Btn tone="primary" loading={busy} disabled={!ready || !reviewReady || serverCount === 0} onClick={() => void create()}>Send now</Btn>
         )}
-        {step === 2 && !ready && <span className="text-xs text-warn">Connect WhatsApp first. Sending is disabled until it is connected.</span>}
-      </Panel>
+      />
     </div>
   );
 }

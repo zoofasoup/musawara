@@ -141,3 +141,45 @@ export function emptyCounts(template: string, vars: Variable[], people: Array<{ 
   }
   return out;
 }
+
+// ------------------------------------------------------------------ builder helpers
+
+/** What the audience really is: in "Everyone" mode the include filters are ignored (but kept in the form), exclusions and chosen contacts still apply. */
+export function effectiveRules(r: Rules): Rules {
+  return r.everyone ? { ...emptyRules(r.chosen), everyone: true, excludeTags: r.excludeTags } : { ...r, everyone: false };
+}
+
+export type RulePart = { kind: "tag" | "stage" | "owner" | "chat" | "field"; label: string; values: string[] };
+export type Names = { stage: (id: number | typeof NONE) => string; owner: (id: number | typeof NONE) => string; field: (id: number) => string };
+
+/** The include filters of a rule set as readable parts (for the one-sentence summary), plus excluded tags and chosen contacts. */
+export function describeRules(r: Rules, n: Names): { everyone: boolean; include: RulePart[]; exclude: string[]; chosen: number } {
+  const e = effectiveRules(r);
+  const include: RulePart[] = [];
+  if (e.tags.length) include.push({ kind: "tag", label: "tag", values: e.tags });
+  if (e.stages.length) include.push({ kind: "stage", label: "stage", values: e.stages.map(n.stage) });
+  if (e.owners.length) include.push({ kind: "owner", label: "owner", values: e.owners.map(n.owner) });
+  for (const f of e.fields) include.push({ kind: "field", label: n.field(f.fieldId), values: f.mode === "in" ? f.values : [f.mode === "filled" ? "has a value" : "is empty"] });
+  if (e.chat === "never") include.push({ kind: "chat", label: "conversation", values: ["never chatted"] });
+  if (e.chat === "within") include.push({ kind: "chat", label: "conversation", values: [`chatted in the last ${e.chatDays} days`] });
+  return { everyone: e.everyone, include, exclude: e.excludeTags, chosen: e.chosen.length };
+}
+
+/** The `{word` being typed right before the caret (for placeholder suggestions), or null when the caret is not inside one. */
+export function tokenAtCaret(text: string, caret: number): { start: number; query: string } | null {
+  const before = text.slice(0, caret);
+  const open = before.lastIndexOf("{");
+  if (open < 0) return null;
+  const typed = before.slice(open + 1);
+  return /^[A-Za-z0-9_]{0,40}$/.test(typed) ? { start: open, query: typed.toLowerCase() } : null;
+}
+
+/** Placeholders matching what was typed: the ones whose token starts with it first, then those whose label contains it. */
+export function suggestVars(vars: Variable[], q: string): Variable[] {
+  const s = q.toLowerCase();
+  if (!s) return vars;
+  return [...vars.filter((v) => v.token.startsWith(s)), ...vars.filter((v) => !v.token.startsWith(s) && (v.token.includes(s) || v.label.toLowerCase().includes(s)))];
+}
+
+export type VarGroup = "Contact" | "Pipeline" | "Custom fields";
+export const varGroup = (v: Variable): VarGroup => (v.builtin === "nama" || v.builtin === "nomor" ? "Contact" : v.builtin ? "Pipeline" : "Custom fields");
