@@ -116,6 +116,19 @@ export function valueFrom(f: DetectField, answer: string, asked: boolean, now = 
   return null;
 }
 
+const PARTS: Kind[] = ["adults", "children", "elderly", "infants"];
+/**
+ * May a bare number ("4") answer this field, given everything the question asked? "How many people (adults, children, elderly)?"
+ * is answered by one total: it counts for the head count only, never copied into each part.
+ */
+function bareNumberFits(kind: Kind, askedKinds: Kind[]): boolean {
+  const others = askedKinds.filter((k) => k !== kind);
+  if (kind === "people") return !others.some((k) => k === "age" || k === "generic");
+  if (PARTS.includes(kind)) return !others.some((k) => k === "people" || PARTS.includes(k));
+  if (kind === "age" || kind === "generic") return !others.some((k) => k === "people" || PARTS.includes(k) || k === "age");
+  return true;
+}
+
 /** "1. ... 2. ... 3. ..." split into its numbered items, or null when the text is not a numbered list. */
 function numbered(text: string): Map<number, string> | null {
   const items = new Map<number, string>();
@@ -145,17 +158,22 @@ export function detectAnswers(messages: DetectMsg[], fields: DetectField[], curr
     if (!body) continue;
     if (m.from_me) { question = body; continue; }
     const asked = fields.filter((f) => asksAbout(question, f));
+    const askedKinds = asked.map(kindOf);
     const qList = numbered(question), aList = numbered(body);
     for (const f of fields) {
+      const k = kindOf(f);
       if (qList && aList) {
-        const n = [...qList].find(([, line]) => asksAbout(line, f))?.[0];
-        if (n !== undefined && aList.has(n)) { put(f, valueFrom(f, aList.get(n)!, true, now), aList.get(n)!); continue; }
+        const hit = [...qList].find(([, line]) => asksAbout(line, f));
+        if (hit && aList.has(hit[0])) {
+          const lineKinds = fields.filter((x) => asksAbout(hit[1], x)).map(kindOf);
+          put(f, valueFrom(f, aList.get(hit[0])!, bareNumberFits(k, lineKinds), now), aList.get(hit[0])!);
+          continue;
+        }
       }
       const isAsked = asked.includes(f);
       // Unprompted statements are only trusted for the unambiguous kinds.
-      const k = kindOf(f);
-      if (!isAsked && !["people", "month", "year", "city", "adults", "children", "elderly", "infants"].includes(k)) continue;
-      put(f, valueFrom(f, body, isAsked && asked.filter((a) => a.type === f.type).length === 1, now) ?? (isAsked ? valueFrom(f, body, false, now) : null), body);
+      if (!isAsked && !["people", "month", "year", "city", ...PARTS].includes(k)) continue;
+      put(f, valueFrom(f, body, isAsked && bareNumberFits(k, askedKinds), now), body);
     }
   }
   return [...found.values()].filter((s) => (current[s.fieldId] ?? "") !== s.value);

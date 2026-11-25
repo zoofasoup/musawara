@@ -44,3 +44,12 @@ test("formats: age, choice options and question detection", () => {
   assert.equal(asksAbout("Rencana bulan dan tahun keberangkatan?", FIELDS[2]), true);
   assert.equal(asksAbout("Terima kasih ya", FIELDS[0]), false);
 });
+
+test("one total answering 'how many (adults, children, elderly)?' is the head count, not each part", () => {
+  const parts = [...FIELDS, f(8, "Dewasa", "number"), f(10, "Lansia", "number")];
+  const run = (msgs: Array<ReturnType<typeof us>>) => Object.fromEntries(detectAnswers(msgs, parts, {}, NOW).map((s) => [s.label, s.value]));
+  const q = "1. Berangkat untuk berapa orang (dewasa, anak, lansia)?\n2. Rencana bulan dan tahun keberangkatan?";
+  assert.deepEqual(run([us(q), them("1. 4 orang\n2. maret 2027")]), { "Jumlah Jamaah": "4", Bulan: "Maret", Tahun: "2027" });
+  assert.deepEqual(run([us("Berapa orang (dewasa, anak, lansia)?"), them("4")]), { "Jumlah Jamaah": "4" });
+  assert.deepEqual(run([us("1. Dewasa: berapa?\n2. Anak: berapa?\n3. Lansia: berapa?"), them("1. 2\n2. 1\n3. 0")]), { Dewasa: "2", Anak: "1", Lansia: "0" });
+});
