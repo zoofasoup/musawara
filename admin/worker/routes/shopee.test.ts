@@ -6,7 +6,7 @@ import { sign } from "hono/jwt";
 import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import shopee from "./shopee.ts";
-import { authUrl, connectShop, jakartaStart, pickOrder, shopeeCfg, signRequest, syncShop } from "../lib/shopee.ts";
+import { authUrl, connectShop, jakartaStart, pickOrder, shopeeCfg, signRequest, syncAllShops, syncShop } from "../lib/shopee.ts";
 
 const SECRET = "test-secret";
 const CFG = { partnerId: 1001, partnerKey: "partner-key", host: "https://shopee.test" };
@@ -177,4 +177,19 @@ test("summary validates its dates", async () => {
   const admin = await cookie(1, "admin", null);
   assert.equal((await call("GET", "/api/shopee/summary?client_id=1&from=2026-11-12&to=2026-11-10", admin)).status, 400);
   assert.equal((await call("GET", "/api/shopee/summary?client_id=1&from=nope&to=2026-11-10", admin)).status, 400);
+});
+
+test("the hourly job syncs every connected shop until caught up, and one failing shop does not stop the others", async () => {
+  const { env, DB } = await setup() as any;
+  for (const [client, shop] of [[1, 111], [2, 222]]) await connectShop(env, CFG, client, "code", shop, fakeShopee([]), NOW - 20 * 24 * 3600);
+  const first = await syncAllShops(env, CFG, fakeShopee([rawOrder("A1", "COMPLETED", NOW - 3600, 150000)]), NOW);
+  assert.equal(first.shops, 2);
+  const synced = (await DB.prepare("SELECT synced_to FROM shopee_shops ORDER BY client_id").all()).results.map((r: any) => r.synced_to);
+  assert.deepEqual(synced, [NOW, NOW], "50 days behind takes several 15-day windows");
+  // shop 1's authorisation has expired: its error is recorded, shop 2 still syncs, and the job reports the failure
+  await DB.prepare("UPDATE shopee_shops SET refresh_expires_at=1 WHERE client_id=1").run();
+  await assert.rejects(syncAllShops(env, CFG, fakeShopee([]), NOW + 100), /client 1/);
+  const rows = (await DB.prepare("SELECT synced_to, last_error FROM shopee_shops ORDER BY client_id").all()).results as any[];
+  assert.ok(rows[0].last_error, "shop 1 keeps why it failed");
+  assert.equal(rows[1].synced_to, NOW + 100);
 });

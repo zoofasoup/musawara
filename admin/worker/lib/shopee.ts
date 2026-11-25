@@ -205,6 +205,29 @@ export async function syncShop(env: Pick<Env, "DB" | "JWT_SECRET">, cfg: ShopeeC
   }
 }
 
+/**
+ * The hourly job: every connected shop, window after window until caught up (at most 8 windows per run, so a first sync that is
+ * far behind finishes over a few runs). One shop failing does not stop the others; its error is kept on the shop and the job reports it.
+ */
+export async function syncAllShops(env: Pick<Env, "DB" | "JWT_SECRET">, cfg: ShopeeCfg, fetchImpl?: Fetch, now = Math.floor(Date.now() / 1000)) {
+  const shops = (await env.DB.prepare(`SELECT client_id FROM shopee_shops ORDER BY client_id`).all<{ client_id: number }>()).results;
+  let orders = 0;
+  const failed: number[] = [];
+  for (const { client_id } of shops) {
+    try {
+      for (let i = 0; i < 8; i++) {
+        const r = await syncShop(env, cfg, client_id, fetchImpl, now);
+        orders += r.orders;
+        if (r.caughtUp) break;
+      }
+    } catch {
+      failed.push(client_id);
+    }
+  }
+  if (failed.length) throw new Error(`shopee sync failed for client ${failed.join(", ")}`);
+  return { shops: shops.length, orders };
+}
+
 /** Jakarta calendar day (YYYY-MM-DD) to the unix second its day starts (UTC+7). */
 export const jakartaStart = (ymd: string) => Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10)) / 1000 - 7 * 3600;
 

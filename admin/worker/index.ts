@@ -18,6 +18,7 @@ import { syncAllInboxLeads } from "./lib/inboxLeads";
 import reportRoutes from "./routes/report";
 import approvalRoutes from "./routes/approvals";
 import shopeeRoutes from "./routes/shopee";
+import { shopeeCfg, syncAllShops } from "./lib/shopee";
 import notionRoutes from "./routes/notion";
 import { notionCfg, runNotionSync } from "./lib/notion";
 import { syncAllAccounts } from "./lib/sync";
@@ -64,6 +65,8 @@ export function scheduled(controller: ScheduledController, env: Env, ctx: Execut
   ctx.waitUntil(trackCron(env, "organic", () => pollAllOrganic(env, deep)));
   ctx.waitUntil(trackCron(env, "ads", () => syncAllAccounts(env, !deep)));
   ctx.waitUntil(syncAllInboxLeads(env).catch((e) => console.error(JSON.stringify({ event: "inbox_leads_failed", error: String(e?.message ?? e).slice(0, 200) }))));
+  const shopee = shopeeCfg(env);
+  if (shopee) ctx.waitUntil(trackCron(env, "shopee", () => syncAllShops(env, shopee)));
   if (notionCfg(env)) ctx.waitUntil(trackCron(env, "notion", () => runNotionSync(env)));
 }
 
