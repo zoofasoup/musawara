@@ -45,7 +45,7 @@ async function organicFor(env: Env, clientId: number, from: string, to: string, 
 /** The rows the dashboard counts as sales (not deleted); cancelled ones are kept so they can be reported apart. */
 function salesFor(env: Env, clientId: number, from: string, to: string) {
   return env.DB.prepare(
-    `SELECT sale_date, value, source, package_name, pay_status FROM sales
+    `SELECT sale_date, value, source, package_name, pay_status FROM dashboard_sales
      WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL`
   )
     .bind(clientId, from, to)

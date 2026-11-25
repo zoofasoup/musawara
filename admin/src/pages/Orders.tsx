@@ -11,7 +11,7 @@ import { PageHeader } from "../components/PageHeader";
 import { NeedsClient } from "../components/NeedsClient";
 import { useClientScope } from "../context/ClientScope";
 
-type Month = { month: string; orders: number; value: number; canceled: number; channels: Record<string, { orders: number; value: number }>; spend: Record<string, number>; spend_total: number };
+type Month = { month: string; orders: number; value: number; canceled: number; unpaid: number; channels: Record<string, { orders: number; value: number }>; spend: Record<string, number>; spend_total: number };
 type Report = { connected: boolean; channels: string[]; sources: string[]; months: Month[]; last_sync_at: string | null; last_error: string | null };
 
 const CHANNEL: Record<string, string> = { SHOPEE: "Shopee", TOKOPEDIA: "Tokopedia", "Shop | Tokopedia": "TikTok / Tokopedia Shop", INTERNAL: "Manual (internal)" };
@@ -68,8 +68,8 @@ export function Orders() {
             <>
               <Panel className="p-2">
                 <h2 className="px-3 pt-2 text-sm font-semibold text-ink">Sales per channel</h2>
-                <Table head={["Month", "Orders", "Sales", ...d.channels.map((c) => CHANNEL[c] ?? c), "Cancelled"]}
-                  rows={d.months.map((m) => [monthName(m.month), fmtNum(m.orders), fmtRp(m.value), ...d.channels.map((c) => (m.channels[c] ? `${fmtNum(m.channels[c].orders)} · ${fmtRp(m.channels[c].value)}` : "–")), fmtNum(m.canceled)])} />
+                <Table head={["Month", "Paid orders", "Sales", ...d.channels.map((c) => CHANNEL[c] ?? c), "Not paid yet", "Cancelled"]}
+                  rows={d.months.map((m) => [monthName(m.month), fmtNum(m.orders), fmtRp(m.value), ...d.channels.map((c) => (m.channels[c] ? `${fmtNum(m.channels[c].orders)} · ${fmtRp(m.channels[c].value)}` : "–")), fmtNum(m.unpaid), fmtNum(m.canceled)])} />
               </Panel>
               <Panel className="p-2">
                 <h2 className="px-3 pt-2 text-sm font-semibold text-ink">Ad spend per platform</h2>

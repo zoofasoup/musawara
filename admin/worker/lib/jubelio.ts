@@ -56,13 +56,16 @@ export function pickOrder(raw: any): OrderRow | null {
 /** Reads every order changed since the last successful run and stores it. The position moves only when the whole read succeeded. */
 export async function syncJubelio(env: Pick<Env, "DB">, cfg: JubelioCfg, fetchImpl: typeof fetch = fetch, now = Date.now()) {
   const state = await env.DB.prepare("SELECT synced_to FROM jubelio_sync WHERE client_id=?").bind(cfg.clientId).first<{ synced_to: string | null }>();
+  // First run: everything sold since the start of the year (by order date; older orders may carry no change date). Later runs: what changed.
   const since = state?.synced_to ? new Date(Date.parse(state.synced_to) - OVERLAP_MS).toISOString() : FIRST_SYNC_FROM;
+  const filter: Record<string, string> = state?.synced_to ? { last_modified_since: since } : { transaction_date_from: since };
   try {
     const token = await login(cfg, fetchImpl);
     let saved = 0;
     for (let page = 1; ; page++) {
       if (page > MAX_PAGES) throw new JubelioError("Too many orders in one run");
-      const url = `${cfg.host}/sales/v2/orders/?${new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), last_modified_since: since })}`;
+      // sorted, so pages never overlap or skip
+      const url = `${cfg.host}/sales/v2/orders/?${new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), sort_by: "transaction_date", sort_direction: "ASC", ...filter })}`;
       const res = await fetchImpl(url, { headers: { authorization: token }, signal: AbortSignal.timeout(30_000) });
       if (!res.ok) throw new JubelioError(res.status === 429 ? "Jubelio is rate limiting requests, try again later" : `Jubelio answered ${res.status} for the order list`);
       const body: any = await res.json();
@@ -94,9 +97,9 @@ export async function syncJubelio(env: Pick<Env, "DB">, cfg: JubelioCfg, fetchIm
 export async function monthlyReport(db: D1Database, clientId: number) {
   const [orders, spend, sync] = await Promise.all([
     db.prepare(
-      `SELECT substr(day,1,7) month, channel, SUM(canceled=0) orders, SUM(CASE WHEN canceled=0 THEN total ELSE 0 END) value, SUM(canceled) canceled
+      `SELECT substr(day,1,7) month, channel, SUM(canceled=0 AND paid=1) orders, SUM(CASE WHEN canceled=0 AND paid=1 THEN total ELSE 0 END) value, SUM(canceled) canceled, SUM(canceled=0 AND paid=0) unpaid
          FROM jubelio_orders WHERE client_id=? GROUP BY 1,2 ORDER BY 1 DESC`
-    ).bind(clientId).all<{ month: string; channel: string; orders: number; value: number; canceled: number }>(),
+    ).bind(clientId).all<{ month: string; channel: string; orders: number; value: number; canceled: number; unpaid: number }>(),
     db.prepare("SELECT substr(date,1,7) month, source, SUM(amount) amount FROM spend_daily WHERE client_id=? GROUP BY 1,2").bind(clientId).all<{ month: string; source: string; amount: number }>(),
     db.prepare("SELECT last_sync_at, last_error FROM jubelio_sync WHERE client_id=?").bind(clientId).first<{ last_sync_at: string | null; last_error: string | null }>(),
   ]);
@@ -114,6 +117,7 @@ export async function monthlyReport(db: D1Database, clientId: number) {
         orders: rows.reduce((n, r) => n + r.orders, 0),
         value: rows.reduce((n, r) => n + r.value, 0),
         canceled: rows.reduce((n, r) => n + r.canceled, 0),
+        unpaid: rows.reduce((n, r) => n + r.unpaid, 0),
         channels: Object.fromEntries(rows.map((r) => [r.channel, { orders: r.orders, value: r.value }])),
         spend: spent,
         spend_total: Object.values(spent).reduce((n: number, v) => n + Number(v), 0),

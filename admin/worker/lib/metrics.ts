@@ -74,8 +74,8 @@ const SUM_COLS = `SUM(spend) spend, SUM(impressions) impressions, SUM(reach) rea
   SUM(leads) leads, SUM(purchases) purchases, SUM(purchase_value) purchase_value`;
 
 /**
- * Real sales for a client in a date range, from the sales table (one row per
- * traveller, whether or not it reached Meta). Meta's own "purchase" actions are
+ * Real sales for a client in a date range, from the dashboard_sales view (uploaded or sheet-synced sales, one row per traveller,
+ * whether or not it reached Meta; or paid Jubelio orders for a brand that uses Jubelio). Meta's own "purchase" actions are
  * deliberately not used: they are unreliable here.
  */
 export async function offlineSales(
@@ -86,7 +86,7 @@ export async function offlineSales(
 ): Promise<{ purchases: number; purchase_value: number; purchases_sent: number }> {
   const r = await env.DB.prepare(
     `SELECT COUNT(*) n, COALESCE(SUM(value), 0) v, COALESCE(SUM(meta_state='sent'), 0) s
-     FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled'`
+     FROM dashboard_sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled'`
   )
     .bind(clientId, from, to)
     .first<{ n: number; v: number; s: number }>();
@@ -140,7 +140,7 @@ export async function clientTrend(env: Env, clientId: number, from: string, to: 
       .all<RawSums & { date: string }>(),
     env.DB.prepare(
       `SELECT ${bucketKey("sale_date", bucket)} AS date, COUNT(*) purchases, COALESCE(SUM(value), 0) purchase_value
-       FROM sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled'
+       FROM dashboard_sales WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled'
        GROUP BY 1`
     )
       .bind(clientId, from, to)

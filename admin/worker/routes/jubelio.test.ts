@@ -4,6 +4,7 @@ import { makeDb } from "../testkit/d1.ts";
 import { sessionCookie } from "../testkit/session.ts";
 import { app } from "../index.ts";
 import { jubelioCfg, pickOrder, syncJubelio } from "../lib/jubelio.ts";
+import { clientTrend, offlineSales } from "../lib/metrics.ts";
 
 const TEAM = "https://app.musawara.id";
 const CFG = { email: "api@x.test", password: "pw", clientId: 2, host: "https://jubelio.test" };
@@ -16,7 +17,8 @@ function fakeJubelio(orders: any[], seen: string[] = [], status = 200) {
     const u = new URL(url);
     if (u.pathname === "/login") { seen.push("login"); return Response.json(JSON.parse(init.body).password === "pw" ? { token: "T1" } : {}, { status: 200 }); }
     assert.equal(init.headers.authorization, "T1", "the token goes in as is");
-    seen.push(u.searchParams.get("last_modified_since")!);
+    assert.equal(u.searchParams.get("sort_by"), "transaction_date");
+    seen.push(u.searchParams.get("last_modified_since") ?? `all from ${u.searchParams.get("transaction_date_from")}`);
     if (status !== 200) return new Response("no", { status });
     const page = Number(u.searchParams.get("page"));
     return Response.json({ data: orders.slice((page - 1) * 200, page * 200), totalCount: orders.length });
@@ -39,7 +41,7 @@ test("sync reads all pages, updates instead of duplicating, and moves its positi
   const seen: string[] = [];
   const now = Date.parse("2026-11-25T10:00:00Z");
   assert.equal((await syncJubelio({ DB } as any, CFG, fakeJubelio(many, seen), now)).orders, 250);
-  assert.equal(seen[1], "2026-01-01T00:00:00.000Z", "the first run reads from the start of the year");
+  assert.equal(seen[1], "all from 2026-01-01T00:00:00.000Z", "the first run reads by order date from the start of the year");
   await syncJubelio({ DB } as any, CFG, fakeJubelio([order(1, "2026-10-05T03:00:00Z", "SHOPEE", "5000", { is_canceled: true })], seen), now + 3600_000);
   assert.equal(seen.at(-1), "2026-11-25T09:00:00.000Z", "then from the last run, with an hour of overlap");
   assert.equal((await DB.prepare("SELECT COUNT(*) n FROM jubelio_orders").first<any>())!.n, 250);
@@ -71,4 +73,20 @@ test("the report gives orders per channel per month next to ad spend, only to pe
   assert.equal(((await (await get(1, "/status?client_id=1")).json()) as any).connected, false, "Jubelio belongs to one brand");
   assert.equal((await get(2, "/report?client_id=2")).status, 403, "not their client");
   assert.equal((await get(3, "/report?client_id=2")).status, 403, "no sales feature");
+});
+
+test("the Overview counts a Jubelio brand from paid orders only, and leaves other brands on their uploaded sales", async () => {
+  const DB = makeDb();
+  await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (1,'Musafar','m'),(2,'NurAlive','n')").run();
+  await DB.prepare("INSERT INTO sales (client_id,sale_key,sale_date,value) VALUES (1,'a','2026-10-05',30000000), (2,'b','2026-10-05',150000)").run();
+  const env: any = { DB };
+  assert.deepEqual(await offlineSales(env, 2, "2026-10-01", "2026-10-31"), { purchases: 1, purchase_value: 150000, purchases_sent: 0 }, "before Jubelio has orders, uploads count");
+  await syncJubelio({ DB } as any, CFG, fakeJubelio([
+    order(1, "2026-10-05T03:00:00Z", "SHOPEE", "100000"), order(2, "2026-10-06T03:00:00Z", "INTERNAL", "150000"),
+    order(3, "2026-10-07T03:00:00Z", "SHOPEE", "90000", { is_canceled: true }), order(4, "2026-10-08T03:00:00Z", "INTERNAL", "70000", { is_paid: false, internal_status: "PENDING" }),
+  ]));
+  assert.deepEqual(await offlineSales(env, 2, "2026-10-01", "2026-10-31"), { purchases: 2, purchase_value: 250000, purchases_sent: 0 }, "cancelled, unpaid and the uploaded duplicate are not counted");
+  assert.equal((await offlineSales(env, 1, "2026-10-01", "2026-10-31")).purchase_value, 30000000);
+  const trend = await clientTrend(env, 2, "2026-10-01", "2026-10-31");
+  assert.deepEqual(trend.days.map((d: any) => [d.date, d.purchases]), [["2026-10-05", 1], ["2026-10-06", 1]]);
 });
