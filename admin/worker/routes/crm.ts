@@ -75,6 +75,8 @@ crm.all("/*", async (c) => {
     const out = new Headers();
     for (const h of ["content-type", "content-disposition", "cache-control", "content-range", "accept-ranges", "content-length"]) {
       const v = res.headers.get(h);
+      // A JSON answer may arrive gzipped and be decompressed on the way: its length would then be wrong, so let the edge set it.
+      if (h === "content-length" && /json/i.test(res.headers.get("content-type") ?? "")) continue;
       if (v) out.set(h, v);
     }
     if (filterList && res.ok) {

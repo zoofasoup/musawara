@@ -14,6 +14,7 @@ import { FileText, Inbox, Kanban, ListChecks, Megaphone, Smartphone, Users } fro
 import { useCan } from "../../lib/can";
 import { useAppLock } from "../../lib/appLock";
 import { useTaskSummary } from "./pipeline/api";
+import { loadGateway } from "./data/shared";
 
 const TABS = [
   { to: "/crm/inbox", label: "Inbox", Icon: Inbox },
@@ -42,6 +43,16 @@ export function CrmLayout({ children }: { children: ReactNode }) {
   const valid = stored !== null && accounts.some((a) => a.id === stored);
   const fallback = (accounts.find((a) => a.is_default) ?? accounts[0])?.id ?? null;
   const selectedId = valid ? stored : fallback;
+  // Once a number is picked, fetch the other CRM screens and the contact list in the background, so the first switch to a tab is quick.
+  useEffect(() => {
+    if (selectedId === null || selectedId === undefined) return;
+    const t = setTimeout(() => {
+      for (const load of [() => import("./CrmInbox"), () => import("./pipeline/CrmPipeline"), () => import("./CrmTasks"), () => import("./CrmContacts"), () => import("./CrmTemplates"), () => import("./CrmCampaigns")]) void load().catch(() => {});
+      void loadGateway("/contacts?lite=1").catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [selectedId]);
+
   useEffect(() => {
     if (list.data && list.data.length && !valid && fallback !== null) setAccountId(fallback);
   }, [list.data, valid, fallback]);

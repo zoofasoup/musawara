@@ -42,7 +42,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
     return arr.map((t: any): Template => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0) })).sort((a: Template, b: Template) => b.use_count - a.use_count || a.name.localeCompare(b.name));
   }, [tplQ.data]);
 
-  const picked = useMemo(() => pickAudience(data.contacts, effectiveRules(rules), data.ctx), [data.contacts, rules, data.ctx.now, data.ctx.stageOf, data.ctx.valuesOf, data.ctx.lastChatTs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const picked = useMemo(() => pickAudience(data.contacts, effectiveRules(rules), data.ctx), [data.contacts, rules, data.ctx]);
   const active = useMemo(() => picked.filter((p) => !skipped.has(p.id)), [picked, skipped]);
 
   // Typed numbers: counted the way the gateway will, minus people already in the audience.
@@ -67,6 +67,8 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   const min = Math.round(Number(delayMin) || 0), max = Math.round(Number(delayMax) || 0);
   const paceOk = min >= 3 && max >= min;
 
+  const activeKey = useMemo(() => active.map((p) => p.id).join(","), [active]);
+
   // On the review step the gateway has the last word on the count (it removes duplicates and bad numbers the same way it will when sending).
   useEffect(() => {
     if (step !== 2) return;
@@ -76,7 +78,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
       .then((r) => { if (alive) { setServerCount(r.count); setServerInvalid(r.invalid); } })
       .catch((e) => alive && setProblem(e.message));
     return () => { alive = false; };
-  }, [step, active, numbers]);
+  }, [step, activeKey, numbers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const next = () => {
     setProblem(undefined);

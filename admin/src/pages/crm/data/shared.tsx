@@ -2,8 +2,8 @@
 // the failure panel, WhatsApp status polling, and ports of the gateway's phone/tag/template rules.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ApiError } from "../../../lib/api";
-import { crm, usePoll } from "../crmApi";
+import { ApiError, onClearCache } from "../../../lib/api";
+import { crm, getAccountId, useAccountId, usePoll } from "../crmApi";
 import { Btn, Panel } from "../../../components/kit";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -63,10 +63,28 @@ export function fmtWhen(ts: number | null | undefined): string {
 
 /* ---------- gateway data hook ---------- */
 
+// Last answer per number and path: opening a page again (or another page that needs the same list, like all contacts) shows it at once
+// and refreshes underneath. One request is shared by everyone asking at the same moment. Cleared on sign-out.
+const answers = new Map<string, unknown>();
+const flying = new Map<string, Promise<unknown>>();
+onClearCache(() => { answers.clear(); flying.clear(); });
+const keyOf = (path: string) => `${getAccountId() ?? ""}|${path}`;
+export function loadGateway<T>(path: string): Promise<T> {
+  const key = keyOf(path);
+  let p = flying.get(key) as Promise<T> | undefined;
+  if (!p) {
+    p = crm<T>(path).then((d) => { answers.set(key, d); return d; }).finally(() => flying.delete(key));
+    flying.set(key, p);
+  }
+  return p;
+}
+
 export function useGateway<T = any>(path: string | null, opts: { pollMs?: number } = {}) {
-  const [data, setData] = useState<T | undefined>(undefined);
+  const account = useAccountId();
+  const cached = path ? (answers.get(keyOf(path)) as T | undefined) : undefined;
+  const [data, setData] = useState<T | undefined>(cached);
   const [error, setError] = useState<unknown>(undefined);
-  const [loading, setLoading] = useState(Boolean(path));
+  const [loading, setLoading] = useState(Boolean(path) && cached === undefined);
   const [tick, setTick] = useState(0);
   const cur = useRef(path);
   cur.current = path;
@@ -77,8 +95,12 @@ export function useGateway<T = any>(path: string | null, opts: { pollMs?: number
       return;
     }
     let alive = true;
-    setLoading(true);
-    crm<T>(path)
+    const known = answers.get(keyOf(path)) as T | undefined;
+    setData(known);
+    setLoading(known === undefined);
+    // After a manual reload (a save just happened) never reuse a request that started before it.
+    if (tick > 0) flying.delete(keyOf(path));
+    loadGateway<T>(path)
       .then((d) => {
         if (alive && cur.current === path) {
           setData(d);
@@ -90,13 +112,13 @@ export function useGateway<T = any>(path: string | null, opts: { pollMs?: number
     return () => {
       alive = false;
     };
-  }, [path, tick]);
+  }, [path, tick, account]);
 
   // Quiet refresh: keeps old data on screen and ignores transient failures.
   const refresh = useCallback(() => {
     const p = cur.current;
     if (!p) return;
-    crm<T>(p)
+    loadGateway<T>(p)
       .then((d) => {
         if (cur.current === p) {
           setData(d);

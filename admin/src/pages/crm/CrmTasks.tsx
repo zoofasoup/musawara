@@ -16,7 +16,7 @@ export function CrmTasks() {
   const [showDone, setShowDone] = useState(false);
   const open = useTasks("open", mine);
   const done = useTasks("done", mine);
-  const gw = useGateway<Array<{ phone: string; name: string }>>("/contacts");
+  const gw = useGateway<Array<{ phone: string; name: string }>>("/contacts?lite=1");
   const names = useMemo(() => new Map((gw.data ?? []).map((c) => [c.phone, c.name])), [gw.data]);
   const [phone, setPhone] = useState("");
   const [title, setTitle] = useState("");

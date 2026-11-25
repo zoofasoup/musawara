@@ -51,7 +51,10 @@ export function homeOrigin(role: "admin" | "client"): string {
 // Last answer per request, so going back to a page shows what it had at once and refreshes underneath
 // instead of blanking to a skeleton. Cleared on sign-out so one user's data never reaches the next.
 const answers = new Map<string, unknown>();
-export const clearApiCache = () => answers.clear();
+const cacheClearers = new Set<() => void>();
+/** Other caches (the WhatsApp gateway answers) register here so sign-out empties them too. */
+export const onClearCache = (fn: () => void) => void cacheClearers.add(fn);
+export const clearApiCache = () => { answers.clear(); cacheClearers.forEach((fn) => fn()); };
 
 export function useApi<T = any>(path: string | null, extra?: { headers?: Record<string, string>; key?: string }) {
   const headersRef = useRef(extra?.headers);

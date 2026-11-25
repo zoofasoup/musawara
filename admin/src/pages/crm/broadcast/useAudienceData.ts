@@ -7,32 +7,33 @@ import type { Conv } from "../inbox/util";
 import { variablesFor, valuesForPerson, type Contact, type Ctx } from "./audience";
 
 export function useAudienceData() {
-  const contactsQ = useGateway<Contact[]>("/contacts");
+  const contactsQ = useGateway<Contact[]>("/contacts?lite=1");
   const tagsQ = useGateway<Array<{ tag: string; count: number }>>("/tags");
   const convsQ = useGateway<Conv[]>("/conversations");
   const board = usePipeline();
   const valuesQ = useFieldValues(board.account);
 
-  const contacts = contactsQ.data ?? [];
-  const stages = board.data?.stages ?? [];
-  const fields = board.data?.fields ?? [];
-  const owners = board.data?.owners ?? [];
+  // Stable identities: the audience is memoised on these, and a new array on every render would recompute it (and re-ask the gateway) forever.
+  const contacts = useMemo(() => contactsQ.data ?? [], [contactsQ.data]);
+  const stages = useMemo(() => board.data?.stages ?? [], [board.data]);
+  const fields = useMemo(() => board.data?.fields ?? [], [board.data]);
+  const owners = useMemo(() => board.data?.owners ?? [], [board.data]);
   const leadOf = useMemo(() => new Map((board.data?.leads ?? []).map((l) => [l.phone, l])), [board.data]);
   const lastTs = useMemo(() => new Map((convsQ.data ?? []).map((c) => [c.phone, c.ts])), [convsQ.data]);
-  const values = valuesQ.data?.values ?? {};
+  const values = useMemo(() => valuesQ.data?.values ?? {}, [valuesQ.data]);
   const vars = useMemo(() => variablesFor(fields), [fields]);
 
   const stageName = (phone: string) => stages.find((s) => s.id === leadOf.get(phone)?.stage_id)?.name ?? "";
   const ownerName = (phone: string) => owners.find((o) => o.id === leadOf.get(phone)?.owner_user_id)?.name ?? "";
   const valuesOfPerson = (phone: string) => valuesForPerson(vars, { phone }, { stageName, ownerName, fieldValue: (p, id) => values[p]?.[id] ?? "" });
 
-  const ctx: Ctx = {
+  const ctx = useMemo<Ctx>(() => ({
     stageOf: (p) => leadOf.get(p)?.stage_id,
     ownerOf: (p) => (leadOf.has(p) ? leadOf.get(p)!.owner_user_id : undefined),
     valuesOf: (p) => values[p],
     lastChatTs: (p) => lastTs.get(p),
     now: Math.floor(Date.now() / 1000),
-  };
+  }), [leadOf, values, lastTs]);
   return {
     contacts, tags: tagsQ.data ?? [], stages, fields, owners, vars, ctx, valuesOfPerson,
     loading: contactsQ.loading || tagsQ.loading,

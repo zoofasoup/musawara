@@ -22,7 +22,7 @@ export function CrmPipeline() {
   const { notify, node } = useNotify();
   const board = usePipeline();
   const vals = useFieldValues(board.account);
-  const gw = useGateway<Array<{ phone: string; name: string; tags: string[] }>>("/contacts");
+  const gw = useGateway<Array<{ phone: string; name: string; tags: string[] }>>("/contacts?lite=1");
   const { user } = useAuth();
   const [view, setView] = useState<"board" | "funnel">("board");
   const [mine, setMine] = useState(false);
@@ -54,7 +54,8 @@ export function CrmPipeline() {
   const wonValue = (data?.leads ?? []).reduce((n, l) => n + (stageById.get(l.stage_id)?.kind === "won" ? l.value_idr ?? 0 : 0), 0);
 
   if (!board.account) return <Empty icon="users" title="Pick a WhatsApp number" hint="The pipeline belongs to one number. Choose it in the switcher above." />;
-  if (board.loading && !data) return <ListSkeleton rows={4} />;
+  // Cards wait for the contact names, so they never show as bare numbers first (if the gateway is down they show with numbers).
+  if ((board.loading && !data) || (gw.loading && !gw.data)) return <ListSkeleton rows={4} />;
   if (board.error || !data) return <ErrorPanel error={board.error} onRetry={board.reload} />;
 
   const picked = openPhone ? data.leads.find((l) => l.phone === openPhone) : null;
