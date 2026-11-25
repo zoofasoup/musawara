@@ -36,7 +36,7 @@ export function Orders() {
   const { clientId } = useClientScope();
   const report = useApi<Report>(clientId ? `/jubelio/report?client_id=${clientId}` : null);
   const [busy, setBusy] = useState(false);
-  if (!clientId) return <NeedsClient />;
+  if (!clientId) return <NeedsClient what="orders" />;
   if (report.error) return <ErrorState message={report.error} onRetry={report.reload} />;
   const d = report.data;
 
