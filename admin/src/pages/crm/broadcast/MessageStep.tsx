@@ -12,8 +12,9 @@ import { renderMessage, type Contact } from "./audience";
 import type { AudienceData } from "./useAudienceData";
 import { MessageComposer } from "./MessageComposer";
 import { WaPreview } from "./WaPreview";
+import { templateFile } from "./templateFile";
 
-export type Template = { id: number; name: string; body: string; category: string; use_count: number };
+export type Template = { id: number; name: string; body: string; category: string; use_count: number; media_name: string | null; media_mime: string | null };
 
 export function MessageStep({ data, templates, template, setTemplate, file, setFile, delayMin, delayMax, setDelayMin, setDelayMax, sample, count }: {
   data: AudienceData; templates: Template[]; template: string; setTemplate: (v: string) => void; file: File | null; setFile: (f: File | null) => void;
@@ -21,6 +22,7 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
 }) {
   const picker = useRef<HTMLInputElement>(null);
   const [undo, setUndo] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string>();
   const [editPace, setEditPace] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const items = useMemo<PickItem[]>(() => templates.map((t) => ({ value: String(t.id), label: t.name, hint: t.body.replace(/\s+/g, " "), group: t.category || "No category" })).sort((a, b) => (a.group === "No category" ? 1 : 0) - (b.group === "No category" ? 1 : 0) || a.group!.localeCompare(b.group!)), [templates]);
@@ -40,7 +42,7 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
         <div className="flex flex-wrap items-center gap-2">
           {templates.length > 0 && (
             <Picker label="Use a template" items={items} value={[]} multiple={false} onChange={() => {}} searchPlaceholder={`Search ${templates.length} templates…`} emptyText="No template matches"
-              onPicked={(i) => { const t = templates.find((x) => String(x.id) === i.value); if (!t) return; if (template.trim() && template !== t.body) setUndo(template); setTemplate(t.body); void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {}); }}>
+              onPicked={(i) => { const t = templates.find((x) => String(x.id) === i.value); if (!t) return; if (template.trim() && template !== t.body) setUndo(template); setTemplate(t.body); setFileError(undefined); if (t.media_name) templateFile(t).then(setFile).catch((e) => setFileError(e.message)); void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {}); }}>
               <FileText className="h-4 w-4" aria-hidden />Use a template
             </Picker>
           )}
@@ -50,6 +52,7 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
           <Btn tone="ghost" size="sm" className="ml-auto lg:hidden" onClick={() => setShowPreview(!showPreview)}>{showPreview ? "Hide preview" : "Preview"}</Btn>
         </div>
         {undo !== null && <p className="text-xs text-ink2">Template applied. <Btn tone="ghost" size="sm" onClick={() => { setTemplate(undo); setUndo(null); }}>Undo, bring back my text</Btn></p>}
+        {fileError && <p role="alert" className="text-xs text-crit">{fileError}</p>}
         {file && <p className="text-xs text-muted">With an attachment, the message becomes its caption (max 64 MB).</p>}
 
         <MessageComposer value={template} onChange={setTemplate} vars={data.vars} rows={11} />

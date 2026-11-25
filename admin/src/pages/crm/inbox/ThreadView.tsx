@@ -10,6 +10,8 @@ import { api, useApi } from "../../../lib/api";
 import { Segmented } from "../../../components/Segmented";
 import { TONE } from "../../../lib/tone";
 import { AdCard } from "./AdCard";
+import { DetectedAnswers } from "./DetectedAnswers";
+import { templateFile } from "../broadcast/templateFile";
 import { Avatar } from "./Avatar";
 import type { TimelineItem } from "../pipeline/api";
 
@@ -20,6 +22,7 @@ import { MediaBlock, type MediaDemo } from "./MediaBlock";
 import { classify, convTitle, dayKey, fmtClock, fmtDayLabel, fmtPhone, useLive, type Msg, type Thread, type WaState } from "./util";
 
 const PENDING = "pending-";
+const NO_VALUES: Record<string, string> = {};
 
 function Ticks({ m }: { m: Msg }) {
   const cls = "h-3.5 w-3.5";
@@ -73,7 +76,7 @@ type Note = { id: number; ts: number; text: string; user_name: string | null };
 type Entry = { key: string; ts: number; msg?: Msg; note?: Note };
 const sqlUtcToUnix = (at: string) => Math.floor(Date.parse(at.replace(" ", "T") + "Z") / 1000);
 
-type QuickReply = { id: number; name: string; body: string; category: string; use_count: number };
+type QuickReply = { id: number; name: string; body: string; category: string; use_count: number; media_name: string | null; media_mime: string | null };
 
 function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disabled: boolean; reason: string; onSend: (text: string, file: File | null) => Promise<void>; onNote: (text: string) => Promise<void>; replies: QuickReply[]; fill: (body: string) => string }) {
   const [mode, setMode] = useState<"reply" | "note">("reply");
@@ -89,7 +92,11 @@ function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disable
   const query = !noting && !closed && text.startsWith("/") && !text.includes("\n") ? text.slice(1).trim().toLowerCase() : null;
   const options = query === null ? [] : replies.filter((t) => !query || `${t.name} ${t.category} ${t.body}`.toLowerCase().includes(query)).slice(0, 8);
   const menu = query !== null && replies.length > 0;
-  const pick = (t: QuickReply) => { setText(fill(t.body)); setHi(0); setClosed(false); void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {}); };
+  const pick = (t: QuickReply) => {
+    setText(fill(t.body)); setHi(0); setClosed(false); setErr(undefined);
+    if (t.media_name) templateFile(t).then(setFile).catch((e) => setErr(e.message));
+    void crm(`/templates/${t.id}/used`, { method: "POST" }).catch(() => {});
+  };
   const blocked = disabled && !noting; // a note works even when WhatsApp is not connected
   const canSend = !blocked && !busy && (text.trim() !== "" || (!noting && file !== null));
 
@@ -121,7 +128,7 @@ function Composer({ disabled, reason, onSend, onNote, replies, fill }: { disable
           {options.map((t, i) => (
             <li key={t.id} role="option" aria-selected={i === hi}>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); pick(t); }} onMouseEnter={() => setHi(i)} className={`block w-full min-h-11 rounded-xl px-3 py-1.5 text-left ${i === hi ? "bg-surface2" : ""}`}>
-                <span className="flex items-center gap-2"><span className="truncate text-sm font-medium text-ink">/{t.name}</span>{t.category && <span className="shrink-0 rounded-lg bg-surface3 px-1.5 py-0.5 text-[11px] text-ink2">{t.category}</span>}</span>
+                <span className="flex items-center gap-2"><span className="truncate text-sm font-medium text-ink">/{t.name}</span>{t.media_name && <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Has an attachment" />}{t.category && <span className="shrink-0 rounded-lg bg-surface3 px-1.5 py-0.5 text-[11px] text-ink2">{t.category}</span>}</span>
                 <span className="block truncate text-xs text-muted">{t.body.replace(/\s+/g, " ")}</span>
               </button>
             </li>
@@ -260,7 +267,7 @@ export function ThreadView({
   const replies = useMemo<QuickReply[]>(() => {
     const raw: any = tplQ.data;
     const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.templates) ? raw.templates : [];
-    return arr.map((t: any): QuickReply => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0) })).filter((t: QuickReply) => t.body).sort((a: QuickReply, b: QuickReply) => b.use_count - a.use_count || a.name.localeCompare(b.name));
+    return arr.map((t: any): QuickReply => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0), media_name: t.media_name ?? null, media_mime: t.media_mime ?? null })).filter((t: QuickReply) => t.body).sort((a: QuickReply, b: QuickReply) => b.use_count - a.use_count || a.name.localeCompare(b.name));
   }, [tplQ.data]);
   const board = usePipeline();
   const fieldValues = useFieldValues(board.account);
@@ -409,6 +416,11 @@ export function ThreadView({
           </button>
         )}
       </div>
+
+      {fieldValues.data && board.data && (
+        <DetectedAnswers key={`detect-${phone}`} phone={phone} messages={data?.messages ?? []} fields={board.data.fields} values={fieldValues.data.values[phone] ?? NO_VALUES}
+          save={async (values) => { await board.call("PUT", `/values/${phone}`, { values }); fieldValues.reload(); }} />
+      )}
 
       <Composer key={phone} disabled={!canSend} reason={reason} onSend={send} onNote={saveNote} replies={replies} fill={fill} />
     </div>

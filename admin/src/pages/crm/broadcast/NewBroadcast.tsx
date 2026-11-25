@@ -39,7 +39,7 @@ export function NewBroadcast({ initialIds, ready, notify, onCancel, onCreated }:
   const templates: Template[] = useMemo(() => {
     const raw: any = tplQ.data;
     const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.templates) ? raw.templates : [];
-    return arr.map((t: any): Template => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0) })).sort((a: Template, b: Template) => b.use_count - a.use_count || a.name.localeCompare(b.name));
+    return arr.map((t: any): Template => ({ id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0), media_name: t.media_name ?? null, media_mime: t.media_mime ?? null })).sort((a: Template, b: Template) => b.use_count - a.use_count || a.name.localeCompare(b.name));
   }, [tplQ.data]);
 
   const picked = useMemo(() => pickAudience(data.contacts, effectiveRules(rules), data.ctx), [data.contacts, rules, data.ctx]);

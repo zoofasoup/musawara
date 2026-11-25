@@ -4,12 +4,12 @@
 
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useMemo, useState } from "react";
-import { Copy, Pencil, Search } from "lucide-react";
-import { crm } from "./crmApi";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Copy, Paperclip, Pencil, Search } from "lucide-react";
+import { crm, crmUpload } from "./crmApi";
+import { templateFile } from "./broadcast/templateFile";
 import { fmtNum } from "../../lib/format";
-import { Btn, ConfirmBtn, Empty, Panel, Pill, Sheet, useNotify, type Notify } from "../../components/kit";
-import { Segmented } from "../../components/Segmented";
+import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Notify } from "../../components/kit";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ErrorPanel, Field, gatewayProblem, ListSkeleton, PageHead, useGateway } from "./data/shared";
 import { usePipeline } from "./pipeline/api";
@@ -17,15 +17,16 @@ import { renderMessage, variablesFor } from "./broadcast/audience";
 import { MessageComposer } from "./broadcast/MessageComposer";
 import { WaPreview } from "./broadcast/WaPreview";
 
-type Template = { id: number; name: string; body: string; category: string; use_count: number; updated_at?: number };
+type Template = { id: number; name: string; body: string; category: string; use_count: number; updated_at?: number; media_name: string | null; media_mime: string | null };
 type Sort = "name" | "recent" | "used";
 const NONE = "\u0000none";
 
 const normalize = (raw: any): Template[] =>
   (Array.isArray(raw) ? raw : Array.isArray(raw?.templates) ? raw.templates : []).map((t: any) => ({
-    id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0), updated_at: t.updated_at,
+    id: t.id, name: String(t.name ?? ""), body: String(t.body ?? t.template ?? t.text ?? ""), category: String(t.category ?? ""), use_count: Number(t.use_count ?? 0), updated_at: t.updated_at, media_name: t.media_name ?? null, media_mime: t.media_mime ?? null,
   }));
 
+/** The template editor is a page laid out like the broadcast's message step: editor and attachment left, WhatsApp preview right, Save below. */
 function TemplateEditor({ template, categories, notify, onClose, onChanged }: { template: Template | null; categories: string[]; notify: Notify; onClose: () => void; onChanged: () => void }) {
   const board = usePipeline();
   const vars = useMemo(() => variablesFor(board.data?.fields ?? []), [board.data]);
@@ -33,60 +34,88 @@ function TemplateEditor({ template, categories, notify, onClose, onChanged }: { 
   const [category, setCategory] = useState(template?.category ?? "");
   const [body, setBody] = useState(template?.body ?? "");
   const [sampleName, setSampleName] = useState("Budi");
+  const [file, setFile] = useState<File | null>(null);       // a newly chosen attachment
+  const [saved, setSaved] = useState<File | null>(null);     // the one already on the template (for the preview)
+  const [removed, setRemoved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
-  const [view, setView] = useState<"write" | "preview">("write");
+  const picker = useRef<HTMLInputElement>(null);
+  const id = useRef(template?.id);
 
+  useEffect(() => {
+    if (!template?.media_name) return;
+    let alive = true;
+    templateFile(template).then((f) => alive && setSaved(f)).catch((e) => alive && setErr(e.message));
+    return () => { alive = false; };
+  }, [template]);
+
+  const attached = file ?? (removed ? null : saved);
+  const attachedName = file?.name ?? (removed ? null : template?.media_name ?? null);
   const shown = renderMessage(body, { name: sampleName, phone: "6281234567890", vars: Object.fromEntries(vars.filter((v) => v.fieldId !== undefined).map((v) => [v.token, `[${v.label}]`])) }, () => 0);
 
   const save = async () => {
     if (!name.trim()) return setErr("Give the template a name.");
     if (!body.trim()) return setErr("Write the message text.");
+    if (file && file.size > 64 * 1024 * 1024) return setErr("That file is over 64 MB.");
     setBusy(true);
     setErr(undefined);
     try {
       const payload = { name: name.trim(), body, category: category.trim() };
-      if (template) await crm(`/templates/${template.id}`, { method: "PUT", body: payload });
-      else await crm("/templates", { method: "POST", body: payload });
+      if (id.current) await crm(`/templates/${id.current}`, { method: "PUT", body: payload });
+      else id.current = (await crm<{ id: number }>("/templates", { method: "POST", body: payload })).id; // kept so a failed upload does not create it twice
+      if (file) { const fd = new FormData(); fd.set("media", file); await crmUpload(`/templates/${id.current}/media`, fd); }
+      else if (removed && template?.media_name) await crm(`/templates/${id.current}/media`, { method: "DELETE" });
       notify("Template saved.");
       onChanged();
       onClose();
     } catch (e: any) {
       setErr(gatewayProblem(e).kind === "missing" ? "This gateway cannot store templates yet." : e.message);
+      onChanged();
     }
     setBusy(false);
   };
 
   return (
-    <Sheet title={template ? "Edit template" : "New template"} onClose={onClose}>
-      <div className="space-y-3 pb-2">
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Info DP dan cicilan" autoComplete="off" maxLength={80} /></Field>
-          <Field label="Category">
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} list="template-categories" placeholder="Follow-up" autoComplete="off" maxLength={40} />
-            <datalist id="template-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-          </Field>
-        </div>
-        <Segmented label="Editor view" value={view} onChange={setView} fill options={[{ value: "write", label: "Write" }, { value: "preview", label: "Preview" }]} />
-        {view === "write" ? (
+    <div className="space-y-4">
+      <Btn tone="ghost" onClick={onClose}><ArrowLeft className="size-4" />All templates</Btn>
+      <PageHead title={template ? "Edit template" : "New template"} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Name" hint='Shown after "/" in the chat box'><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Info DP dan cicilan" autoComplete="off" maxLength={80} /></Field>
+            <Field label="Category">
+              <Input value={category} onChange={(e) => setCategory(e.target.value)} list="template-categories" placeholder="Follow-up" autoComplete="off" maxLength={40} />
+              <datalist id="template-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            </Field>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn tone="secondary" size="sm" onClick={() => picker.current?.click()}><Paperclip className="h-4 w-4" aria-hidden />{attachedName ? "Change file" : "Attach file"}</Btn>
+            <input ref={picker} type="file" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { setFile(e.target.files?.[0] ?? null); setRemoved(false); }} />
+            {attachedName && (
+              <span className="flex min-w-0 items-center gap-2 text-xs text-ink2"><span className="truncate">{attachedName}</span>
+                <Btn tone="ghost" size="sm" onClick={() => { setFile(null); setRemoved(true); if (picker.current) picker.current.value = ""; }}>Remove</Btn></span>
+            )}
+          </div>
           <MessageComposer value={body} onChange={setBody} vars={vars} rows={12} placeholder="{Halo|Hai} Kak {nama}, …" />
-        ) : (
-          <div className="space-y-2 rounded-2xl bg-surface2/60 p-3">
+        </div>
+        <aside className="lg:sticky lg:top-2 lg:self-start">
+          <Panel className="space-y-2 p-3">
             <div className="flex items-center gap-2">
-              <p className="flex-1 text-xs font-medium text-ink2">Preview in WhatsApp</p>
+              <p className="flex-1 text-xs font-medium text-muted">Preview</p>
               <Input aria-label="Sample name" className="w-32" value={sampleName} onChange={(e) => setSampleName(e.target.value)} placeholder="Sample name" />
             </div>
-            <WaPreview text={shown} title={sampleName || "Kak"} subtitle="+62 812-3456-7890" />
+            <WaPreview text={shown} file={attached} title={sampleName || "Kak"} subtitle="+62 812-3456-7890" />
             <p className="text-xs text-muted">Custom fields show as [Field name] here; real values fill in when sent.</p>
-          </div>
-        )}
-        {err && <p role="alert" className="text-xs text-crit">{err}</p>}
+          </Panel>
+        </aside>
       </div>
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2 bg-background px-4 py-3 shadow-[0_-8px_24px_-16px_rgba(20,24,36,0.18)]">
+      {err && <p role="alert" className="text-sm text-crit">{err}</p>}
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-surface/95 p-3 shadow-[0_-8px_24px_-12px_rgba(20,24,36,0.22)] backdrop-blur">
         <Btn tone="primary" loading={busy} onClick={() => void save()}>Save template</Btn>
+        <Btn onClick={onClose} disabled={busy}>Cancel</Btn>
         {template && <ConfirmBtn label="Delete" confirmLabel="Delete template" onConfirm={async () => { try { await crm(`/templates/${template.id}`, { method: "DELETE" }); notify("Template deleted. Broadcasts already created are not affected."); onChanged(); onClose(); } catch (e: any) { setErr(e.message); } }} />}
       </div>
-    </Sheet>
+    </div>
   );
 }
 
@@ -121,8 +150,23 @@ export function CrmTemplates() {
     const taken = new Set(items.map((x) => x.name.toLowerCase()));
     let name = `${t.name} (copy)`;
     for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${t.name} (copy ${i})`;
-    try { await crm("/templates", { method: "POST", body: { name: name.slice(0, 80), body: t.body, category: t.category } }); notify("Duplicated."); list.reload(); } catch (e: any) { notify(e.message, "err"); }
+    try {
+      const made = await crm<{ id: number }>("/templates", { method: "POST", body: { name: name.slice(0, 80), body: t.body, category: t.category } });
+      const media = await templateFile(t);
+      if (media) { const fd = new FormData(); fd.set("media", media); await crmUpload(`/templates/${made.id}/media`, fd); }
+      notify("Duplicated.");
+      list.reload();
+    } catch (e: any) { notify(e.message, "err"); list.reload(); }
   };
+
+  if (editing) {
+    return (
+      <>
+        {node}
+        <TemplateEditor key={editing === "new" ? "new" : editing.id} template={editing === "new" ? null : editing} categories={categories} notify={notify} onClose={() => setEditing(null)} onChanged={list.reload} />
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -188,6 +232,7 @@ export function CrmTemplates() {
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="truncate text-sm font-medium text-ink">{t.name}</span>
                         {!grouped && t.category && <Pill tone="neutral">{t.category}</Pill>}
+                        {t.media_name && <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Has an attachment" />}
                         {t.use_count > 0 && <span className="text-xs text-muted">used {fmtNum(t.use_count)}×</span>}
                       </span>
                       <span className="block truncate text-xs text-ink2">{t.body.replace(/\s+/g, " ")}</span>
@@ -202,7 +247,6 @@ export function CrmTemplates() {
         </>
       )}
 
-      {editing && <TemplateEditor key={editing === "new" ? "new" : editing.id} template={editing === "new" ? null : editing} categories={categories} notify={notify} onClose={() => setEditing(null)} onChanged={list.reload} />}
     </div>
   );
 }

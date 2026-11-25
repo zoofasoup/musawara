@@ -7,6 +7,7 @@ import { PanelRightClose } from "lucide-react";
 import { Skeleton } from "../../../components/ui";
 import { Btn } from "../../../components/kit";
 import { Avatar } from "./Avatar";
+import { VALUES_SAVED } from "./DetectedAnswers";
 import { Presets } from "../pipeline/CustomizeSheet";
 import { useNotify, type Notify } from "../../../components/kit";
 import { Field, fmtPhone, TagChip } from "../data/shared";
@@ -38,6 +39,17 @@ function Body({ phone, lead, board, saved, notify, reload }: { phone: string; le
     return () => clearTimeout(t);
   }, [vals]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Values saved from the chat ("From the chat") appear here too, without overwriting what you are typing elsewhere.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ phone: string; values: Record<string, string> }>).detail;
+      if (d.phone !== phone) return;
+      persisted.current = { ...persisted.current, ...d.values };
+      setVals((v) => ({ ...v, ...d.values }));
+    };
+    window.addEventListener(VALUES_SAVED, on);
+    return () => window.removeEventListener(VALUES_SAVED, on);
+  }, [phone]);
 
   const saveLead = async (patch: Record<string, unknown>) => {
     try { await board.call("PUT", `/leads/${phone}`, patch); reload(); } catch (e: any) { notify(e.message, "err"); reload(); }
