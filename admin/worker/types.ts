@@ -22,6 +22,12 @@ export type Env = {
   SHOPEE_PARTNER_KEY?: string;
   /** Override of https://partner.shopeemobile.com (the sandbox host while testing). */
   SHOPEE_API_HOST?: string;
+  /** Jubelio API user (wrangler secrets) and the client id its orders belong to. Unset = no Orders tab. */
+  JUBELIO_EMAIL?: string;
+  JUBELIO_PASSWORD?: string;
+  JUBELIO_CLIENT_ID?: string;
+  /** Override of https://api2.jubelio.com (tests). */
+  JUBELIO_API_HOST?: string;
   /** Notion internal integration token (wrangler secret) and an optional override of the board's database id. */
   NOTION_TOKEN?: string;
   NOTION_DATABASE_ID?: string;

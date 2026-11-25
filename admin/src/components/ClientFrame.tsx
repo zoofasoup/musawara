@@ -46,6 +46,8 @@ export function ClientFrame() {
   const organic = useApi<{ accounts: Array<{ client_id: number }> }>(can("content") ? "/admin/organic" : null);
   const shopee = useApi<{ connected: boolean }>(can("sales") ? `/shopee/status?client_id=${clientId}` : null);
 
+  const jubelio = useApi<{ connected: boolean }>(can("sales") ? `/jubelio/status?client_id=${clientId}` : null);
+
   const open = alerts.data?.alerts.filter((a) => !a.acknowledged).length ?? 0;
   const base = `/c/${clientId}`;
   const approvals: Tab = { to: `${base}/approvals`, label: "Approvals", badge: pending.data?.requests.length, tone: "accent" };
@@ -56,6 +58,7 @@ export function ClientFrame() {
     ...(!admin || can("ads") ? [{ to: base, label: "Overview", end: true }, { to: `${base}/creatives`, label: "Ads" }] : []),
     ...(can("sales") ? [{ to: `${base}/sales`, label: "Sales" }] : []),
     ...(hasOrganic ? [{ to: `${base}/organic`, label: "Organic" }] : []),
+    ...(can("sales") && jubelio.data?.connected ? [{ to: `${base}/orders`, label: "Orders" }] : []),
     ...(hasShopee ? [{ to: `${base}/shopee`, label: "Shopee" }] : []),
     ...(!admin || can("ads") ? [{ to: `${base}/alerts`, label: "Alerts", badge: open, tone: "crit" as const }] : []),
   ];

@@ -29,6 +29,7 @@ const Conversions = lazy(() => import("./pages/Conversions").then((m) => ({ defa
 const Planning = lazy(() => import("./pages/Planning").then((m) => ({ default: m.Planning })));
 const Styleguide = lazy(() => import("./pages/Styleguide").then((m) => ({ default: m.Styleguide })));
 const Profile = lazy(() => import("./pages/Profile").then((m) => ({ default: m.Profile })));
+const Orders = lazy(() => import("./pages/Orders").then((m) => ({ default: m.Orders })));
 const Shopee = lazy(() => import("./pages/Shopee").then((m) => ({ default: m.Shopee })));
 const Organic = lazy(() => import("./pages/Organic").then((m) => ({ default: m.Organic })));
 const ClientReport = lazy(() => import("./pages/ClientReport").then((m) => ({ default: m.ClientReport })));
@@ -194,6 +195,7 @@ export function App() {
                 <Route element={<Needs feature="sales" />}>
                   <Route path="sales" element={<ClientRoute page={Conversions} />} />
                   <Route path="shopee" element={<ClientRoute page={Shopee} />} />
+                  <Route path="orders" element={<ClientRoute page={Orders} />} />
                 </Route>
               </Route>
 

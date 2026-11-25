@@ -18,6 +18,8 @@ import { syncAllInboxLeads } from "./lib/inboxLeads";
 import reportRoutes from "./routes/report";
 import approvalRoutes from "./routes/approvals";
 import shopeeRoutes from "./routes/shopee";
+import jubelioRoutes from "./routes/jubelio";
+import { jubelioCfg, syncJubelio } from "./lib/jubelio";
 import { shopeeCfg, syncAllShops } from "./lib/shopee";
 import notionRoutes from "./routes/notion";
 import { notionCfg, runNotionSync } from "./lib/notion";
@@ -39,6 +41,7 @@ app.route("/api/crm-ads", crmAdRoutes);
 app.route("/api/report", reportRoutes);
 app.route("/api/approvals", approvalRoutes);
 app.route("/api/shopee", shopeeRoutes);
+app.route("/api/jubelio", jubelioRoutes);
 app.route("/api/notion", notionRoutes);
 
 // Public, no secrets. Plain: is the Worker up and the database answering. ?deep=1 also reports the last run of each
@@ -67,6 +70,8 @@ export function scheduled(controller: ScheduledController, env: Env, ctx: Execut
   ctx.waitUntil(syncAllInboxLeads(env).catch((e) => console.error(JSON.stringify({ event: "inbox_leads_failed", error: String(e?.message ?? e).slice(0, 200) }))));
   const shopee = shopeeCfg(env);
   if (shopee) ctx.waitUntil(trackCron(env, "shopee", () => syncAllShops(env, shopee)));
+  const jubelio = jubelioCfg(env);
+  if (jubelio) ctx.waitUntil(trackCron(env, "jubelio", () => syncJubelio(env, jubelio)));
   if (notionCfg(env)) ctx.waitUntil(trackCron(env, "notion", () => runNotionSync(env)));
 }
 
