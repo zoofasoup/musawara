@@ -65,7 +65,7 @@ function WaBanner({ wa, ready }: { wa?: WaState; ready: boolean }) {
     <p className="text-xs text-muted">WhatsApp connected{wa.me?.phone ? ` as ${fmtPhone(wa.me.phone)}` : ""}.</p>
   ) : (
     <Callout tone="warn" title="WhatsApp is not connected">
-      Status: {wa.status}. Nothing can be sent until it reconnects; any running broadcast waits and resumes by itself. Connect it on the WhatsApp tab.
+      Status: {wa.status}. Nothing can be sent until it reconnects; any running broadcast waits and resumes by itself. Connect it on the Numbers tab.
     </Callout>
   );
 }

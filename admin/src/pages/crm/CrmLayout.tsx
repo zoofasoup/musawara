@@ -92,7 +92,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
       <Empty
         icon="users"
         title="No WhatsApp number yet"
-        hint={owner ? "Add a number and scan its QR code before using the inbox, contacts or broadcasts." : CRM_ONLY ? "No WhatsApp number is available to you yet. Ask an Owner to link one." : "None of your clients has a WhatsApp number yet. Ask an Owner to link one."}
+        hint={owner ? "Add a number and scan its QR code before using the inbox, contacts or broadcasts." : CRM_ONLY ? "No WhatsApp number is available to you yet. Please tell an Owner." : "None of your clients has a WhatsApp number yet. Ask an Owner to link one."}
         action={
           !owner ? undefined : <Link to="/crm/connection" className="inline-flex min-h-11 items-center rounded-lg bg-musawara px-4 text-xs font-medium text-white">
             Add a number

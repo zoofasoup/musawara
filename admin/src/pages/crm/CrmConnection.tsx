@@ -9,6 +9,7 @@ import { crm } from "./crmApi";
 import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Notify } from "../../components/kit";
 import { Skeleton } from "../../components/ui";
 import { CRM_ONLY } from "../../lib/product";
+import { useCan } from "../../lib/can";
 import { classify, fmtPhone, fmtSince, useLive } from "./inbox/util";
 import { clientName, statusInfo, useAccounts, type Account, type AccountStatusDetail, type Client } from "./accounts";
 
@@ -48,10 +49,18 @@ function QrBlock({ qr }: { qr: string | null }) {
   );
 }
 
+/** In a CRM copy, staff can open this page but the server refuses them everything about numbers except the list, so the
+ * controls (and the status check) are Owner-only there. The platform page is unchanged. */
+function useCanManageNumbers() {
+  const owner = useCan()("settings");
+  return !CRM_ONLY || owner;
+}
+
 function AccountCard({ account, notify }: { account: Account; notify: Notify }) {
   const { clients, reload, selectedId, select } = useAccounts();
+  const manage = useCanManageNumbers();
   const [fast, setFast] = useState(account.status !== "ready");
-  const live = useLive<AccountStatusDetail>(`/accounts/${account.id}/status`, fast ? 3000 : 15000);
+  const live = useLive<AccountStatusDetail>(manage ? `/accounts/${account.id}/status` : null, fast ? 3000 : 15000);
   const status = live.data?.status ?? account.status;
   useEffect(() => setFast(status !== "ready"), [status]);
 
@@ -142,13 +151,15 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
           ) : (
             <h2 className="break-words text-base font-bold text-ink">{account.name}</h2>
           )}
-          <p className="mt-1 text-xs text-muted">
-            {CRM_ONLY ? (isDefault ? "Default number" : null) : [brand, isDefault ? "Default number" : null].filter(Boolean).join(" · ") || "Not linked to a brand"}
-          </p>
+          {(!CRM_ONLY || isDefault) && (
+            <p className="mt-1 text-xs text-muted">
+              {CRM_ONLY ? "Default number" : [brand, isDefault ? "Default number" : null].filter(Boolean).join(" · ") || "Not linked to a brand"}
+            </p>
+          )}
         </div>
         <Pill tone={s.tone}>{s.label}</Pill>
       </div>
-      <p className="mt-2 text-xs text-muted">{s.hint}</p>
+      {(manage || status !== "qr") && <p className="mt-2 text-xs text-muted">{s.hint}</p>}
 
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
@@ -170,7 +181,7 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
       )}
       {live.error != null && !live.data && <p className="mt-3 text-xs text-warn">Live status is unavailable right now. Showing the last known state.</p>}
 
-      {status === "qr" && <QrBlock qr={live.data?.qr ?? null} />}
+      {manage && status === "qr" && <QrBlock qr={live.data?.qr ?? null} />}
       {status === "loading" && <p className="mt-4 text-sm text-ink2">Linked successfully. Loading chats from WhatsApp, please wait.</p>}
 
       {!CRM_ONLY && (
@@ -195,15 +206,17 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
             Use in CRM
           </Btn>
         )}
-        {!renaming && (
+        {manage && !renaming && (
           <Btn icon="tag" onClick={() => setRenaming(true)}>
             Rename
           </Btn>
         )}
-        <Btn icon="refresh" loading={busy === "restart"} onClick={() => run("restart", () => crm(base + "/restart", { method: "POST" }), "Restarting. The status updates here.")}>
-          Restart
-        </Btn>
-        {(status === "ready" || status === "loading") && (
+        {manage && (
+          <Btn icon="refresh" loading={busy === "restart"} onClick={() => run("restart", () => crm(base + "/restart", { method: "POST" }), "Restarting. The status updates here.")}>
+            Restart
+          </Btn>
+        )}
+        {manage && (status === "ready" || status === "loading") && (
           <ConfirmBtn
             label="Log out"
             confirmLabel="Tap again to log out"
@@ -211,11 +224,12 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
             onConfirm={() => run("logout", () => crm(base + "/logout", { method: "POST" }), "Logged out. A new QR code will appear shortly.")}
           />
         )}
-        {isDefault ? (
-          <p className="text-xs text-muted">The default number cannot be deleted.</p>
-        ) : (
-          <ConfirmBtn label="Delete" confirmLabel="Tap again to delete" onConfirm={() => remove(false)} />
-        )}
+        {manage &&
+          (isDefault ? (
+            <p className="text-xs text-muted">The default number cannot be deleted.</p>
+          ) : (
+            <ConfirmBtn label="Delete" confirmLabel="Tap again to delete" onConfirm={() => remove(false)} />
+          ))}
       </div>
 
       {delProblem && (
@@ -309,6 +323,7 @@ export function CrmConnection() {
   const { accounts } = useAccounts();
   const { notify, node } = useNotify();
   const [adding, setAdding] = useState(false);
+  const manage = useCanManageNumbers();
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -318,7 +333,7 @@ export function CrmConnection() {
           <h1 className="text-base font-bold text-ink">WhatsApp numbers</h1>
           <p className="mt-1 text-xs text-muted">Each number has its own contacts, inbox, templates and broadcasts.</p>
         </div>
-        {!adding && (
+        {manage && !adding && (
           <Btn tone="primary" icon="plus" onClick={() => setAdding(true)}>
             Add number
           </Btn>
@@ -328,7 +343,7 @@ export function CrmConnection() {
       {adding && <AddNumber notify={notify} onClose={() => setAdding(false)} />}
 
       {accounts.length === 0 ? (
-        !adding && <Empty icon="users" title="No WhatsApp numbers yet" hint="Add your first number, then scan its QR code with the phone that owns it." />
+        !adding && <Empty icon="users" title="No WhatsApp numbers yet" hint={manage ? "Add your first number, then scan its QR code with the phone that owns it." : "No WhatsApp number is available to you yet. Please tell an Owner."} />
       ) : (
         accounts.map((a) => <AccountCard key={a.id} account={a} notify={notify} />)
       )}

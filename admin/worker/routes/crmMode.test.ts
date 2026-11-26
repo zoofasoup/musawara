@@ -94,3 +94,37 @@ test("the CRM copy offers one travel field set without agency names", () => {
   assert.doesNotMatch(JSON.stringify(crm), /musafar|nuralive/i);
   assert.deepEqual(crm[0].fields, presetsFor().find((p) => p.id === "musafar")!.fields);
 });
+
+test("accepting an invite for a role the CRM copy does not have is refused", async () => {
+  const { DB, env } = await setup("crm");
+  await DB.prepare(
+    `INSERT INTO invites (token, role, staff_role, client_role, client_id, client_ids_json) VALUES
+     ('t-ads','admin','ads',NULL,NULL,'[1]'), ('t-content','admin','content',NULL,NULL,'[1]'), ('t-client','client',NULL,'viewer',1,NULL)`
+  ).run();
+  for (const token of ["t-ads", "t-content", "t-client"]) {
+    const res = await app.request(`${HOST}/api/auth/invites/${token}/accept`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "New", email: `${token}@x.test`, password: "long-enough-password" }),
+    }, env);
+    assert.equal(res.status, 400, token);
+  }
+  assert.equal((await DB.prepare("SELECT COUNT(*) n FROM users").first<{ n: number }>())!.n, 2);
+});
+
+test("a CRM staff invite can still be accepted", async () => {
+  const { DB, env } = await setup("crm");
+  await DB.prepare("INSERT INTO invites (token, role, staff_role, client_ids_json) VALUES ('t-crm','admin','crm','[1]')").run();
+  const res = await app.request(`${HOST}/api/auth/invites/t-crm/accept`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "New", email: "new@x.test", password: "long-enough-password" }),
+  }, env);
+  assert.equal(res.status, 200);
+});
+
+test("client accounts cannot be edited in the CRM copy", async () => {
+  const { DB, call } = await setup("crm");
+  await DB.prepare("INSERT INTO users (id,email,password_hash,name,role,client_id,client_role) VALUES (3,'c@x.test','h','Cli','client',1,'viewer')").run();
+  const res = await call(1, "PUT", "/api/admin/users/3", { staff_role: "crm", client_role: "approver" });
+  assert.equal(res.status, 400);
+  assert.equal((await DB.prepare("SELECT client_role FROM users WHERE id=3").first<{ client_role: string }>())!.client_role, "viewer");
+});

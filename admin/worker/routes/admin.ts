@@ -701,6 +701,7 @@ admin.put("/users/:id", async (c) => {
   const target = await c.env.DB.prepare("SELECT id, role, staff_role FROM users WHERE id=?").bind(id).first<{ id: number; role: string; staff_role: string | null }>();
   if (!target) return c.json({ error: "User not found" }, 404);
   const crmOnly = isCrmMode(c.env.APP_MODE);
+  if (crmOnly && target.role === "client") return c.json({ error: "Client logins are not part of this product" }, 400);
   if (crmOnly && !crmRole(staff_role)) return c.json({ error: "Pick Owner or CRM" }, 400);
   if (target.role === "client") {
     if (!isClientRole(client_role)) return c.json({ error: "Pick a client role (viewer or approver)" }, 400);

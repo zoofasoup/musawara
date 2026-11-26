@@ -24,6 +24,12 @@ test("first visit: stored choice wins, then an Indonesian browser, otherwise Eng
   assert.equal(initialLang("fr", undefined), "en");
 });
 
+test("the CRM copy's translated sentences have Indonesian entries", () => {
+  for (const text of ["Your account.", "Invite your team.", "Welcome back.", "Invite your teammates.", "No WhatsApp number is available to you yet. Please tell an Owner."]) {
+    assert.notEqual(translate("id", text), text, text);
+  }
+});
+
 test("each language has a flag and a code for the switch", () => {
   assert.equal(FLAG.id.emoji, "🇮🇩");
   assert.equal(FLAG.en.code, "EN");

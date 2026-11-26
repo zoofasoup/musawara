@@ -2,7 +2,7 @@
 {
   "name": "crm-salinan-contoh",
   "main": "worker/crmEntry.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "./dist-crm", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
   "d1_databases": [{ "binding": "DB", "database_name": "crm-salinan-contoh", "migrations_dir": "./migrations", "database_id": "00000000-0000-0000-0000-000000000000" }],

@@ -7,9 +7,9 @@ const app = readFileSync(fileURLToPath(new URL("../App.tsx", import.meta.url)), 
 
 // Each team page must sit inside the gate for its feature. The Worker refuses the data anyway; this keeps the page itself out of reach.
 const GATE = /<Route element=\{<(Needs feature="(\w+)"[^/]*|StaffOnly )\/>\}>/g;
-function gateBefore(index: number): string | null {
+function gateBefore(index: number, source = app): string | null {
   let last: string | null = null;
-  for (const m of app.matchAll(GATE)) {
+  for (const m of source.matchAll(GATE)) {
     if (m.index! > index) break;
     last = m[2] ?? "staff";
   }
@@ -39,4 +39,20 @@ test("only the login, invite and share pages are public", () => {
   const before = app.slice(0, protectedAt);
   const publicPaths = [...before.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(publicPaths, ["/login", "/invite/:token", "/reset/:token", "/share/:token", "/share/:token/report"]);
+});
+
+// The CRM copy has its own route table (CrmApp.tsx); the same two rules hold there.
+const crmApp = readFileSync(fileURLToPath(new URL("../CrmApp.tsx", import.meta.url)), "utf8");
+
+test("CRM copy: only the login, invite and reset pages are public", () => {
+  const protectedAt = crmApp.indexOf("<Route element={<ProtectedLayout />}>");
+  assert.ok(protectedAt > 0, "protected layout route not found");
+  const publicPaths = [...crmApp.slice(0, protectedAt).matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(publicPaths, ["/login", "/invite/:token", "/reset/:token"]);
+});
+
+test("CRM copy: settings and CRM pages sit inside their gates", () => {
+  const paths = [...crmApp.matchAll(/path="(\/settings|\/crm(?:\/[a-z]+)?)"/g)];
+  assert.ok(paths.some((m) => m[1] === "/settings") && paths.some((m) => m[1] === "/crm/inbox"));
+  for (const m of paths) assert.equal(gateBefore(m.index!, crmApp), m[1] === "/settings" ? "settings" : "crm", m[1]);
 });

@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware";
 import { CLIENT_HOST, homeHostFor, roleAllowedOnHost, type Role } from "../lib/audience";
 import { isClientRole, isStaffRole } from "../../shared/permissions";
 import { makeAuth } from "../lib/betterAuth";
+import { isCrmMode } from "../../shared/mode";
 
 const publicUser = (u: any) => ({
   id: u.id, email: u.email, name: u.name, role: u.role, client_id: u.client_id ?? null,
@@ -175,6 +176,10 @@ auth.post("/invites/:token/accept", async (c) => {
     .bind(c.req.param("token"))
     .first<any>();
   if (!invite) return c.json({ error: "Invite not found or already used" }, 404);
+  // A CRM copy has two roles only; an invite for anything else (an old row, a copied database) opens no account.
+  if (isCrmMode(c.env.APP_MODE) && !(invite.role === "admin" && (invite.staff_role === "owner" || invite.staff_role === "crm"))) {
+    return c.json({ error: "This invite has no role. Ask for a new one." }, 400);
+  }
   const wrong = wrongHost(c, invite.role);
   if (wrong) return wrong;
   const { name, email, password } = (await c.req.json().catch(() => null)) ?? {};

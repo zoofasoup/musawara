@@ -56,7 +56,7 @@ export function Login() {
           <div className="login-intro">
             {!CRM_ONLY && <span className="login-mark"><img src={`${ASSET_BASE}/logo/musawara-mark.png`} alt="" /></span>}
             <h1 className="text-xl font-bold text-ink"><T>Sign in</T></h1>
-            <p>{CRM_ONLY ? "Welcome back." : "Welcome to your Musawara workspace."}</p>
+            <p><T>{CRM_ONLY ? "Welcome back." : "Welcome to your Musawara workspace."}</T></p>
           </div>
           {needCode ? (
             <div className="space-y-3">

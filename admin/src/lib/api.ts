@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CRM_ONLY } from "./product";
 
 let shareToken: string | null = null;
 /** Share-link views authenticate every data request with this header token. */
@@ -43,6 +44,7 @@ export const BASE = /^(app|portal)\./.test(window.location.hostname) ? "" : ASSE
 
 /** The host an account with this role signs in at: team on app.*, clients on portal.*. Anywhere else (local dev) the current origin. */
 export function homeOrigin(role: "admin" | "client"): string {
+  if (CRM_ONLY) return window.location.origin + ASSET_BASE;
   const host = window.location.hostname;
   if (host === "musawara.id" || host.endsWith(".musawara.id")) return `https://${role === "admin" ? "app" : "portal"}.musawara.id`;
   return window.location.origin + ASSET_BASE;

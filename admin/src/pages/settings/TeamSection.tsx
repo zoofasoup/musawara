@@ -9,6 +9,7 @@ import { Icon } from "../../components/icons";
 import { RolePill, ROLE_LOOK, type AnyRole } from "../../lib/roles";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Section, type Notify } from "../../components/kit";
 import { CRM_ONLY } from "../../lib/product";
+import { editStartRole } from "../../lib/crmRoles";
 
 // A CRM copy has two roles and no clients to assign: the server gives CRM staff their access by itself.
 const ROLES: readonly StaffRole[] = CRM_ONLY ? ["owner", "crm"] : STAFF_ROLES;
@@ -216,7 +217,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                   </NativeSelect>
                 )}
                 {u.role === "admin" && (
-                  <Btn tone="ghost" onClick={() => { if (editing === u.id) { setEditing(null); return; } setEditing(u.id); setEditRole(u.staff_role ?? (CRM_ONLY ? "crm" : "ads")); setEditIds(u.client_ids ?? []); }}>
+                  <Btn tone="ghost" onClick={() => { if (editing === u.id) { setEditing(null); return; } setEditing(u.id); setEditRole(editStartRole(u.staff_role, CRM_ONLY)); setEditIds(u.client_ids ?? []); }}>
                     {editing === u.id ? "Cancel" : "Edit access"}
                   </Btn>
                 )}

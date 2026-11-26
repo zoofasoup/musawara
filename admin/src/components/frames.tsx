@@ -7,7 +7,9 @@ import { Layout } from "./Layout";
 import { CardSkeleton } from "./ui";
 import { SecurityCard } from "./SecurityCard";
 import { Btn } from "./kit";
-import { homePathFor, type Feature } from "../../shared/permissions";
+import type { Feature } from "../../shared/permissions";
+import { deniedPath } from "../lib/crmRoles";
+import { CRM_ONLY } from "../lib/product";
 import { userCan } from "../lib/can";
 import { CrmLayout } from "../pages/crm/CrmLayout";
 
@@ -59,9 +61,9 @@ export function ProtectedLayout({ pages = NONE }: { pages?: Array<() => Promise<
 /** Team members whose role includes `feature`; others go to the first page their role can open. `clients` also lets client logins through (those pages decide for themselves). */
 export function Needs({ feature, clients = false }: { feature: Feature; clients?: boolean }) {
   const { user } = useAuth();
-  if (user?.role === "client") return clients ? <Outlet /> : <Navigate to={`/c/${user.client_id}`} replace />;
+  if (user?.role === "client" && clients && !CRM_ONLY) return <Outlet />;
   if (userCan(user, feature)) return <Outlet />;
-  return <Navigate to={user?.role === "admin" ? homePathFor(user.staff_role) : "/login"} replace />;
+  return <Navigate to={deniedPath(user, CRM_ONLY)} replace />;
 }
 
 /** The CRM tab bar and number switcher stay put while the section underneath changes. */

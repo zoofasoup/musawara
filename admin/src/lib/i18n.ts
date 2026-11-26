@@ -39,6 +39,9 @@ export const ID: Record<string, string> = {
   "Your account on Musawara.": "Akunmu di Musawara.", "Sign in": "Masuk", "Signing in…": "Masuk…", Email: "Email", Password: "Kata sandi", "Create your account": "Buat akunmu", "Create account": "Buat akun",
   "Creating…": "Membuat…", "Your name": "Namamu", "Access is by invitation from Musawara Creative.": "Akses hanya lewat undangan dari Musawara Creative.",
   "Password (8+ characters)": "Kata sandi (8+ karakter)",
+  // CRM copy
+  "Your account.": "Akunmu.", "Invite your team.": "Undang timmu.", "Welcome back.": "Selamat datang kembali.", "Invite your teammates.": "Undang rekan timmu.",
+  "No WhatsApp number is available to you yet. Please tell an Owner.": "Belum ada nomor WhatsApp yang bisa kamu pakai. Beri tahu Owner.",
   // approvals, assets, planning (frequent)
   "New request": "Permintaan baru", "No approval requests yet": "Belum ada permintaan persetujuan", Waiting: "Menunggu", "Changes requested": "Perubahan diminta", Approved: "Disetujui",
   "All statuses": "Semua status", "Asset library": "Pustaka aset", "Add asset": "Tambah aset", "Edit asset": "Ubah aset", Title: "Judul", Type: "Tipe", Notes: "Catatan", "Google Drive link": "Tautan Google Drive",
