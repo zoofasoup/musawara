@@ -26,8 +26,14 @@ import { notionCfg, runNotionSync } from "./lib/notion";
 import { syncAllAccounts } from "./lib/sync";
 import { pollAllOrganic } from "./lib/organic";
 import { healthReport, trackCron } from "./lib/health";
+import { crmAllows, isCrmMode } from "../shared/mode";
 
 export const app = new Hono<{ Bindings: Env; Variables: Vars }>();
+
+app.use("*", async (c, next) => {
+  if (isCrmMode(c.env.APP_MODE) && !crmAllows(c.req.method, c.req.path)) return c.json({ error: "Not found" }, 404);
+  await next();
+});
 
 app.route("/api/auth", authRoutes);
 app.route("/api/admin", adminRoutes);
@@ -64,6 +70,10 @@ app.onError((err, c) => {
 // Asia/Jakarta (20:00 UTC) the ads pull is the full 28 days plus the entity tree,
 // because Meta restates history (attribution windows).
 export function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  if (isCrmMode(env.APP_MODE)) {
+    ctx.waitUntil(trackCron(env, "inbox", () => syncAllInboxLeads(env)));
+    return;
+  }
   const deep = new Date(controller.scheduledTime).getUTCHours() === 20;
   ctx.waitUntil(trackCron(env, "organic", () => pollAllOrganic(env, deep)));
   ctx.waitUntil(trackCron(env, "ads", () => syncAllAccounts(env, !deep)));

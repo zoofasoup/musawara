@@ -13,6 +13,8 @@ export type Env = {
   /** Web-app URL of the Apps Script in the closing sheet (wrangler secret). Unset = "Sync now" skips the sheet. */
   SHEET_TRIGGER_URL?: string;
   APP_NAME: string;
+  /** "crm" = a CRM-only copy sold to a business (shared/mode.ts). Unset = the agency platform. */
+  APP_MODE?: string;
   /** Base URL of the WhatsApp gateway (wa-gateway on the VPS). Unset = CRM shows "not configured". */
   WA_GATEWAY_URL?: string;
   /** Bearer token the gateway accepts (wrangler secret). */
