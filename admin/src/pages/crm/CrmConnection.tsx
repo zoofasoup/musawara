@@ -8,6 +8,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { crm } from "./crmApi";
 import { Btn, ConfirmBtn, Empty, Panel, Pill, useNotify, type Notify } from "../../components/kit";
 import { Skeleton } from "../../components/ui";
+import { CRM_ONLY } from "../../lib/product";
 import { classify, fmtPhone, fmtSince, useLive } from "./inbox/util";
 import { clientName, statusInfo, useAccounts, type Account, type AccountStatusDetail, type Client } from "./accounts";
 
@@ -142,7 +143,7 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
             <h2 className="break-words text-base font-bold text-ink">{account.name}</h2>
           )}
           <p className="mt-1 text-xs text-muted">
-            {[brand, isDefault ? "Default number" : null].filter(Boolean).join(" · ") || "Not linked to a brand"}
+            {CRM_ONLY ? (isDefault ? "Default number" : null) : [brand, isDefault ? "Default number" : null].filter(Boolean).join(" · ") || "Not linked to a brand"}
           </p>
         </div>
         <Pill tone={s.tone}>{s.label}</Pill>
@@ -172,19 +173,21 @@ function AccountCard({ account, notify }: { account: Account; notify: Notify }) 
       {status === "qr" && <QrBlock qr={live.data?.qr ?? null} />}
       {status === "loading" && <p className="mt-4 text-sm text-ink2">Linked successfully. Loading chats from WhatsApp, please wait.</p>}
 
-      <div className="mt-4 grid gap-1 border-t border-border pt-4 sm:max-w-xs">
-        <label htmlFor={`brand-${account.id}`} className="text-xs text-muted">
-          Brand
-        </label>
-        <BrandSelect
-          id={`brand-${account.id}`}
-          value={account.client_id}
-          clients={clients}
-          disabled={busy === "brand"}
-          onChange={(v) => run("brand", () => crm(base, { method: "PATCH", body: { client_id: v } }), "Brand updated.")}
-        />
-        {clients.length === 0 && <p className="text-xs text-muted">No brands to choose from yet.</p>}
-      </div>
+      {!CRM_ONLY && (
+        <div className="mt-4 grid gap-1 border-t border-border pt-4 sm:max-w-xs">
+          <label htmlFor={`brand-${account.id}`} className="text-xs text-muted">
+            Brand
+          </label>
+          <BrandSelect
+            id={`brand-${account.id}`}
+            value={account.client_id}
+            clients={clients}
+            disabled={busy === "brand"}
+            onChange={(v) => run("brand", () => crm(base, { method: "PATCH", body: { client_id: v } }), "Brand updated.")}
+          />
+          {clients.length === 0 && <p className="text-xs text-muted">No brands to choose from yet.</p>}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {selectedId !== account.id && (
@@ -248,7 +251,9 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
     setSaving(true);
     setProblem(null);
     try {
-      await crm("/accounts", { method: "POST", body: { name: n, ...(client !== null ? { client_id: client } : {}) } });
+      // A CRM copy has one internal row for the business; linking the number to it is what lets CRM staff see it.
+      const owner = CRM_ONLY ? clients[0]?.id ?? null : client;
+      await crm("/accounts", { method: "POST", body: { name: n, ...(owner !== null ? { client_id: owner } : {}) } });
       notify("Number added. Scan its QR code below to link it.");
       reload();
       onClose();
@@ -272,12 +277,14 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
           </label>
           <Input className="w-auto" id="new-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="For example: Padel store" autoFocus />
         </div>
-        <div className="grid gap-1 sm:max-w-xs">
-          <label htmlFor="new-brand" className="text-xs text-muted">
-            Brand (optional)
-          </label>
-          <BrandSelect id="new-brand" value={client} clients={clients} onChange={setClient} />
-        </div>
+        {!CRM_ONLY && (
+          <div className="grid gap-1 sm:max-w-xs">
+            <label htmlFor="new-brand" className="text-xs text-muted">
+              Brand (optional)
+            </label>
+            <BrandSelect id="new-brand" value={client} clients={clients} onChange={setClient} />
+          </div>
+        )}
         {problem && (
           <Callout tone="crit" compact className="break-words">{problem}</Callout>
         )}

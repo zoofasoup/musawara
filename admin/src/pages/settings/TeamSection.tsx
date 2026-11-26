@@ -8,6 +8,11 @@ import { api, homeOrigin, type useApi } from "../../lib/api";
 import { Icon } from "../../components/icons";
 import { RolePill, ROLE_LOOK, type AnyRole } from "../../lib/roles";
 import { Btn, ConfirmBtn, CopyBtn, Empty, Panel, Pill, Section, type Notify } from "../../components/kit";
+import { CRM_ONLY } from "../../lib/product";
+
+// A CRM copy has two roles and no clients to assign: the server gives CRM staff their access by itself.
+const ROLES: readonly StaffRole[] = CRM_ONLY ? ["owner", "crm"] : STAFF_ROLES;
+const hint = (r: StaffRole) => (CRM_ONLY && r === "crm" ? "WhatsApp inbox, contacts, pipeline and broadcasts." : CRM_ONLY && r === "owner" ? "Everything: team, numbers and settings." : STAFF_HINT[r]);
 
 type TeamState = ReturnType<typeof useApi<{ users: any[]; invites: any[] }>>;
 
@@ -23,12 +28,12 @@ function AccessFields({ role, setRole, ids, setIds, clients }: { role: StaffRole
   return (
     <div className="space-y-2">
       <NativeSelect className="w-full" value={role} onChange={(e) => setRole(e.target.value as StaffRole)} aria-label="Team role">
-        {STAFF_ROLES.map((r) => (
+        {ROLES.map((r) => (
           <option key={r} value={r}>{STAFF_LABEL[r]}</option>
         ))}
       </NativeSelect>
-      <p className="flex items-start gap-2 text-xs text-muted"><RolePill role={role} size="sm" /><span className="pt-0.5">{STAFF_HINT[role]}</span></p>
-      {role !== "owner" && (
+      <p className="flex items-start gap-2 text-xs text-muted"><RolePill role={role} size="sm" /><span className="pt-0.5">{hint(role)}</span></p>
+      {role !== "owner" && !CRM_ONLY && (
         <fieldset className="rounded-lg border border-border p-2">
           <legend className="px-1 text-xs font-medium text-muted">Which clients can they see?</legend>
           <div className="grid gap-0.5 sm:grid-cols-2">
@@ -50,7 +55,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState("");
   const [audience, setAudience] = useState<"team" | "client">("team");
-  const [staffRole, setStaffRole] = useState<StaffRole>("ads");
+  const [staffRole, setStaffRole] = useState<StaffRole>(CRM_ONLY ? "crm" : "ads");
   const [ids, setIds] = useState<number[]>([]);
   const [clientRole, setClientRole] = useState<ClientRole>("approver");
   const [clientId, setClientId] = useState("");
@@ -62,7 +67,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
   const [editRole, setEditRole] = useState<StaffRole>("ads");
   const [editIds, setEditIds] = useState<number[]>([]);
 
-  const needsClients = audience === "team" && staffRole !== "owner" && ids.length === 0;
+  const needsClients = !CRM_ONLY && audience === "team" && staffRole !== "owner" && ids.length === 0;
   const blocked = audience === "client" ? !clientId : needsClients;
 
   const create = async (e: React.FormEvent) => {
@@ -105,11 +110,11 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
   return (
     <Section
       id="team"
-      step={4}
+      step={CRM_ONLY ? 1 : 4}
       done={users.length > 0}
       icon="users"
       title="Team and access"
-      hint="Each team role opens its own areas, and everyone but Owners sees only the clients assigned to them. Client logins see only their own client."
+      hint={CRM_ONLY ? "Owners manage the team and numbers. CRM staff work the chats." : "Each team role opens its own areas, and everyone but Owners sees only the clients assigned to them. Client logins see only their own client."}
       action={
         <Btn tone={adding ? "ghost" : "secondary"} icon={adding ? undefined : "mail"} onClick={() => { setAdding(!adding); setInviteUrl(""); }}>
           {adding ? "Cancel" : "Invite someone"}
@@ -142,7 +147,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
 
       {adding && (
         <form onSubmit={create} className="mb-3 space-y-3 rounded-xl border border-[var(--accent)]/30 bg-surface p-3.5">
-          <Segmented label="Who" value={audience} onChange={setAudience} options={[{ value: "team", label: "Team member", icon: <Icon name="shield" className="h-3.5 w-3.5" /> }, { value: "client", label: "Client login", icon: <Icon name="user" className="h-3.5 w-3.5" /> }]} />
+          {!CRM_ONLY && <Segmented label="Who" value={audience} onChange={setAudience} options={[{ value: "team", label: "Team member", icon: <Icon name="shield" className="h-3.5 w-3.5" /> }, { value: "client", label: "Client login", icon: <Icon name="user" className="h-3.5 w-3.5" /> }]} />}
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" aria-label="Email" />
           {audience === "team" ? (
             <AccessFields role={staffRole} setRole={setStaffRole} ids={ids} setIds={setIds} clients={clients} />
@@ -165,7 +170,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
       )}
 
       <ul aria-label="Roles" className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted">
-        {(["owner", "ads", "content", "crm", "approver", "viewer"] as AnyRole[]).map((r) => (
+        {((CRM_ONLY ? ["owner", "crm"] : ["owner", "ads", "content", "crm", "approver", "viewer"]) as AnyRole[]).map((r) => (
           <li key={r} className="inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${ROLE_LOOK[r].dot}`} aria-hidden />{ROLE_LOOK[r].label}</li>
         ))}
       </ul>
@@ -175,7 +180,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
       ) : error ? (
         <p className="text-sm text-crit">{error}</p>
       ) : users.length === 0 && invites.length === 0 ? (
-        <Empty icon="users" title="No one here yet" hint="Invite teammates or give a client a login to their dashboard." />
+        <Empty icon="users" title="No one here yet" hint={CRM_ONLY ? "Invite your teammates." : "Invite teammates or give a client a login to their dashboard."} />
       ) : (
         <Panel className="divide-y divide-border">
           {users.map((u) => (
@@ -187,7 +192,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                     <span className="truncate">{u.name}</span>
                     <RolePill role={u.role === "admin" ? u.staff_role : u.client_role} />
                   </p>
-                  <p className="truncate text-xs text-muted">{u.email} · {u.role === "admin" ? reach(u.staff_role, u.client_ids, clients) : u.client_name}</p>
+                  <p className="truncate text-xs text-muted">{CRM_ONLY ? u.email : <>{u.email} · {u.role === "admin" ? reach(u.staff_role, u.client_ids, clients) : u.client_name}</>}</p>
                 </div>
                 {u.role === "client" && (
                   <NativeSelect
@@ -211,7 +216,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                   </NativeSelect>
                 )}
                 {u.role === "admin" && (
-                  <Btn tone="ghost" onClick={() => { if (editing === u.id) { setEditing(null); return; } setEditing(u.id); setEditRole(u.staff_role ?? "ads"); setEditIds(u.client_ids ?? []); }}>
+                  <Btn tone="ghost" onClick={() => { if (editing === u.id) { setEditing(null); return; } setEditing(u.id); setEditRole(u.staff_role ?? (CRM_ONLY ? "crm" : "ads")); setEditIds(u.client_ids ?? []); }}>
                     {editing === u.id ? "Cancel" : "Edit access"}
                   </Btn>
                 )}
@@ -255,7 +260,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
               {editing === u.id && (
                 <div className="mt-3 space-y-3 rounded-xl border border-[var(--accent)]/30 bg-surface p-3.5">
                   <AccessFields role={editRole} setRole={setEditRole} ids={editIds} setIds={setEditIds} clients={clients} />
-                  <Btn tone="primary" disabled={editRole !== "owner" && editIds.length === 0} onClick={() => saveAccess(u.id)}>Save access</Btn>
+                  <Btn tone="primary" disabled={!CRM_ONLY && editRole !== "owner" && editIds.length === 0} onClick={() => saveAccess(u.id)}>Save access</Btn>
                 </div>
               )}
             </div>
@@ -272,7 +277,7 @@ export function TeamSection({ state, clients, notify }: { state: TeamState; clie
                 </p>
                 <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <RolePill role={i.role === "admin" ? i.staff_role : i.client_role} size="sm" />
-                  <span className="truncate">{i.role === "admin" ? reach(i.staff_role, i.client_ids, clients) : i.client_name}</span>
+                  {!CRM_ONLY && <span className="truncate">{i.role === "admin" ? reach(i.staff_role, i.client_ids, clients) : i.client_name}</span>}
                 </p>
               </div>
               <Btn

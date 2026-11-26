@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClientAvatar } from "../../components/Layout";
 import { useCan } from "../../lib/can";
+import { CRM_ONLY } from "../../lib/product";
 import { clientName, statusInfo, useAccounts, type Account, type Client } from "./accounts";
 import { fmtPhone } from "./inbox/util";
 
 /** The brand's logo (or its initial in the brand colour) with the number's connection status as a dot on its corner. */
 function Logo({ a, clients }: { a: Account; clients: Client[] }) {
-  const brand = a.client_id == null ? undefined : clients.find((c) => c.id === Number(a.client_id));
+  const brand = CRM_ONLY || a.client_id == null ? undefined : clients.find((c) => c.id === Number(a.client_id));
   return (
     <span className="relative inline-flex shrink-0">
       <ClientAvatar name={brand?.name ?? a.name} logoUrl={brand?.logo_url} color={brand?.brand_color ?? "var(--accent)"} size={8} />
@@ -20,7 +21,7 @@ function Logo({ a, clients }: { a: Account; clients: Client[] }) {
 }
 
 function Text({ a, clients, sub = true }: { a: Account; clients: Client[]; sub?: boolean }) {
-  const brand = clientName(clients, a.client_id);
+  const brand = CRM_ONLY ? null : clientName(clients, a.client_id);
   return (
     <span className="min-w-0 text-left">
       <span className="block truncate text-sm font-medium text-ink">{a.name}</span>
