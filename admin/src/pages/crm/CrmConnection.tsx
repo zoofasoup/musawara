@@ -243,16 +243,19 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
   const [client, setClient] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // A CRM copy has one internal row for the business, and linking the number to it is what lets CRM staff see it; there is no way
+  // to link it later, so no number is created until that row is known. Lowest id: the same row the server assigns staff to.
+  const business = CRM_ONLY && clients.length ? Math.min(...clients.map((c) => c.id)) : null;
+  const waiting = CRM_ONLY && business === null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     const n = name.trim();
-    if (!n) return;
+    if (!n || waiting) return;
     setSaving(true);
     setProblem(null);
     try {
-      // A CRM copy has one internal row for the business; linking the number to it is what lets CRM staff see it.
-      const owner = CRM_ONLY ? clients[0]?.id ?? null : client;
+      const owner = CRM_ONLY ? business : client;
       await crm("/accounts", { method: "POST", body: { name: n, ...(owner !== null ? { client_id: owner } : {}) } });
       notify("Number added. Scan its QR code below to link it.");
       reload();
@@ -288,8 +291,9 @@ function AddNumber({ notify, onClose }: { notify: Notify; onClose: () => void })
         {problem && (
           <Callout tone="crit" compact className="break-words">{problem}</Callout>
         )}
+        {waiting && <p className="text-xs text-muted">Business data is not loaded yet. If this stays, reload the page.</p>}
         <div className="flex flex-wrap gap-2">
-          <Btn tone="primary" type="submit" icon="plus" loading={saving} disabled={!name.trim()}>
+          <Btn tone="primary" type="submit" icon="plus" loading={saving} disabled={!name.trim() || waiting}>
             Create and show QR
           </Btn>
           <Btn tone="ghost" type="button" onClick={onClose}>
