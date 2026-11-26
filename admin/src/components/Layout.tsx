@@ -7,8 +7,10 @@ import { Avatar } from "./Avatar";
 import { glassCls } from "../lib/glass";
 import { useT } from "../context/LangContext";
 import { LangSwitch } from "./LangSwitch";
+import { CRM_ONLY, PRODUCT_NAME } from "../lib/product";
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
+  if (CRM_ONLY) return <span className="whitespace-nowrap text-base font-bold text-ink">{PRODUCT_NAME}</span>;
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <img

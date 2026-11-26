@@ -10,6 +10,7 @@ import { api, useApi } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { Wordmark } from "../components/Layout";
 import { CardSkeleton, ErrorState } from "../components/ui";
+import { CRM_ONLY } from "../lib/product";
 
 export function Invite() {
   const { token } = useParams();
@@ -56,8 +57,8 @@ export function Invite() {
               {data!.invite.client_name
                 ? `You've been invited to view the ${data!.invite.client_name} dashboard.`
                 : data!.invite.staff_role
-                ? "You've been invited to the Musawara team as:"
-                : "You've been invited to Musawara."}
+                ? CRM_ONLY ? "You've been invited to the team as:" : "You've been invited to the Musawara team as:"
+                : CRM_ONLY ? "You've been invited." : "You've been invited to Musawara."}
             </p>
             {data!.invite.staff_role && <RolePill role={data!.invite.staff_role} />}
             {!data!.invite.staff_role && data!.invite.client_role && <RolePill role={data!.invite.client_role} />}

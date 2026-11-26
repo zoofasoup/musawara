@@ -10,6 +10,7 @@ import { LangSwitch } from "../components/LangSwitch";
 import { ASSET_BASE } from "../lib/api";
 import { T } from "../context/LangContext";
 import { Icon } from "../components/icons";
+import { CRM_ONLY } from "../lib/product";
 
 export function Login() {
   const { login, verifyTwoFactor } = useAuth();
@@ -53,9 +54,9 @@ export function Login() {
       <div className="login-content">
         <form onSubmit={submit} className="login-card space-y-4">
           <div className="login-intro">
-            <span className="login-mark"><img src={`${ASSET_BASE}/logo/musawara-mark.png`} alt="" /></span>
+            {!CRM_ONLY && <span className="login-mark"><img src={`${ASSET_BASE}/logo/musawara-mark.png`} alt="" /></span>}
             <h1 className="text-xl font-bold text-ink"><T>Sign in</T></h1>
-            <p>Welcome to your Musawara workspace.</p>
+            <p>{CRM_ONLY ? "Welcome back." : "Welcome to your Musawara workspace."}</p>
           </div>
           {needCode ? (
             <div className="space-y-3">
@@ -82,9 +83,9 @@ export function Login() {
               {busy ? "Signing in…" : needCode ? "Verify" : "Sign in"}
             </Btn>
         </form>
-        <p className="login-caption">
+        {!CRM_ONLY && <p className="login-caption">
           <T>Access is by invitation from Musawara Creative.</T>
-        </p>
+        </p>}
       </div>
     </main>
   );

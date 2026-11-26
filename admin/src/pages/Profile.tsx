@@ -10,6 +10,7 @@ import { Avatar } from "../components/Avatar";
 import { PageHeader } from "../components/PageHeader";
 import { Btn, Panel, Pill, useNotify } from "../components/kit";
 import { FormField as Field } from "../components/FormField";
+import { CRM_ONLY } from "../lib/product";
 
 export function Profile() {
   const { user, client, setSession, logout } = useAuth();
@@ -54,7 +55,7 @@ export function Profile() {
   return (
     <div className="max-w-2xl space-y-5">
       {node}
-      <PageHeader title="Profile" subtitle="Your account on Musawara." />
+      <PageHeader title="Profile" subtitle={CRM_ONLY ? "Your account." : "Your account on Musawara."} />
 
       <Panel className="flex items-center gap-4 p-5">
         <Avatar name={user.name} size={56} />

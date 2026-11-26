@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:crm": "VITE_APP_MODE=crm vite build",
     "check": "tsc --noEmit",
     "test": "node --import ./worker/testkit/register.mjs --test src/lib/*.test.ts worker/lib/*.test.ts worker/routes/planning.test.ts worker/routes/hostGate.test.ts worker/routes/login.test.ts worker/routes/shopee.test.ts worker/routes/jubelio.test.ts worker/routes/notion.test.ts worker/routes/profile.test.ts worker/routes/roles.test.ts worker/routes/betterAuth.test.ts worker/routes/pipeline.test.ts worker/routes/crmTasks.test.ts worker/routes/crmAds.test.ts worker/routes/crmMode.test.ts && vitest run worker/routes/approvals.route.test.ts",
     "start": "npm run build && wrangler dev",

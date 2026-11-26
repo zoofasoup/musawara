@@ -1,6 +1,7 @@
 // The chosen language, remembered in this browser. `useT()` gives the translate function; `<T>text</T>` translates plain JSX text.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { initialLang, translate, type Lang } from "../lib/i18n";
+import { CRM_ONLY } from "../lib/product";
 
 const KEY = "ma_lang";
 type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (text: string) => string };
@@ -8,7 +9,7 @@ const LangCtx = createContext<Ctx>({ lang: "en", setLang: () => {}, t: (s) => s 
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    try { return initialLang(localStorage.getItem(KEY), navigator.language); } catch { return "en"; }
+    try { return initialLang(localStorage.getItem(KEY), CRM_ONLY ? "id" : navigator.language); } catch { return CRM_ONLY ? "id" : "en"; }
   });
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const setLang = useCallback((l: Lang) => {

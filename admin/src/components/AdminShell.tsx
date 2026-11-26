@@ -13,6 +13,7 @@ import { useT } from "../context/LangContext";
 import { LangSwitch } from "./LangSwitch";
 import { featureForPath } from "../../shared/permissions";
 import { userCan } from "../lib/can";
+import { CRM_ONLY, PRODUCT_NAME } from "../lib/product";
 
 type Item = { to: string; label: string; icon: IconName; end?: boolean };
 const GROUPS: { label: string; items: Item[] }[] = [
@@ -43,6 +44,7 @@ function useNav() {
   const { user } = useAuth();
   return useMemo(() => {
     const open = (i: Item) => {
+      if (CRM_ONLY && i !== SETTINGS && !i.to.startsWith("/crm")) return false;
       const f = featureForPath(i.to);
       return f === null || userCan(user, f);
     };
@@ -186,7 +188,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Phone: slim top bar with the page name */}
       <header data-glass className={`${crm ? "relative shrink-0" : "sticky"} top-2 z-20 mx-3 mt-2 flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 md:hidden ${glassCls}`}>
-        <NavLink to="/" aria-label={t("Overview")} className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
+        <NavLink to="/" aria-label={CRM_ONLY ? PRODUCT_NAME : t("Overview")} className="inline-flex min-h-11 min-w-11 shrink-0 items-center"><Wordmark compact /></NavLink>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{t(title)}</span>
         <LangSwitch compact className="min-h-11 w-11 shrink-0 !rounded-full px-0" />
         <button
