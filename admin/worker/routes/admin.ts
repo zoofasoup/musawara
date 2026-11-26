@@ -13,6 +13,7 @@ import { SECTION_COUNT, SECTION_KEYS } from "../lib/brand";
 import { ONBOARDING_TEMPLATE, parseTaskInput } from "../lib/ops";
 import { addDays, ymdInTz } from "../lib/dates";
 import { isClientRole, isStaffRole } from "../../shared/permissions";
+import { isCrmMode } from "../../shared/mode";
 import spend from "./spend";
 import conversions from "./conversions";
 import organic from "./organic";
@@ -653,8 +654,17 @@ async function existingClientIds(c: Context<{ Bindings: Env; Variables: Vars }>,
   return r.results.map((x) => x.id);
 }
 
+/** A CRM copy has one internal `clients` row standing for the business; its CRM staff are always assigned to it. */
+async function businessClientIds(c: Context<{ Bindings: Env; Variables: Vars }>): Promise<number[]> {
+  const row = await c.env.DB.prepare("SELECT id FROM clients ORDER BY id LIMIT 1").first<{ id: number }>();
+  return row ? [row.id] : [];
+}
+const crmRole = (v: unknown) => v === "owner" || v === "crm";
+
 admin.post("/invites", async (c) => {
   const { email, audience, staff_role, client_role, client_id, client_ids } = await c.req.json().catch(() => ({}));
+  const crmOnly = isCrmMode(c.env.APP_MODE);
+  if (crmOnly && (audience === "client" || !crmRole(staff_role))) return c.json({ error: "Pick Owner or CRM" }, 400);
   const token = randomToken();
   if (audience === "client") {
     if (!isClientRole(client_role)) return c.json({ error: "Pick a client role (viewer or approver)" }, 400);
@@ -664,7 +674,7 @@ admin.post("/invites", async (c) => {
     if (!isStaffRole(staff_role)) return c.json({ error: "Pick a team role" }, 400);
     let assigned: number[] = [];
     if (staff_role !== "owner") {
-      assigned = await existingClientIds(c, safeIds(client_ids));
+      assigned = crmOnly ? await businessClientIds(c) : await existingClientIds(c, safeIds(client_ids));
       if (!assigned.length) return c.json({ error: "Assign at least one client to this team member" }, 400);
     }
     await c.env.DB.prepare("INSERT INTO invites (token, email, role, staff_role, client_ids_json) VALUES (?,?,'admin',?,?)")
@@ -690,6 +700,8 @@ admin.put("/users/:id", async (c) => {
   const { staff_role, client_role, client_ids } = await c.req.json().catch(() => ({}));
   const target = await c.env.DB.prepare("SELECT id, role, staff_role FROM users WHERE id=?").bind(id).first<{ id: number; role: string; staff_role: string | null }>();
   if (!target) return c.json({ error: "User not found" }, 404);
+  const crmOnly = isCrmMode(c.env.APP_MODE);
+  if (crmOnly && !crmRole(staff_role)) return c.json({ error: "Pick Owner or CRM" }, 400);
   if (target.role === "client") {
     if (!isClientRole(client_role)) return c.json({ error: "Pick a client role (viewer or approver)" }, 400);
     await c.env.DB.prepare("UPDATE users SET client_role=? WHERE id=?").bind(client_role, id).run();
@@ -701,7 +713,7 @@ admin.put("/users/:id", async (c) => {
   }
   let assigned: number[] = [];
   if (staff_role !== "owner") {
-    assigned = await existingClientIds(c, safeIds(client_ids));
+    assigned = crmOnly ? await businessClientIds(c) : await existingClientIds(c, safeIds(client_ids));
     if (!assigned.length) return c.json({ error: "Assign at least one client to this team member" }, 400);
   }
   await c.env.DB.batch([

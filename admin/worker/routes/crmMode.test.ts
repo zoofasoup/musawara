@@ -5,6 +5,7 @@ import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import { app, scheduled } from "../index.ts";
 import { crmAllows } from "../../shared/mode.ts";
+import { presetsFor } from "../lib/crmPresets.ts";
 
 const SECRET = "test-secret";
 const HOST = "https://toko.crm.test";
@@ -71,4 +72,25 @@ test("the CRM-mode cron runs the inbox sync only", async () => {
   await Promise.all(work);
   const rows = await DB.prepare("SELECT key FROM app_settings WHERE key LIKE 'cron:%' ORDER BY key").all<{ key: string }>();
   assert.deepEqual(rows.results.map((r) => r.key), ["cron:inbox"]);
+});
+
+test("only Owner and CRM staff exist, and CRM staff get the business automatically", async () => {
+  const { call, DB } = await setup("crm");
+  for (const body of [{ audience: "client", client_role: "viewer", client_id: 1 }, { audience: "team", staff_role: "ads", client_ids: [1] }, { audience: "team", staff_role: "content", client_ids: [1] }]) {
+    assert.equal((await call(1, "POST", "/api/admin/invites", body)).status, 400);
+  }
+  assert.equal((await call(1, "POST", "/api/admin/invites", { audience: "team", staff_role: "crm" })).status, 200);
+  const invite = await DB.prepare("SELECT client_ids_json FROM invites").first<{ client_ids_json: string }>();
+  assert.equal(invite!.client_ids_json, "[1]");
+  assert.equal((await call(1, "PUT", "/api/admin/users/2", { staff_role: "ads", client_ids: [1] })).status, 400);
+  assert.equal((await call(1, "PUT", "/api/admin/users/2", { staff_role: "crm" })).status, 200);
+  const rows = await DB.prepare("SELECT client_id FROM user_clients WHERE user_id=2").all<{ client_id: number }>();
+  assert.deepEqual(rows.results.map((r) => r.client_id), [1]);
+});
+
+test("the CRM copy offers one travel field set without agency names", () => {
+  const crm = presetsFor("crm");
+  assert.deepEqual(crm.map((p) => p.id), ["travel"]);
+  assert.doesNotMatch(JSON.stringify(crm), /musafar|nuralive/i);
+  assert.deepEqual(crm[0].fields, presetsFor().find((p) => p.id === "musafar")!.fields);
 });

@@ -2,6 +2,8 @@
 // (matched by label, so pressing it twice changes nothing). `required` = must be filled before a card can be moved to Won.
 // Labels match the columns of the Kommo exports, so importing them fills the fields without renaming anything.
 
+import { isCrmMode } from "../../shared/mode";
+
 export type PresetField = { label: string; type: "text" | "number" | "date" | "select" | "checkbox" | "url"; options?: string[]; required?: boolean };
 export type Preset = { id: string; name: string; description: string; fields: PresetField[] };
 
@@ -44,3 +46,7 @@ export const PRESETS: Preset[] = [
     ],
   },
 ];
+
+/** The CRM sold to other businesses offers the umrah fields under a neutral name and nothing brand-specific. */
+const TRAVEL: Preset = { ...PRESETS[0], id: "travel", name: "Travel umroh" };
+export const presetsFor = (mode?: string): Preset[] => (isCrmMode(mode) ? [TRAVEL] : PRESETS);

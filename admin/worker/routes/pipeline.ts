@@ -7,7 +7,7 @@ import type { Env, Vars } from "../types";
 import { requirePerm } from "../middleware";
 import { acct, crmAccount, eligibleOwners } from "../lib/crmGuard";
 import { ymdInTz } from "../lib/dates";
-import { PRESETS } from "../lib/crmPresets";
+import { presetsFor } from "../lib/crmPresets";
 import { ensureStageRows, syncAllInboxLeads } from "../lib/inboxLeads";
 
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
@@ -410,14 +410,14 @@ pipeline.patch("/fields/:id", async (c) => {
 /** The ready-made field sets (id, name, what it adds) and how many of each this number already has. */
 pipeline.get("/presets", async (c) => {
   const have = new Set((await c.env.DB.prepare("SELECT label FROM crm_field_defs WHERE wa_account_id=?").bind(acct(c)).all<{ label: string }>()).results.map((r) => r.label));
-  return c.json({ presets: PRESETS.map((p) => ({ id: p.id, name: p.name, description: p.description, fields: p.fields.length, missing: p.fields.filter((f) => !have.has(f.label)).length })) });
+  return c.json({ presets: presetsFor(c.env.APP_MODE).map((p) => ({ id: p.id, name: p.name, description: p.description, fields: p.fields.length, missing: p.fields.filter((f) => !have.has(f.label)).length })) });
 });
 
 /** Adds the fields of a preset that this number does not have yet (by label); never touches existing ones. */
 pipeline.post("/fields/preset", async (c) => {
   const account = acct(c);
   const b: any = await c.req.json().catch(() => null);
-  const preset = PRESETS.find((p) => p.id === b?.preset);
+  const preset = presetsFor(c.env.APP_MODE).find((p) => p.id === b?.preset);
   if (!preset) return c.json({ error: "Unknown field set." }, 400);
   const have = await c.env.DB.prepare("SELECT label FROM crm_field_defs WHERE wa_account_id=?").bind(account).all<{ label: string }>();
   const labels = new Set(have.results.map((r) => r.label));
