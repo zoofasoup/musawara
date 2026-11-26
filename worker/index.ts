@@ -1,15 +1,8 @@
 import { handleApply, type Env as ApplyEnv } from './apply'
 import { app as adminApi, scheduled, type AdminEnv } from '../admin/worker'
+import { apiResponse, serveApi } from '../admin/worker/lib/edge'
 
 type Env = ApplyEnv & AdminEnv & { AUTH_LIMITER: RateLimit }
-
-function apiResponse(response: Response): Response {
-  const headers = new Headers(response.headers)
-  headers.set('Cache-Control', 'no-store')
-  headers.set('X-Content-Type-Options', 'nosniff')
-  headers.set('X-Robots-Tag', 'noindex, nofollow')
-  return new Response(response.body, { status: response.status, headers })
-}
 
 /**
  * One Worker for musawara.id.
@@ -41,22 +34,7 @@ export default {
       return apiResponse(await handleApply(request, env, ctx))
     }
 
-    if (pathname.startsWith('/api/')) {
-      const origin = request.headers.get('Origin')
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && origin && origin !== url.origin) {
-        return apiResponse(Response.json({ error: 'Forbidden origin' }, { status: 403 }))
-      }
-      if (request.method === 'POST' && pathname.startsWith('/api/auth/') && pathname !== '/api/auth/logout') {
-        if (!env.AUTH_LIMITER) return apiResponse(Response.json({ error: 'Authentication unavailable' }, { status: 503 }))
-        const { success } = await env.AUTH_LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' })
-        if (!success) {
-          return apiResponse(Response.json({ error: 'Try again in one minute' }, {
-            status: 429, headers: { 'Retry-After': '60' },
-          }))
-        }
-      }
-      return apiResponse(await adminApi.fetch(request, env, ctx))
-    }
+    if (pathname.startsWith('/api/')) return serveApi(request, env, ctx, adminApi)
 
     const res = await env.ASSETS.fetch(request)
 
