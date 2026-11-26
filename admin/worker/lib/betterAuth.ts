@@ -6,7 +6,7 @@ import type { Env } from "../types";
 import { hashPassword, verifyPassword, SESSION_TTL_SECONDS } from "./auth";
 import { roleAllowedOnHost } from "./audience";
 import { isCrmMode } from "../../shared/mode";
-import { PRODUCT_NAME } from "../../src/lib/product";
+import { PRODUCT_NAME } from "../../shared/product";
 
 const cache = new WeakMap<object, Map<string, ReturnType<typeof build>>>();
 

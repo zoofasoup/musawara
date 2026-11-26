@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
-import { PRODUCT_NAME } from "./src/lib/product";
+import { PRODUCT_NAME } from "./shared/product";
 
 /** The CRM copy has its own entry, name and icon; the HTML file itself stays shared. */
 const crmHtml = (): Plugin => ({
