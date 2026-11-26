@@ -1,15 +1,13 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { BASE } from "./lib/api";
 import { useAuth } from "./context/AuthContext";
-import { Layout } from "./components/Layout";
 import { ClientFrame } from "./components/ClientFrame";
 import { ClientScopeProvider, useClientScope } from "./context/ClientScope";
 import { CardSkeleton } from "./components/ui";
-import { SecurityCard } from "./components/SecurityCard";
-import { Btn } from "./components/kit";
-import { homePathFor, type Feature } from "../shared/permissions";
+import { homePathFor } from "../shared/permissions";
 import { userCan } from "./lib/can";
+import { CrmFrame, Needs, ProtectedLayout } from "./components/frames";
 
 // Pages
 const AdminHome = lazy(() => import("./pages/AdminHome").then((m) => ({ default: m.AdminHome })));
@@ -45,56 +43,11 @@ const CrmContacts = lazy(() => import("./pages/crm/CrmContacts").then((m) => ({ 
 const CrmTemplates = lazy(() => import("./pages/crm/CrmTemplates").then((m) => ({ default: m.CrmTemplates })));
 const CrmCampaigns = lazy(() => import("./pages/crm/CrmCampaigns").then((m) => ({ default: m.CrmCampaigns })));
 const CrmConnection = lazy(() => import("./pages/crm/CrmConnection").then((m) => ({ default: m.CrmConnection })));
-import { CrmLayout } from "./pages/crm/CrmLayout";
-
-function MfaRequired() {
-  const { logout } = useAuth();
-  return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-4">
-      <SecurityCard required />
-      <Btn tone="ghost" onClick={() => void logout().then(() => (window.location.href = BASE + "/login"))}>Sign out</Btn>
-    </main>
-  );
-}
-
-/** Signed-in frame. It stays mounted while the page inside it changes, so moving between menus never redraws the sidebar. */
-function ProtectedLayout() {
-  const { user, ready } = useAuth();
-  usePrefetchPages(user?.role === "admin");
-  if (!ready) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  // Team accounts that must have two-factor and do not yet: nothing else opens until it is set up.
-  if (user.mfa_required) return <MfaRequired />;
-  return (
-    <Layout>
-      <Suspense fallback={<div className="space-y-4"><CardSkeleton lines={2} /><CardSkeleton lines={4} /></div>}>
-        <Outlet />
-      </Suspense>
-    </Layout>
-  );
-}
-
-/** Team members whose role includes `feature`; others go to the first page their role can open. `clients` also lets client logins through (those pages decide for themselves). */
-function Needs({ feature, clients = false }: { feature: Feature; clients?: boolean }) {
-  const { user } = useAuth();
-  if (user?.role === "client") return clients ? <Outlet /> : <Navigate to={`/c/${user.client_id}`} replace />;
-  if (userCan(user, feature)) return <Outlet />;
-  return <Navigate to={user?.role === "admin" ? homePathFor(user.staff_role) : "/login"} replace />;
-}
 
 /** Any team member with a role (Clients list, scoped to their clients). */
 function StaffOnly() {
   const { user } = useAuth();
   return user?.role === "admin" && user.staff_role ? <Outlet /> : <Navigate to={user?.role === "admin" ? "/profile" : "/"} replace />;
-}
-
-/** The CRM tab bar and number switcher stay put while the section underneath changes. */
-function CrmFrame() {
-  return (
-    <CrmLayout>
-      <Outlet />
-    </CrmLayout>
-  );
 }
 
 /** Old address of a page that now lives under a client (/shopee, /organic ...): go to the chosen client's page, or pick a client. */
@@ -139,21 +92,6 @@ const PAGES = [
   () => import("./pages/Planning"), () => import("./pages/Board"), () => import("./pages/Shopee"), () => import("./pages/Organic"),
   () => import("./pages/AdminSettings"), () => import("./pages/Profile"), () => import("./pages/crm/CrmInbox"), () => import("./pages/crm/CrmContacts"),
 ];
-function usePrefetchPages(enabled: boolean) {
-  useEffect(() => {
-    if (!enabled) return;
-    const network = navigator as Navigator & { connection?: { saveData?: boolean } };
-    if (network.connection?.saveData) return;
-    const pending: ReturnType<typeof setTimeout>[] = [];
-    const idle = setTimeout(() => {
-      PAGES.forEach((load, i) => pending.push(setTimeout(() => void load().catch(() => {}), i * 120)));
-    }, 1500);
-    return () => {
-      clearTimeout(idle);
-      pending.forEach(clearTimeout);
-    };
-  }, [enabled]);
-}
 
 export function App() {
   return (
@@ -170,7 +108,7 @@ export function App() {
             <Route path="/share/:token/report" element={<ShareReport />} />
 
             {/* Signed in: one persistent frame */}
-            <Route element={<ProtectedLayout />}>
+            <Route element={<ProtectedLayout pages={PAGES} />}>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/c/:id" element={<ClientFrame />}>

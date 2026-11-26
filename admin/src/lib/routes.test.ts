@@ -34,7 +34,8 @@ test("team pages are only routed inside the gate for their feature", () => {
 });
 
 test("only the login, invite and share pages are public", () => {
-  const protectedAt = app.indexOf("<Route element={<ProtectedLayout />}>");
+  const protectedAt = app.indexOf("<Route element={<ProtectedLayout pages={PAGES} />}>");
+  assert.ok(protectedAt > 0, "protected layout route not found");
   const before = app.slice(0, protectedAt);
   const publicPaths = [...before.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(publicPaths, ["/login", "/invite/:token", "/reset/:token", "/share/:token", "/share/:token/report"]);
