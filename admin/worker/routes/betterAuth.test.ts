@@ -89,6 +89,18 @@ test("two-factor: set up with a code, then a password alone no longer signs in",
   assert.equal(bad.status, 401);
 });
 
+test("the authenticator app shows the product's name: Musawara on the platform, never the agency's on a CRM copy", async () => {
+  for (const [mode, issuer] of [[undefined, "Musawara"], ["crm", "CRM"]] as const) {
+    const { call, cookieOf, env } = await setup();
+    env.APP_MODE = mode;
+    const cookie = cookieOf(await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } }));
+    const en = (await (await call("POST", "/api/auth/two-factor/enable", { cookie, body: { password: PASSWORD } })).json()) as any;
+    const uri = new URL(en.totpURI);
+    assert.equal(uri.searchParams.get("issuer"), issuer);
+    assert.equal(decodeURIComponent(uri.pathname), `/${issuer}:owner@x.test`);
+  }
+});
+
 test("an Owner can hand out a one-time reset link, and can remove someone's second factor", async () => {
   const { call, cookieOf, DB } = await setup();
   const owner = cookieOf(await call("POST", "/api/auth/login", { body: { email: "owner@x.test", password: PASSWORD } }));

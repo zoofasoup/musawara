@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_NAME } from "./src/lib/product";
 
 /** The CRM copy has its own entry, name and icon; the HTML file itself stays shared. */
 const crmHtml = (): Plugin => ({
@@ -11,7 +12,7 @@ const crmHtml = (): Plugin => ({
     handler: (html) =>
       html
         .replace("/src/main.tsx", "/src/main.crm.tsx")
-        .replace(/<title>.*<\/title>/, "<title>CRM</title>")
+        .replace(/<title>.*<\/title>/, () => `<title>${PRODUCT_NAME}</title>`)
         .replace(/\s*<link rel="(apple-touch-icon|manifest)"[^>]*>/g, "")
         .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />'),
   },

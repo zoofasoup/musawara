@@ -5,6 +5,8 @@ import { twoFactor } from "better-auth/plugins";
 import type { Env } from "../types";
 import { hashPassword, verifyPassword, SESSION_TTL_SECONDS } from "./auth";
 import { roleAllowedOnHost } from "./audience";
+import { isCrmMode } from "../../shared/mode";
+import { PRODUCT_NAME } from "../../src/lib/product";
 
 const cache = new WeakMap<object, Map<string, ReturnType<typeof build>>>();
 
@@ -61,7 +63,8 @@ function build(env: Env, origin: string) {
     },
     plugins: [
       twoFactor({
-        issuer: "Musawara",
+        // The name shown in the authenticator app. A CRM copy must not carry the agency's.
+        issuer: isCrmMode(env.APP_MODE) ? PRODUCT_NAME : "Musawara",
         schema: { user: { fields: { twoFactorEnabled: "two_factor_enabled" } } },
       }),
     ],
