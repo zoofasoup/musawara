@@ -10,7 +10,7 @@ const list = (values: string[]) => values.map((v, i) => <span key={v}>{i > 0 && 
 export function AudienceSummary({ rules, names, extra = 0 }: { rules: Rules; names: Names; extra?: number }) {
   const d = describeRules(rules, names);
   const verb = (kind: string, label: string) => (kind === "tag" ? `have tag` : kind === "chat" ? "" : `${label} is`);
-  const lead = d.everyone ? <>Everyone in this number</> : d.include.length === 0 && d.chosen === 0 && extra === 0 ? <span className="text-muted">Nobody yet. Add a filter, or choose Everyone.</span> : d.include.length > 0 ? <>Contacts who</> : null;
+  const lead = d.everyone ? <>Everyone in this number</> : d.include.length === 0 && d.chosen === 0 && extra === 0 ? <span className="text-muted">Nobody yet. Add a filter, or choose Everyone</span> : d.include.length > 0 ? <>Contacts who</> : null;
   return (
     <p className="text-sm leading-relaxed text-ink2">
       {lead}

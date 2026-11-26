@@ -214,7 +214,7 @@ export function CrmCampaigns() {
         </>
       ) : (
         <>
-          <PageHead title="Broadcasts" hint="Send one message to many people, paced so the number stays safe." actions={!list.error && <Btn tone="primary" icon="plus" onClick={() => setView({ kind: "new", ids: [] })}>New broadcast</Btn>} />
+          <PageHead title="Broadcasts" hint="Send one message to many people, paced so the number stays safe." actions={!list.error && Boolean(list.data?.length) && <Btn tone="primary" icon="plus" onClick={() => setView({ kind: "new", ids: [] })}>New broadcast</Btn>} />
           <WaBanner wa={wa} ready={ready} />
           {list.error && !list.data ? (
             <ErrorPanel error={list.error} onRetry={list.reload} />

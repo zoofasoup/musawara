@@ -232,6 +232,7 @@ function ChatDemo() {
       <Bubble m={msg("g3", { from_me: 1, media_type: "image", ack: 3, ts: T0 + 110 })} demo={{ src: PIC }} />
       <Bubble m={msg("g3b", { from_me: 1, media_type: "image", body: "pic with description", ack: 3, ts: T0 + 120 })} demo={{ src: PIC }} />
       <Bubble m={msg("g4", { from_me: 1, media_type: "document", ack: 2, ts: T0 + 180 })} demo={{ src: "/none.pdf", meta: { name: "Invoice-Grabsite-Edo.pdf", size: 168_000, type: "application/pdf" } }} />
+      <Bubble m={msg("g4b", { media_type: "document", ts: T0 + 190 })} demo={{ src: "/none.pdf", meta: { name: null, size: null, type: null, unavailable: true } }} />
       <Bubble m={msg("g5", { media_type: "ptt", ts: T0 + 240 })} demo={{ src: tone }} />
       <Bubble m={msg("g6", { media_type: "sticker", ts: T0 + 300 })} demo={{ src: PIC }} />
       <Bubble m={msg("g7", { media_type: "video", body: "Video loads, or says so", ts: T0 + 360 })} demo={{ src: "/none.mp4" }} />

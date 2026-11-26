@@ -8,7 +8,7 @@ import { Btn, Panel } from "../../../components/kit";
 import { fmtNum } from "../../../lib/format";
 import { fmtDuration, fmtPhone } from "../data/shared";
 import { AudienceSummary } from "./AudienceSummary";
-import { emptyCounts, renderMessage, type Contact, type Names, type Rules } from "./audience";
+import { emptyCounts, renderMessage, unknownTokens, type Contact, type Names, type Rules } from "./audience";
 import type { AudienceData } from "./useAudienceData";
 import { WaPreview } from "./WaPreview";
 
@@ -24,11 +24,12 @@ export function ReviewStep({ data, rules, names, people, skipped, setSkipped, te
   const list = useMemo(() => { const n = q.trim().toLowerCase(); return (showSkipped ? people.filter((p) => skipped.has(p.id)) : active).filter((p) => !n || p.name.toLowerCase().includes(n) || p.phone.includes(n.replace(/\D/g, "") || "\u0000")); }, [q, people, active, skipped, showSkipped]);
   const who = active[Math.min(at, Math.max(active.length - 1, 0))];
   const gaps = useMemo(() => emptyCounts(template, data.vars, active, data.valuesOfPerson).filter((g) => g.missing > 0), [template, data.vars, active]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unknown = unknownTokens(template, data.vars);
   const noName = active.filter((p) => !p.name.trim()).length;
   const usesName = /\{\s*(nama|name)\s*\}/i.test(template);
   const skip = (id: number) => { const s = new Set(skipped); if (s.has(id)) s.delete(id); else s.add(id); setSkipped(s); };
   const shownText = who ? renderMessage(template, { name: who.name, phone: who.phone, vars: data.valuesOfPerson(who.phone) }) : template;
-  const hasWarnings = gaps.length > 0 || (usesName && noName > 0) || total > 1000;
+  const hasWarnings = unknown.length > 0 || gaps.length > 0 || (usesName && noName > 0) || total > 1000;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -39,13 +40,18 @@ export function ReviewStep({ data, rules, names, people, skipped, setSkipped, te
           <AudienceSummary rules={rules} names={names} extra={extraCount} />
           <p className="text-sm text-ink2">
             {file ? <>With attachment <b className="text-ink">{file.name}</b>. </> : null}
-            Paced <b className="tnum text-ink">{delayMin}–{delayMax} s</b> apart, about <b className="text-ink">{fmtDuration(total * ((delayMin + delayMax) / 2))}</b> in total.
+            Paced <b className="tnum text-ink">{delayMin}–{delayMax} s</b> apart, <b className="text-ink">{fmtDuration(total * ((delayMin + delayMax) / 2))}</b> in total.
             {skipped.size > 0 && <> <b className="text-ink">{fmtNum(skipped.size)}</b> taken out.</>}
           </p>
         </Panel>
 
         {hasWarnings && (
           <div className="space-y-2">
+            {unknown.length > 0 && (
+              <Callout tone="crit" compact>
+                {unknown.map((t) => `{${t}}`).join(", ")} {unknown.length === 1 ? "is not a known field" : "are not known fields"}: everyone will receive {unknown.length === 1 ? "it" : "them"} exactly as typed. Go back and fix the message.
+              </Callout>
+            )}
             {gaps.map((g) => (
               <Callout key={g.token} tone="warn" compact action={<Btn tone="ghost" size="sm" onClick={() => { const s = new Set(skipped); for (const p of active) if (!(data.valuesOfPerson(p.phone)[g.token] ?? "").trim()) s.add(p.id); setSkipped(s); setAt(0); }}>Take them out</Btn>}>
                 {fmtNum(g.missing)} {g.missing === 1 ? "person has" : "people have"} no {g.label}, so {`{${g.token}}`} will be empty in their message.

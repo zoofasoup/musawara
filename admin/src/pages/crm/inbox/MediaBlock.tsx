@@ -12,7 +12,7 @@ import { accountParam } from "../crmApi";
 const mediaHref = (waId: string) => `/api/crm/media/${encodeURIComponent(waId)}${accountParam() ? `?${accountParam()}` : ""}`;
 const linkCls = "inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-medium underline underline-offset-2";
 
-export type DocMeta = { name: string | null; size: number | null; type: string | null };
+export type DocMeta = { name: string | null; size: number | null; type: string | null; unavailable?: boolean };
 /** Overrides for the style guide demo only; chats always read from the gateway route. */
 export type MediaDemo = { src?: string; meta?: DocMeta };
 
@@ -45,6 +45,12 @@ function useDocMeta(href: string, skip: boolean): DocMeta | null {
     let alive = true;
     fetch(href, { headers: { Range: "bytes=0-0" } })
       .then((r) => {
+        // An error answer (expired media, WhatsApp offline) describes itself, not the file. Not cached: it may work later.
+        if (!r.ok) {
+          if (alive) setMeta({ name: null, size: null, type: null, unavailable: true });
+          r.body?.cancel().catch(() => {});
+          return;
+        }
         const total = /\/(\d+)$/.exec(r.headers.get("content-range") ?? "");
         const m: DocMeta = { name: nameFrom(r.headers.get("content-disposition")), size: total ? Number(total[1]) : Number(r.headers.get("content-length")) || null, type: r.headers.get("content-type") };
         metaCache.set(href, m);
@@ -76,7 +82,7 @@ function DocCard({ href, pending, meta }: { href: string; pending: boolean; meta
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-ink">{meta?.name ?? "Document"}</span>
-        <span className="block text-xs text-muted">{pending ? "Sending…" : line || "Tap to open"}</span>
+        <span className="block text-xs text-muted">{pending ? "Sending…" : meta?.unavailable ? "File not available right now" : line || "Tap to open"}</span>
       </span>
       {!pending && <Download className="h-4 w-4 shrink-0 text-ink2" aria-hidden />}
     </>

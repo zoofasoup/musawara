@@ -69,7 +69,7 @@ export function MessageStep({ data, templates, template, setTemplate, file, setF
               <Btn tone="ghost" size="sm" onClick={() => setEditPace(false)}>Done</Btn>
             </div>
           ) : (
-            <p>Sent with a pause of <b className="tnum text-ink">{min}–{max} s</b> between messages{eta ? <>, about <b className="text-ink">{eta}</b> for {fmtNum(count)} people</> : ""}. <Btn tone="ghost" size="sm" onClick={() => setEditPace(true)}>Change</Btn></p>
+            <p>Sent with a pause of <b className="tnum text-ink">{min}–{max} s</b> between messages{eta ? <>, <b className="text-ink">{eta}</b> for {fmtNum(count)} people</> : ""}. <Btn tone="ghost" size="sm" onClick={() => setEditPace(true)}>Change</Btn></p>
           )}
         </div>
       </div>
