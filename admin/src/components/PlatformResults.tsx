@@ -9,6 +9,7 @@ export type Platforms = {
   ads: Array<{ key: string; name: string; spend: number; leads: number | null }>;
   channels: Array<{ name: string; orders: number; sales: number }>;
   jubelio: { last_sync_at: string | null; last_error: string | null } | null;
+  samples?: { orders: number; value: number };
 };
 
 const share = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
@@ -90,6 +91,12 @@ export function PlatformResults({ data, loading, error, onRetry }: { data?: Plat
           )}
         </div>
       </div>
+
+      {(data?.samples?.orders ?? 0) > 0 && (
+        <p className="rounded-xl bg-surface2 px-3 py-2 text-xs text-ink2">
+          Not counted as sales: {fmtNum(data!.samples!.orders)} free affiliate samples, listed at {fmtRp(data!.samples!.value)}.
+        </p>
+      )}
 
       <p className="text-xs text-muted">
         An order does not say which ad caused it: someone who saw a Meta ad can buy on Shopee or over WhatsApp.

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { makeDb } from "../testkit/d1.ts";
 import { sessionCookie } from "../testkit/session.ts";
 import { app } from "../index.ts";
-import { jubelioCfg, pickOrder, syncJubelio } from "../lib/jubelio.ts";
+import { jubelioCfg, monthlyReport, pickOrder, syncJubelio } from "../lib/jubelio.ts";
 import { clientTrend, offlineSales } from "../lib/metrics.ts";
 
 const TEAM = "https://app.musawara.id";
@@ -31,7 +31,7 @@ function fakeJubelio(orders: any[], seen: string[] = [], status = 200, completed
 
 test("only the allow-listed fields of an order are kept, on the Jakarta day, and cancellations are marked", () => {
   const row = pickOrder(order(1, "2026-09-30T18:30:00Z", "SHOPEE", "140000"))!;
-  assert.deepEqual(row, { id: 1, orderNo: "SO-1", day: "2026-10-01", channel: "SHOPEE", store: "Toko", total: 140000, status: "COMPLETED", canceled: 0, paid: 1, modified: null });
+  assert.deepEqual(row, { id: 1, orderNo: "SO-1", day: "2026-10-01", channel: "SHOPEE", store: "Toko", total: 140000, status: "COMPLETED", canceled: 0, paid: 1, modified: null, sample: 0 });
   assert.equal(JSON.stringify(row).includes("Budi"), false);
   assert.equal(pickOrder(order(2, "2026-10-01T00:00:00Z", "SHOPEE", "1", { is_canceled: true }))!.canceled, 1);
   assert.equal(pickOrder({ salesorder_id: 3 }), null);
@@ -105,4 +105,17 @@ test("orders that only the completed list still has are added, without overwriti
   await run();
   const rows = (await DB.prepare("SELECT salesorder_id id, day, total, store FROM jubelio_orders ORDER BY 1").all<any>()).results;
   assert.deepEqual(rows.map((r: any) => ({ ...r })), [{ id: 1, day: "2026-10-05", total: 1000, store: "Toko" }, { id: 2, day: "2026-08-10", total: 2000, store: "Toko" }]);
+});
+
+test("an internal order noted as a sample is not a sale, and the note text is not kept", async () => {
+  const DB = makeDb();
+  await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (2,'NurAlive','n')").run();
+  const note = "SAMPEL affiliate untuk Budi";
+  assert.equal(pickOrder(order(1, "2026-10-05T03:00:00Z", "INTERNAL", "1", { note }))!.sample, 1);
+  assert.equal(pickOrder(order(2, "2026-10-05T03:00:00Z", "SHOPEE", "1", { note: "minta sampel ya" }))!.sample, 0, "a buyer's note does not make a sample");
+  assert.equal(JSON.stringify(pickOrder(order(3, "2026-10-05T03:00:00Z", "INTERNAL", "1", { note }))).includes("Budi"), false);
+  await syncJubelio({ DB } as any, CFG, fakeJubelio([order(1, "2026-10-05T03:00:00Z", "INTERNAL", "150000", { note }), order(2, "2026-10-06T03:00:00Z", "INTERNAL", "90000")]));
+  assert.deepEqual(await offlineSales({ DB } as any, 2, "2026-10-01", "2026-10-31"), { purchases: 1, purchase_value: 90000, purchases_sent: 0 });
+  const report = await monthlyReport(DB, 2);
+  assert.deepEqual([report.months[0].orders, report.months[0].value], [1, 90000]);
 });

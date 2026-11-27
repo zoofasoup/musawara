@@ -34,7 +34,7 @@ export function channelRows(sales: Array<{ source: string | null; orders: number
 }
 
 export async function platformResults(db: D1Database, clientId: number, from: string, to: string) {
-  const [spend, leads, sales, jubelio] = await Promise.all([
+  const [spend, leads, sales, jubelio, samples] = await Promise.all([
     db.prepare("SELECT source, SUM(amount) amount FROM spend_daily WHERE client_id=? AND category='ads' AND date BETWEEN ? AND ? GROUP BY source").bind(clientId, from, to).all<{ source: string; amount: number }>(),
     db.prepare(
       "SELECT COALESCE(SUM(i.leads), 0) leads FROM insights_daily i JOIN ad_accounts a ON a.id=i.ad_account_id WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ?"
@@ -44,6 +44,8 @@ export async function platformResults(db: D1Database, clientId: number, from: st
         WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled' GROUP BY source`
     ).bind(clientId, from, to).all<{ source: string | null; orders: number; value: number }>(),
     db.prepare("SELECT last_sync_at, last_error FROM jubelio_sync WHERE client_id=?").bind(clientId).first<{ last_sync_at: string | null; last_error: string | null }>(),
+    db.prepare("SELECT COUNT(*) orders, COALESCE(SUM(total), 0) value FROM jubelio_orders WHERE client_id=? AND sample=1 AND canceled=0 AND paid=1 AND day BETWEEN ? AND ?")
+      .bind(clientId, from, to).first<{ orders: number; value: number }>(),
   ]);
-  return { ads: adRows(spend.results, leads?.leads ?? 0), channels: channelRows(sales.results), jubelio: jubelio ?? null };
+  return { ads: adRows(spend.results, leads?.leads ?? 0), channels: channelRows(sales.results), jubelio: jubelio ?? null, samples: samples ?? { orders: 0, value: 0 } };
 }

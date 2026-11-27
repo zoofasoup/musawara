@@ -27,10 +27,13 @@ async function login(cfg: JubelioCfg, fetchImpl: typeof fetch): Promise<string> 
   return String(body.token);
 }
 
-export type OrderRow = { id: number; orderNo: string; day: string; channel: string; store: string | null; total: number; status: string | null; canceled: number; paid: number; modified: string | null };
+export type OrderRow = { id: number; orderNo: string; day: string; channel: string; store: string | null; total: number; status: string | null; canceled: number; paid: number; modified: string | null; sample: number };
 
 const jakartaDay = (iso: string) => new Date(Date.parse(iso) + 7 * 3600_000).toISOString().slice(0, 10);
 const text = (v: unknown, max = 80) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+
+/** A free affiliate sample: typed into Jubelio by the team and marked in the note. Marketplace notes come from buyers, so only INTERNAL counts. */
+const SAMPLE_NOTE = /\b(sampel|sample|free affiliate|affiliate free)\b/i;
 
 /** The allow-list. Returns null for a row without an id or a readable date. */
 export function pickOrder(raw: any): OrderRow | null {
@@ -50,6 +53,7 @@ export function pickOrder(raw: any): OrderRow | null {
     canceled: raw.is_canceled === true || /^CANCEL/i.test(String(raw.internal_status ?? "")) || /^CANCELED$/i.test(String(raw.wms_status ?? "")) ? 1 : 0,
     paid: raw.is_paid === true ? 1 : 0,
     modified: text(raw.last_modified, 40),
+    sample: String(raw.channel_name) === "INTERNAL" && SAMPLE_NOTE.test(String(raw.note ?? "")) ? 1 : 0, // the note itself is not kept
   };
 }
 
@@ -72,10 +76,10 @@ export async function syncJubelio(env: Pick<Env, "DB">, cfg: JubelioCfg, fetchIm
       const list: unknown[] = Array.isArray(body?.data) ? body.data : [];
       const orders = list.map(pickOrder).filter((o): o is OrderRow => o !== null);
       const stmts = orders.map((o) => env.DB.prepare(
-        `INSERT INTO jubelio_orders (client_id, salesorder_id, order_no, day, channel, store, total, status, canceled, paid, modified) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        `INSERT INTO jubelio_orders (client_id, salesorder_id, order_no, day, channel, store, total, status, canceled, paid, modified, sample) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT (client_id, salesorder_id) DO UPDATE SET order_no=excluded.order_no, day=excluded.day, channel=excluded.channel, store=excluded.store,
-           total=excluded.total, status=excluded.status, canceled=excluded.canceled, paid=excluded.paid, modified=excluded.modified`
-      ).bind(cfg.clientId, o.id, o.orderNo, o.day, o.channel, o.store, o.total, o.status, o.canceled, o.paid, o.modified));
+           total=excluded.total, status=excluded.status, canceled=excluded.canceled, paid=excluded.paid, modified=excluded.modified, sample=excluded.sample`
+      ).bind(cfg.clientId, o.id, o.orderNo, o.day, o.channel, o.store, o.total, o.status, o.canceled, o.paid, o.modified, o.sample));
       for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
       saved += orders.length;
       if (list.length < PAGE_SIZE || page * PAGE_SIZE >= Number(body?.totalCount ?? 0)) break;
@@ -90,9 +94,9 @@ export async function syncJubelio(env: Pick<Env, "DB">, cfg: JubelioCfg, fetchIm
       const body: any = await res.json();
       const list: unknown[] = Array.isArray(body?.data) ? body.data : [];
       const stmts = list.map(pickOrder).filter((o): o is OrderRow => o !== null).map((o) => env.DB.prepare(
-        `INSERT INTO jubelio_orders (client_id, salesorder_id, order_no, day, channel, store, total, status, canceled, paid, modified) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        `INSERT INTO jubelio_orders (client_id, salesorder_id, order_no, day, channel, store, total, status, canceled, paid, modified, sample) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT (client_id, salesorder_id) DO NOTHING`
-      ).bind(cfg.clientId, o.id, o.orderNo, o.day, o.channel, o.store, o.total, o.status, o.canceled, o.paid, o.modified));
+      ).bind(cfg.clientId, o.id, o.orderNo, o.day, o.channel, o.store, o.total, o.status, o.canceled, o.paid, o.modified, o.sample));
       for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
       if (list.length < PAGE_SIZE || page * PAGE_SIZE >= Number(body?.totalCount ?? 0)) break;
     }
@@ -114,7 +118,7 @@ export async function monthlyReport(db: D1Database, clientId: number) {
   const [orders, spend, sync] = await Promise.all([
     db.prepare(
       `SELECT substr(day,1,7) month, channel, SUM(canceled=0 AND paid=1) orders, SUM(CASE WHEN canceled=0 AND paid=1 THEN total ELSE 0 END) value, SUM(canceled) canceled, SUM(canceled=0 AND paid=0) unpaid
-         FROM jubelio_orders WHERE client_id=? GROUP BY 1,2 ORDER BY 1 DESC`
+         FROM jubelio_orders WHERE client_id=? AND sample=0 GROUP BY 1,2 ORDER BY 1 DESC`
     ).bind(clientId).all<{ month: string; channel: string; orders: number; value: number; canceled: number; unpaid: number }>(),
     db.prepare("SELECT substr(date,1,7) month, source, SUM(amount) amount FROM spend_daily WHERE client_id=? GROUP BY 1,2").bind(clientId).all<{ month: string; source: string; amount: number }>(),
     db.prepare("SELECT last_sync_at, last_error FROM jubelio_sync WHERE client_id=?").bind(clientId).first<{ last_sync_at: string | null; last_error: string | null }>(),
