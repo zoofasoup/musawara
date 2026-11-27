@@ -80,6 +80,22 @@ export async function syncJubelio(env: Pick<Env, "DB">, cfg: JubelioCfg, fetchIm
       saved += orders.length;
       if (list.length < PAGE_SIZE || page * PAGE_SIZE >= Number(body?.totalCount ?? 0)) break;
     }
+    // The "all orders" list leaves out older finished orders (August 2026 was almost missing); Jubelio keeps them in a list of their
+    // own. Read it too and only add what is not stored yet, so the main list stays the authority for orders it does return.
+    for (let page = 1; ; page++) {
+      if (page > MAX_PAGES) throw new JubelioError("Too many completed orders in one run");
+      const url = `${cfg.host}/sales/orders/completed/?${new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy: "transaction_date", sortDirection: "ASC" })}`;
+      const res = await fetchImpl(url, { headers: { authorization: token }, signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) throw new JubelioError(res.status === 429 ? "Jubelio is rate limiting requests, try again later" : `Jubelio answered ${res.status} for the completed orders`);
+      const body: any = await res.json();
+      const list: unknown[] = Array.isArray(body?.data) ? body.data : [];
+      const stmts = list.map(pickOrder).filter((o): o is OrderRow => o !== null).map((o) => env.DB.prepare(
+        `INSERT INTO jubelio_orders (client_id, salesorder_id, order_no, day, channel, store, total, status, canceled, paid, modified) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+         ON CONFLICT (client_id, salesorder_id) DO NOTHING`
+      ).bind(cfg.clientId, o.id, o.orderNo, o.day, o.channel, o.store, o.total, o.status, o.canceled, o.paid, o.modified));
+      for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+      if (list.length < PAGE_SIZE || page * PAGE_SIZE >= Number(body?.totalCount ?? 0)) break;
+    }
     await env.DB.prepare(
       `INSERT INTO jubelio_sync (client_id, synced_to, last_sync_at, last_error) VALUES (?,?,datetime('now'),NULL)
        ON CONFLICT (client_id) DO UPDATE SET synced_to=excluded.synced_to, last_sync_at=excluded.last_sync_at, last_error=NULL`

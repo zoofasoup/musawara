@@ -12,11 +12,15 @@ const order = (id: number, at: string, channel: string, total: string, extra: Re
   salesorder_id: id, salesorder_no: `SO-${id}`, transaction_date: at, channel_name: channel, store_name: "Toko", grand_total: total, is_paid: true, internal_status: "COMPLETED",
   customer_name: "Budi Santoso", shipping_full_name: "Budi", shipping_full_address: "Jl. Melati 5", customer_phone: "0812", note: "kirim pagi", ...extra,
 });
-function fakeJubelio(orders: any[], seen: string[] = [], status = 200) {
+function fakeJubelio(orders: any[], seen: string[] = [], status = 200, completed: any[] = []) {
   return (async (url: string, init: any) => {
     const u = new URL(url);
     if (u.pathname === "/login") { seen.push("login"); return Response.json(JSON.parse(init.body).password === "pw" ? { token: "T1" } : {}, { status: 200 }); }
     assert.equal(init.headers.authorization, "T1", "the token goes in as is");
+    if (u.pathname === "/sales/orders/completed/") {
+      const page = Number(u.searchParams.get("page")), size = Number(u.searchParams.get("pageSize"));
+      return Response.json({ data: completed.slice((page - 1) * size, page * size), totalCount: completed.length });
+    }
     assert.equal(u.searchParams.get("sort_by"), "transaction_date");
     seen.push(u.searchParams.get("last_modified_since") ?? `all from ${u.searchParams.get("transaction_date_from")}`);
     if (status !== 200) return new Response("no", { status });
@@ -89,4 +93,16 @@ test("the Overview counts a Jubelio brand from paid orders only, and leaves othe
   assert.equal((await offlineSales(env, 1, "2026-10-01", "2026-10-31")).purchase_value, 30000000);
   const trend = await clientTrend(env, 2, "2026-10-01", "2026-10-31");
   assert.deepEqual(trend.days.map((d: any) => [d.date, d.purchases]), [["2026-10-05", 1], ["2026-10-06", 1]]);
+});
+
+test("orders that only the completed list still has are added, without overwriting what the main list said", async () => {
+  const DB = makeDb();
+  await DB.prepare("INSERT INTO clients (id,name,slug) VALUES (2,'NurAlive','n')").run();
+  const main = [order(1, "2026-10-05T03:00:00Z", "SHOPEE", "1000")];
+  const completed = [order(1, "2026-10-05T03:00:00Z", "SHOPEE", "999999", { store_name: null }), order(2, "2026-08-10T03:00:00Z", "SHOPEE", "2000")];
+  const run = () => syncJubelio({ DB } as any, CFG, fakeJubelio(main, [], 200, completed), Date.parse("2026-11-27T04:00:00Z"));
+  await run();
+  await run();
+  const rows = (await DB.prepare("SELECT salesorder_id id, day, total, store FROM jubelio_orders ORDER BY 1").all<any>()).results;
+  assert.deepEqual(rows.map((r: any) => ({ ...r })), [{ id: 1, day: "2026-10-05", total: 1000, store: "Toko" }, { id: 2, day: "2026-08-10", total: 2000, store: "Toko" }]);
 });
