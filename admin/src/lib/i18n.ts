@@ -8,7 +8,7 @@ export const LANGS: Lang[] = ["en", "id"];
 
 export const ID: Record<string, string> = {
   // navigation
-  Work: "Kerja", Tools: "Alat", Overview: "Ringkasan", Clients: "Klien", Client: "Klien", Approvals: "Persetujuan", Planning: "Perencanaan", Board: "Papan",
+  Work: "Kerja", Tools: "Alat", Overview: "Ringkasan", Clients: "Klien", Client: "Klien", Approvals: "Persetujuan", "Content Plan": "Rencana Konten", Tasks: "Tugas", Board: "Papan", Planning: "Perencanaan",
   Spend: "Biaya iklan", Settings: "Pengaturan", Profile: "Profil", "Sign out": "Keluar", Menu: "Menu", Account: "Akun", More: "Lainnya", Ads: "Iklan", Sales: "Penjualan",
   Alerts: "Peringatan", Assets: "Aset", "Brand knowledge": "Pengetahuan merek", Organic: "Organik", Report: "Laporan", Creatives: "Kreatif",
   "Connect Instagram": "Hubungkan Instagram", "Connect Shopee": "Hubungkan Shopee", "Not synced yet": "Belum disinkron", Updated: "Diperbarui", account: "akun", accounts: "akun",

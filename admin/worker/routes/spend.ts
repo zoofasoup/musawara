@@ -4,6 +4,7 @@
 import { Hono } from "hono";
 import type { Env, Vars } from "../types";
 import { addDays } from "../lib/dates";
+import { SPREAD_NOTE, spreadOverDays } from "../lib/spread.ts";
 import { canReachClient, reachVia, scopeSql } from "../middleware";
 import type { AuthUser } from "../types";
 
@@ -127,20 +128,24 @@ spend.post("/import", async (c) => {
   if (clientId === null ? c.get("user").client_ids !== null : !canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
   if (clientId !== null && !(await c.env.DB.prepare("SELECT 1 FROM clients WHERE id=?").bind(clientId).first())) return c.json({ error: "Unknown client" }, 400);
 
+  // a period's total is stored as an even share per day, marked as an estimate
+  const days = period && rows.length === 1 ? spreadOverDays(rows[0], b.from, b.to) : rows;
+  const note = days === rows ? IMPORT_NOTE : SPREAD_NOTE;
+
   const manual = await c.env.DB.prepare(
-    "SELECT date FROM spend_entries WHERE client_id IS ? AND source=? AND category='ads' AND COALESCE(note,'') <> ? AND date BETWEEN ? AND ?"
-  ).bind(clientId, b.source, IMPORT_NOTE, rows.map((r) => r.date).sort()[0], rows.map((r) => r.date).sort().at(-1)).all<{ date: string }>();
+    "SELECT date FROM spend_entries WHERE client_id IS ? AND source=? AND category='ads' AND COALESCE(note,'') NOT IN (?,?) AND date BETWEEN ? AND ?"
+  ).bind(clientId, b.source, IMPORT_NOTE, SPREAD_NOTE, rows.map((r) => r.date).sort()[0], rows.map((r) => r.date).sort().at(-1)).all<{ date: string }>();
   const manualDates = new Set(manual.results.map((r) => r.date));
 
   const clear = (table: string, extra: string, extraBinds: unknown[], from: string, to: string) =>
     c.env.DB.prepare(`DELETE FROM ${table} WHERE client_id IS ? AND source=?${extra} AND date BETWEEN ? AND ?`).bind(clientId, b.source, ...extraBinds, from, to);
   const spans = period ? [[b.from, b.to]] : rows.map((r) => [r.date, r.date]);
-  const results = clientId === null ? [] : rows.filter((r) => r.revenue !== undefined);
+  const results = clientId === null ? [] : days.filter((r) => r.revenue !== undefined);
   await c.env.DB.batch([
-    ...spans.map(([from, to]) => clear("spend_entries", " AND category='ads' AND note=?", [IMPORT_NOTE], from, to)),
+    ...spans.map(([from, to]) => clear("spend_entries", " AND category='ads' AND note IN (?,?)", [IMPORT_NOTE, SPREAD_NOTE], from, to)),
     ...(results.length ? spans.map(([from, to]) => clear("ad_results", "", [], from, to)) : []),
-    ...rows.filter((r) => r.amount > 0).map((r) =>
-      c.env.DB.prepare("INSERT INTO spend_entries (client_id, source, category, date, amount, note) VALUES (?,?,'ads',?,?,?)").bind(clientId, b.source, r.date, r.amount, IMPORT_NOTE)),
+    ...days.filter((r) => r.amount > 0).map((r) =>
+      c.env.DB.prepare("INSERT INTO spend_entries (client_id, source, category, date, amount, note) VALUES (?,?,'ads',?,?,?)").bind(clientId, b.source, r.date, r.amount, note)),
     ...results.filter((r) => r.revenue! > 0 || (r.orders ?? 0) > 0).map((r) =>
       c.env.DB.prepare("INSERT INTO ad_results (client_id, source, date, revenue, orders) VALUES (?,?,?,?,?)").bind(clientId, b.source, r.date, r.revenue, r.orders ?? 0)),
   ]);

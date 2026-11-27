@@ -23,8 +23,8 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: "/", label: "Overview", icon: "home", end: true },
       { to: "/clients", label: "Clients", icon: "building" },
       { to: "/approvals", label: "Approvals", icon: "checkCircle" },
-      { to: "/planning", label: "Planning", icon: "clock" },
-      { to: "/board", label: "Board", icon: "board" },
+      { to: "/planning", label: "Content Plan", icon: "clock" },
+      { to: "/board", label: "Tasks", icon: "board" },
     ],
   },
   {

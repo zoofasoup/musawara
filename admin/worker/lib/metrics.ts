@@ -129,7 +129,7 @@ export function trendBucket(from: string, to: string): TrendBucket {
 }
 
 /** Start of the bucket a date falls in. Weeks start on Monday: date(d, '-6 days', 'weekday 1'). */
-const bucketKey = (col: string, bucket: TrendBucket) =>
+export const bucketKey = (col: string, bucket: TrendBucket) =>
   bucket === "day" ? col : bucket === "week" ? `date(${col}, '-6 days', 'weekday 1')` : `substr(${col}, 1, 7) || '-01'`;
 
 /**

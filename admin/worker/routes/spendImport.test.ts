@@ -44,14 +44,18 @@ test("bad input and other people's clients are refused", async () => {
   assert.deepEqual(await rows(), ["2026-09-01:7"]);
 });
 
-test("a period replaces what was imported inside it, and the platform's own results are kept per client", async () => {
-  const { post, rows, DB } = await setup();
+test("a period's total is spread per day, replaces what was imported inside it, and keeps the platform's own results", async () => {
+  const { post, DB } = await setup();
   const month = (to: string, amount: number) => ({ source: "tiktok", client_id: 1, from: "2026-11-01", to, rows: [{ date: to, amount, revenue: amount * 2, orders: 3 }] });
   assert.equal((await post(1, month("2026-11-27", 500))).status, 200);
   assert.equal((await post(1, month("2026-11-30", 700))).status, 200);
-  assert.deepEqual(await rows(), ["2026-09-01:7", "2026-11-30:700"]);
-  const results = (await DB.prepare("SELECT date, revenue, orders FROM ad_results").all<any>()).results.map((r: any) => ({ ...r }));
-  assert.deepEqual(results, [{ date: "2026-11-30", revenue: 1400, orders: 3 }]);
+  const one = async (sql: string) => ({ ...(await DB.prepare(sql).first<any>()) });
+  assert.deepEqual(
+    await one("SELECT COUNT(*) n, SUM(amount) amount, MIN(date) a, MAX(date) b, SUM(amount <> CAST(amount AS INTEGER)) broken FROM spend_entries WHERE client_id=1 AND date >= '2026-11-01' AND note LIKE '%spread per day%'"),
+    { n: 30, amount: 700, a: "2026-11-01", b: "2026-11-30", broken: 0 },
+  );
+  assert.deepEqual(await one("SELECT SUM(revenue) revenue, SUM(orders) orders FROM ad_results"), { revenue: 1400, orders: 3 });
+  assert.equal((await one("SELECT COUNT(*) n FROM spend_entries WHERE date='2026-09-01'")).n, 1, "other entries stay");
   assert.equal((await post(1, { ...month("2026-11-30", 1), from: "2026-12-01" })).status, 400, "rows must lie inside the period");
   assert.equal((await post(1, { source: "tiktok", client_id: 1, rows: [{ date: "2026-11-01", amount: 1, revenue: -2 }] })).status, 400);
 });

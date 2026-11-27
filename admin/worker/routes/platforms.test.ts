@@ -4,23 +4,9 @@ import assert from "node:assert/strict";
 import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import { app } from "../index.ts";
-import { adRows, channelRows } from "../lib/platforms.ts";
+import { spreadOverDays } from "../lib/spread.ts";
 
 const HOST = "https://app.musawara.id";
-
-test("ad spend is listed per ad platform and sales per place of order, never mixed in one row", () => {
-  const spend = [{ source: "meta", amount: 1000 }, { source: "tiktok", amount: 40 }, { source: "tokopedia", amount: 10 }];
-  assert.deepEqual(adRows(spend, 4), [
-    { key: "meta", name: "Meta Ads", spend: 1000, leads: 4 },
-    { key: "shopee", name: "Shopee Ads", spend: 0, leads: null },
-    { key: "tiktok", name: "TikTok / Tokopedia Ads", spend: 50, leads: null },
-  ]);
-  assert.deepEqual(adRows([...spend, { source: "other", amount: 5 }], 0).at(-1), { key: "other", name: "Other ads", spend: 5, leads: null });
-  assert.deepEqual(
-    channelRows([{ source: "Manual (internal)", orders: 2, value: 300 }, { source: "Tokopedia", orders: 1, value: 20 }, { source: "TikTok / Tokopedia Shop", orders: 1, value: 80 }, { source: "Shopee", orders: 3, value: 500 }]),
-    [{ name: "Shopee", orders: 3, sales: 500 }, { name: "Manual (internal)", orders: 2, sales: 300 }, { name: "TikTok / Tokopedia", orders: 2, sales: 100 }],
-  );
-});
 
 async function setup(env: Record<string, string> = {}) {
   const DB = makeDb();
@@ -33,18 +19,39 @@ async function setup(env: Record<string, string> = {}) {
   return { DB, call, jobs };
 }
 
-test("the platforms route counts paid orders and ad spend (not fees) inside the range", async () => {
+const plain = (rows: any[]) => rows.map((r) => ({ ...r }));
+
+test("a spread total adds up exactly, in whole numbers", () => {
+  const days = spreadOverDays({ amount: 100, revenue: 10, orders: 2 }, "2026-11-01", "2026-11-03");
+  assert.deepEqual(days.map((d) => d.amount), [33, 34, 33]);
+  assert.equal(days.reduce((n, d) => n + d.revenue!, 0), 10);
+  assert.equal(days.reduce((n, d) => n + d.orders!, 0), 2);
+  assert.ok(days.every((d) => Number.isInteger(d.orders)));
+});
+
+test("ad spend and shop orders are listed per platform inside the range; fees, cancelled orders and other days are left out", async () => {
   const { DB, call } = await setup();
-  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'shopee','ads','2026-10-30',999),(1,'shopee','fee','2026-11-02',77)").run();
+  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'tokopedia','ads','2026-11-02',5),(1,'shopee','ads','2026-10-30',999),(1,'shopee','fee','2026-11-02',77)").run();
+  await DB.prepare("INSERT INTO ad_results (client_id,source,date,revenue,orders) VALUES (1,'shopee','2026-11-02',500,4)").run();
   await DB.prepare(
     `INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES
-     (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','SHOPEE',700,1,0),(1,3,'c','2026-10-01','SHOPEE',5,0,1)`
+     (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','SHOPEE',700,1,0),(1,3,'c','2026-10-01','SHOPEE',5,0,1),(1,4,'d','2026-11-03','INTERNAL',9,0,1)`
   ).run();
   const res = await call("GET", "/api/clients/1/platforms?from=2026-11-01&to=2026-11-30");
   assert.equal(res.status, 200);
   const body: any = await res.json();
-  assert.deepEqual(body.ads.map((a: any) => [a.key, a.spend]), [["meta", 0], ["shopee", 100], ["tiktok", 0]]);
-  assert.deepEqual(body.channels, [{ name: "Shopee", orders: 1, sales: 400 }]);
+  assert.equal(body.bucket, "day");
+  assert.deepEqual(plain(body.ads).sort((a, b) => a.platform.localeCompare(b.platform)), [
+    { date: "2026-11-02", platform: "shopee", spend: 100, revenue: 500, orders: 4 },
+    { date: "2026-11-02", platform: "tiktok", spend: 5, revenue: 0, orders: 0 },
+  ]);
+  assert.deepEqual(plain(body.shop).sort((a, b) => a.place.localeCompare(b.place)), [
+    { date: "2026-11-03", place: "other", orders: 1, sales: 9 },
+    { date: "2026-11-03", place: "shopee", orders: 1, sales: 400 },
+  ]);
+  assert.deepEqual(body.estimated, []);
+  const monthly: any = await (await call("GET", "/api/clients/1/platforms?from=2026-10-01&to=2026-11-30&bucket=month")).json();
+  assert.deepEqual([...new Set(monthly.ads.map((r: any) => r.date))], ["2026-10-01", "2026-11-01"]);
 });
 
 test("Sync now also reads Jubelio for the brand it belongs to", async () => {
@@ -66,20 +73,6 @@ test("Sync now also reads Jubelio for the brand it belongs to", async () => {
   }
 });
 
-test("each platform is shown month by month with its own results and its shop orders", async () => {
-  const { DB, call } = await setup();
-  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-10-31',100),(1,'shopee','ads','2026-11-27',200)").run();
-  await DB.prepare("INSERT INTO ad_results (client_id,source,date,revenue,orders) VALUES (1,'shopee','2026-11-27',500,4)").run();
-  await DB.prepare("INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','INTERNAL',9,0,1)").run();
-  const body: any = await (await call("GET", "/api/clients/1/platforms?from=2026-10-01&to=2026-11-30")).json();
-  assert.deepEqual(body.detail.shopee, [
-    { month: "2026-10", spend: 100, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0, closings: 0, closingValue: 0 },
-    { month: "2026-11", spend: 200, result: 500, adOrders: 4, shopOrders: 1, shopSales: 400, closings: 0, closingValue: 0 },
-  ]);
-  assert.deepEqual(body.detail.meta, []);
-  assert.deepEqual(body.detail.tiktok, []);
-});
-
 test("CS closings from Meta are listed on the Meta tab and never added to a Jubelio brand's sales", async () => {
   const { DB, call } = await setup();
   await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'shopee','fee','2026-11-02',77)").run();
@@ -90,7 +83,7 @@ test("CS closings from Meta are listed on the Meta tab and never added to a Jube
   ).run();
   const range = "from=2026-11-01&to=2026-11-30";
   const platforms: any = await (await call("GET", `/api/clients/1/platforms?${range}`)).json();
-  assert.deepEqual(platforms.detail.meta, [{ month: "2026-11", spend: 0, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0, closings: 2, closingValue: 200 }]);
+  assert.deepEqual(platforms.ads.filter((r: any) => r.platform === "meta").map((r: any) => [r.date, r.orders, r.revenue]), [["2026-11-03", 1, 150], ["2026-11-04", 1, 50]]);
   const { current }: any = await (await call("GET", `/api/clients/1/summary?${range}`)).json();
   assert.equal(current.purchases, 1);
   assert.equal(current.purchase_value, 400);

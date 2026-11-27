@@ -1,11 +1,14 @@
-// Creative view: every ad with delivery in the range, with the metrics that matter and a
-// verdict against the client's own ads. Sort by what you are judging.
+// The Ads page: everything for a media buying decision in one period. Meta numbers, trend and campaigns (MetaSections), then every
+// ad with delivery and a verdict against the client's own ads, then the Shopee and TikTok totals (their reports have no campaigns).
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { useMemo, useState } from "react";
 import { useApi } from "../lib/api";
-import { presetByKey, type DateRange } from "../lib/dates";
-import { DateRangePicker } from "../components/DateRangePicker";
+import { fmtNum, fmtRp } from "../lib/format";
+import { useSharedRange } from "../lib/range";
+import { MetaSections } from "../components/MetaSections";
+import { PLATFORM_NAME, totalsOf, type Platforms } from "../components/PlatformOverview";
+import { RangeBar } from "../components/RangeBar";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
 import { Bento, Empty } from "../components/kit";
@@ -23,18 +26,21 @@ const SORTS: Record<string, [string, (a: Creative, b: Creative) => number]> = {
 };
 
 export function CreativeView({ clientId }: { clientId: number }) {
-  const [range, setRange] = useState<DateRange>(presetByKey("month"));
+  const period = useSharedRange();
+  const { range } = period;
   const [sort, setSort] = useState("cpl");
   const { user } = useAuth();
   const { data, error, loading, reload } = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
+  const platforms = useApi<Platforms>(`/clients/${clientId}/platforms?from=${range.from}&to=${range.to}`);
   const ads = useMemo(() => [...(data?.ads ?? [])].sort(SORTS[sort][1]), [data, sort]);
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-ink">Creatives</h1>
-        <DateRangePicker value={range} onChange={setRange} />
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <h1 className="text-lg font-semibold text-ink">Ads</h1>
+        <RangeBar value={period} />
       </div>
+      <MetaSections clientId={clientId} period={period}>
       {user?.role === "admin" && !loading && !error && (data?.ads.length ?? 0) >= 3 && (
         <Bento title="Winners and boncos" subtitle="Spend across, cost per lead up. Tap a dot to jump to its card." className="mb-6">
           <CreativeQuadrant
@@ -65,6 +71,24 @@ export function CreativeView({ clientId }: { clientId: number }) {
         <Empty title="No ads with delivery in this period" />
       ) : (
         <CreativeGrid ads={ads} />
+      )}
+      </MetaSections>
+      {platforms.data && (
+        <Bento title="Shopee and TikTok ads" subtitle="What each platform reports for its own ads. Campaign detail is not stored." className="mt-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr>{["Platform", "Ad spend", "Sales from its ads", "Purchases", "ROAS", "CPA"].map((h, i) => <th key={h} className={`whitespace-nowrap px-3 py-2 text-xs font-medium text-muted ${i ? "text-right" : "text-left"}`}>{h}</th>)}</tr></thead>
+              <tbody>
+                {(["shopee", "tiktok"] as const).map((key) => {
+                  const t = totalsOf(platforms.data!, key);
+                  const cells = [PLATFORM_NAME[key], t.spend ? fmtRp(t.spend) : "–", t.sales ? fmtRp(t.sales) : "–", t.count ? fmtNum(t.count) : "–", t.roas == null ? "–" : `${fmtNum(t.roas, 2)}x`, fmtRp(t.cpa)];
+                  return <tr key={key} className="border-t border-border">{cells.map((v, i) => <td key={i} className={`whitespace-nowrap px-3 py-2 text-ink ${i ? "tnum text-right" : "font-medium"}`}>{v}</td>)}</tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+          {platforms.data.estimated.length > 0 && <p className="mt-3 text-xs text-muted">Monthly totals are spread evenly per day, so parts of a month are estimates.</p>}
+        </Bento>
       )}
     </div>
   );

@@ -66,7 +66,7 @@ export function Board() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Board" subtitle="Tasks across clients, in four columns." actions={<ClientFilter />} />
+      <PageHeader title="Tasks" subtitle="Tasks across clients, in four columns." actions={<ClientFilter />} />
 
       <form onSubmit={add} className="flex flex-wrap gap-2">
         <NativeSelect required value={form.client_id || clientFilter} onChange={(e) => setForm({ ...form, client_id: e.target.value })} aria-label="Client">

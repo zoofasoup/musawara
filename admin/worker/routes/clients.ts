@@ -77,7 +77,8 @@ clients.get("/:clientId/summary", async (c) => {
 
 clients.get("/:clientId/platforms", async (c) => {
   const { from, to } = range(c);
-  return c.json(await platformResults(c.env.DB, c.get("access").clientId, from, to));
+  const bucket = (["day", "week", "month"] as const).find((b) => b === c.req.query("bucket")); // a comparison period is cut like the current one
+  return c.json(await platformResults(c.env.DB, c.get("access").clientId, from, to, bucket));
 });
 
 clients.get("/:clientId/trend", async (c) => {

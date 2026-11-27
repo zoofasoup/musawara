@@ -91,7 +91,7 @@ export function Planning() {
   return (
     <div className="max-w-7xl">
       {node}
-      <PageHeader title="Planning" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><UnassignedImports /><WorkflowNotifications notify={notify} /><NotionSync onDone={reload} notify={notify} /></>} />
+      <PageHeader title="Content Plan" subtitle="Content calendar and idea board. Times are Asia/Jakarta (WIB)." actions={<><ClientFilter /><UnassignedImports /><WorkflowNotifications notify={notify} /><NotionSync onDone={reload} notify={notify} /></>} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "calendar" | "board")} className="mt-4">
         <TabsList>

@@ -1,4 +1,4 @@
-// Trend for the three numbers that matter: spend, leads, purchases. One metric at a time, one unit,
+// Trend for up to three numbers (by default spend, leads, purchases). One metric at a time, one unit,
 // one axis, so the chart never mixes money with counts or ratios. Each tab shows its period total
 // and the change against the comparison period; the dashed line is the comparison period.
 
@@ -9,19 +9,21 @@ import { Delta } from "./ui";
 import { Empty } from "./kit";
 
 export type TrendDay = { date: string; spend: number; leads: number; purchases: number };
+export type TrendMetric = { key: string; label: string; fmt: (v: number) => string; color: string; money?: boolean };
+type Point = { date: string } & Record<string, any>;
 
-const METRICS = [
-  { key: "spend", label: "Spend", fmt: (v: number) => fmtRp(v), color: "var(--color-chart-1)" },
-  { key: "leads", label: "Leads", fmt: (v: number) => fmtNum(v), color: "var(--color-chart-4)" },
-  { key: "purchases", label: "Purchases", fmt: (v: number) => fmtNum(v), color: "var(--color-chart-3)" },
-] as const;
-type Key = (typeof METRICS)[number]["key"];
+const METRICS: TrendMetric[] = [
+  { key: "spend", label: "Spend", fmt: (v) => fmtRp(v), color: "var(--color-chart-1)", money: true },
+  { key: "leads", label: "Leads", fmt: (v) => fmtNum(v), color: "var(--color-chart-4)" },
+  { key: "purchases", label: "Purchases", fmt: (v) => fmtNum(v), color: "var(--color-chart-3)" },
+];
 
-const sum = (days: TrendDay[] | undefined, k: Key) => (days ? days.reduce((a, d) => a + (d[k] ?? 0), 0) : null);
+const sum = (days: Point[] | undefined, k: string) => (days ? days.reduce((a, d) => a + (d[k] ?? 0), 0) : null);
 
-export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: TrendDay[] }) {
-  const [key, setKey] = useState<Key>("spend");
-  const m = METRICS.find((x) => x.key === key)!;
+export function MetricTrend({ days, compare, metrics = METRICS }: { days: Point[]; compare?: Point[]; metrics?: TrendMetric[] }) {
+  const [chosen, setKey] = useState(metrics[0].key);
+  const m = metrics.find((x) => x.key === chosen) ?? metrics[0];
+  const key = m.key;
   const hasCompare = !!compare && compare.length > 0;
 
   // the comparison period is drawn point by point against the current one (day 1 with day 1, ...)
@@ -34,8 +36,8 @@ export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: Tre
 
   return (
     <div>
-      <div role="tablist" aria-label="Metric" className="mb-4 grid grid-cols-3 gap-2">
-        {METRICS.map((x) => {
+      <div role="tablist" aria-label="Metric" className={`mb-4 grid gap-2 ${metrics.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+        {metrics.map((x) => {
           const total = sum(days, x.key) ?? 0;
           const prevTotal = hasCompare ? sum(compare, x.key) : null;
           const on = key === x.key;
@@ -54,7 +56,7 @@ export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: Tre
                 {x.label}
               </span>
               <span key={String(total)} className="swap-in tnum mt-1 block text-sm font-semibold text-ink sm:truncate sm:text-base" title={x.fmt(total)}>
-                {x.key === "spend" ? (
+                {x.money ? (
                   <>
                     <span className="sm:hidden">Rp {fmtCompact(total)}</span>
                     <span className="hidden sm:inline">{x.fmt(total)}</span>
@@ -74,7 +76,7 @@ export function MetricTrend({ days, compare }: { days: TrendDay[]; compare?: Tre
           <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
             <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 5" vertical={false} />
             <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--color-border2)" }} tickLine={false} minTickGap={24} />
-            <YAxis tickFormatter={(v: number) => (key === "spend" ? fmtCompact(v) : fmtNum(v))} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={44} allowDecimals={false} />
+            <YAxis tickFormatter={(v: number) => (m.money ? fmtCompact(v) : fmtNum(v))} tick={{ fill: "var(--color-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={44} allowDecimals={false} />
             <Tooltip
               cursor={{ fill: "var(--color-hair)" }}
               content={({ active, payload }) => {
