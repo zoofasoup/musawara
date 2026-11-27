@@ -1,4 +1,5 @@
-// A client's Overview: is the advertising paying off (PlatformOverview). The read-only share link shows the Meta view instead.
+// A client's Overview. A brand that sells through marketplaces gets the per-platform view (PlatformOverview); everyone else, and the
+// read-only share link, gets the Meta view with every number (MetaSections).
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -13,7 +14,7 @@ import { ClientAvatar } from "../components/Layout";
 import { MetaSections, type Meta } from "../components/MetaSections";
 import { PlatformOverview } from "../components/PlatformOverview";
 import { RangeBar } from "../components/RangeBar";
-import { ErrorState } from "../components/ui";
+import { CardSkeleton, ErrorState } from "../components/ui";
 import { Btn, useNotify } from "../components/kit";
 
 function StaleBanner({ accounts }: { accounts: Meta["accounts"] }) {
@@ -124,6 +125,10 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
       {share ? (
         <MetaSections clientId={clientId} period={period} share />
+      ) : !meta.data ? (
+        <CardSkeleton lines={6} />
+      ) : !meta.data.marketplace ? (
+        <MetaSections key={syncTick} clientId={clientId} period={period} full />
       ) : (
         <PlatformOverview clientId={clientId} period={period} targetCpa={meta.data?.client.target_cpa ?? null} reloadKey={syncTick} />
       )}

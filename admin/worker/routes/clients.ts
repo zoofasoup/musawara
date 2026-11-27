@@ -57,11 +57,18 @@ clients.get("/:clientId/meta", async (c) => {
     .bind(clientId)
     .all();
   const labels = [...new Set(accounts.results.map((a: any) => a.primary_result_label).filter(Boolean))];
+  const marketplace = await c.env.DB.prepare(
+    `SELECT EXISTS(SELECT 1 FROM jubelio_orders WHERE client_id=?1)
+         OR EXISTS(SELECT 1 FROM spend_entries WHERE client_id=?1 AND category='ads' AND source IN ('shopee','tiktok','tokopedia')) found`
+  )
+    .bind(clientId)
+    .first<{ found: number }>();
   return c.json({
     client,
     accounts: accounts.results,
     resultLabel: labels.length === 1 ? labels[0] : "Results",
     isShare: c.get("access").type === "share",
+    marketplace: !!marketplace?.found,
   });
 });
 

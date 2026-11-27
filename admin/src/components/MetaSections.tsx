@@ -1,5 +1,5 @@
-// Meta ads for one period: numbers, trend, winners, campaigns, pacing. The Ads page and the read-only share link show these; the share
-// link also gets the sales numbers (CPA, ROAS, purchase value), which signed-in people find on the Overview.
+// Meta ads for one period: numbers, trend, winners, campaigns, pacing. Used by the Ads page, and with `full` (sales numbers and top
+// creatives too) as the whole Overview of a client that sells no marketplace goods, and as the read-only share link.
 import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../lib/api";
@@ -25,6 +25,8 @@ export type Meta = {
   }>;
   resultLabel: string;
   isShare: boolean;
+  /** Sells through marketplaces (Jubelio orders, or Shopee / TikTok ad cost): only then is the per-platform view shown. */
+  marketplace: boolean;
 };
 
 type Summary = {
@@ -50,17 +52,17 @@ type Totals = {
   frequency: number | null;
 };
 
-export function MetaSections({ clientId, period, share = false, children }: { clientId: number; period: SharedRange; share?: boolean; children?: ReactNode }) {
+export function MetaSections({ clientId, period, share = false, full = share, children }: { clientId: number; period: SharedRange; share?: boolean; full?: boolean; children?: ReactNode }) {
   const { range, cmp, compare, compareOn, query } = period;
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
   const summary = useApi<Summary>(`/clients/${clientId}/summary?${query}`);
   const trend = useApi<{ days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
   const campaigns = useApi<{ entities: Entity[] }>(`/clients/${clientId}/entities?level=campaign&${query}`); // the same address EntityTable asks for, so the two share one answer
   const pacing = useApi<{ pacing: Pacing[] }>(`/clients/${clientId}/pacing`);
-  const creatives = useApi<{ ads: Creative[] }>(share ? `/clients/${clientId}/creatives?from=${range.from}&to=${range.to}` : null);
+  const creatives = useApi<{ ads: Creative[] }>(full ? `/clients/${clientId}/creatives?from=${range.from}&to=${range.to}` : null);
   // what CS recorded as coming from Meta (the share link may not read this)
-  const bought = useApi<Platforms>(share ? null : `/clients/${clientId}/platforms?from=${range.from}&to=${range.to}`);
-  const boughtBefore = useApi<Platforms>(share || !compare ? null : `/clients/${clientId}/platforms?from=${compare.from}&to=${compare.to}`);
+  const bought = useApi<Platforms>(full ? null : `/clients/${clientId}/platforms?from=${range.from}&to=${range.to}`);
+  const boughtBefore = useApi<Platforms>(full || !compare ? null : `/clients/${clientId}/platforms?from=${compare.from}&to=${compare.to}`);
 
   const kpis = useMemo(() => {
     const c = summary.data?.current;
@@ -108,7 +110,7 @@ export function MetaSections({ clientId, period, share = false, children }: { cl
     const leads = item("Leads", fmtNum, "leads", "higher-better");
     const cpl = item("Cost / Lead", fmtRp, "cpl", "lower-better");
     const delivery = [item("CTR", pct, "ctr", "higher-better"), item("CPM", fmtRp, "cpm", "lower-better"), item("Frequency", f2, "frequency", "neutral"), item("Reach", fmtNum, "reach", "higher-better")];
-    if (!share) {
+    if (!full) {
       const closings = (d?: Platforms) => (d ? d.ads.reduce((n, r) => n + (r.platform === "meta" ? r.orders : 0), 0) : null);
       const now = closings(bought.data), before = closings(boughtBefore.data);
       return [spend, leads, cpl, { label: "Purchases (CS sheet)", dir: "higher-better" as const, note: undefined, value: fmtNum(now), cur: now, prev: before, prevText: before != null ? fmtNum(before) : undefined }, ...delivery];
@@ -124,7 +126,7 @@ export function MetaSections({ clientId, period, share = false, children }: { cl
       item("ROAS", x, "roas", "higher-better", withAds(roasNote)),
       ...delivery,
     ];
-  }, [summary.data, meta.data, bought.data, boughtBefore.data, share]);
+  }, [summary.data, meta.data, bought.data, boughtBefore.data, full]);
 
   // One size for every number in the block: smaller and wider cells when any value is long.
   const longNumbers = kpis.some((x) => x.value.length > 13);
@@ -134,8 +136,8 @@ export function MetaSections({ clientId, period, share = false, children }: { cl
       {summary.error && <ErrorState message={summary.error} onRetry={summary.reload} />}
       <div className="grid gap-4 xl:grid-cols-12">
         {/* every metric in one card, one shape */}
-        <Bento title={share ? "Key numbers" : "Meta ads"} className="xl:col-span-12">
-          <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : share ? "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" : "sm:grid-cols-4"}`}>
+        <Bento title={full ? "Key numbers" : "Meta ads"} className="xl:col-span-12">
+          <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 ${longNumbers ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : full ? "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" : "sm:grid-cols-4"}`}>
             {kpis.map((k) => (
               <div key={k.label} className="min-w-0 bg-surface px-4 py-3.5">
                 <KpiCard
@@ -157,18 +159,22 @@ export function MetaSections({ clientId, period, share = false, children }: { cl
         </Bento>
 
         {/* trend */}
-        <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} subtitle={share ? "Spend, leads and purchases" : "Meta spend and leads"} className="xl:col-span-12">
+        <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} subtitle={full ? "Spend, leads and purchases" : "Meta spend and leads"} className="xl:col-span-12">
           {trend.loading ? (
             <CardSkeleton lines={5} />
           ) : trend.error ? (
             <ErrorState message={trend.error} onRetry={trend.reload} />
           ) : (
-            <MetricTrend days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} metrics={share ? undefined : META_TREND} />
+            <MetricTrend days={trend.data?.days ?? []} compare={compareOn ? trend.data?.compare : undefined} metrics={full ? undefined : META_TREND} />
           )}
         </Bento>
 
-        {share && (
-          <Bento title="Top creatives by spend" className="xl:col-span-12">
+        {full && (
+          <Bento
+            title="Top creatives by spend"
+            className="xl:col-span-12"
+            right={!share && <Link to={`/c/${clientId}/creatives`} className="inline-flex min-h-11 items-center text-xs font-medium text-musawara-ink hover:underline">All creatives</Link>}
+          >
             {creatives.loading ? (
               <CardSkeleton lines={4} />
             ) : creatives.error ? (

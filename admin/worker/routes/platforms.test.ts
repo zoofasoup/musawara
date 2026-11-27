@@ -92,3 +92,12 @@ test("CS closings from Meta are listed on the Meta tab and never added to a Jube
   assert.equal(current.roas, 4);
   assert.equal(current.cpa, 100);
 });
+
+test("only a client that sells through marketplaces is marked for the per-platform view", async () => {
+  const { DB, call } = await setup();
+  const marketplace = async () => ((await (await call("GET", "/api/clients/1/meta")).json()) as any).marketplace;
+  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'other','ads','2026-11-02',100),(1,'shopee','fee','2026-11-02',7)").run();
+  assert.equal(await marketplace(), false);
+  await DB.prepare("INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES (1,1,'a','2026-11-03','SHOPEE',400,0,1)").run();
+  assert.equal(await marketplace(), true);
+});

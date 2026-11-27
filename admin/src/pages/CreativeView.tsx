@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useApi } from "../lib/api";
 import { fmtNum, fmtRp } from "../lib/format";
 import { useSharedRange } from "../lib/range";
-import { MetaSections } from "../components/MetaSections";
+import { MetaSections, type Meta } from "../components/MetaSections";
 import { PLATFORM_NAME, totalsOf, type Platforms } from "../components/PlatformOverview";
 import { RangeBar } from "../components/RangeBar";
 import { CreativeGrid, type Creative } from "../components/CreativeCards";
@@ -31,7 +31,8 @@ export function CreativeView({ clientId }: { clientId: number }) {
   const [sort, setSort] = useState("cpl");
   const { user } = useAuth();
   const { data, error, loading, reload } = useApi<{ ads: Creative[] }>(`/clients/${clientId}/creatives?from=${range.from}&to=${range.to}`);
-  const platforms = useApi<Platforms>(`/clients/${clientId}/platforms?from=${range.from}&to=${range.to}`);
+  const meta = useApi<Meta>(`/clients/${clientId}/meta`);
+  const platforms = useApi<Platforms>(meta.data?.marketplace ? `/clients/${clientId}/platforms?from=${range.from}&to=${range.to}` : null);
   const ads = useMemo(() => [...(data?.ads ?? [])].sort(SORTS[sort][1]), [data, sort]);
 
   return (
