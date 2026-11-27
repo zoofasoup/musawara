@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { NativeSelect } from "@/components/ui/native-select";
 import { api } from "../lib/api";
-import { parseAdReport, type AdDay } from "../lib/adReport";
+import { parseAdReport, parseShopeeCsv, type AdDay } from "../lib/adReport";
 import { fmtDayFull, fmtRp } from "../lib/format";
 import { Callout } from "./Callout";
 import { Btn, Nested } from "./kit";
@@ -13,7 +13,7 @@ export function AdReportImport({ clients, onSaved }: { clients: Array<{ id: numb
   const input = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState("tiktok");
   const [client, setClient] = useState("");
-  const [read, setRead] = useState<{ name: string; days: AdDay[] } | null>(null);
+  const [read, setRead] = useState<{ name: string; days: AdDay[]; from?: string; to?: string; shopee?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "good" | "warn" | "crit"; text: string } | null>(null);
 
@@ -21,6 +21,11 @@ export function AdReportImport({ clients, onSaved }: { clients: Array<{ id: numb
     setMessage(null);
     setRead(null);
     try {
+      if (/\.csv$/i.test(file.name)) {
+        setSource("shopee");
+        setRead({ name: file.name, shopee: true, ...parseShopeeCsv(await file.text()) });
+        return;
+      }
       const { default: readXlsxFile } = await import("read-excel-file/universal");
       const sheets = await readXlsxFile(file);
       const days = parseAdReport((sheets[0]?.data ?? []) as unknown[][]);
@@ -35,7 +40,7 @@ export function AdReportImport({ clients, onSaved }: { clients: Array<{ id: numb
     if (!read) return;
     setBusy(true);
     try {
-      const r = await api<{ days: number; total: number; manual_days: number }>("/admin/spend/import", { body: { source, client_id: client, rows: read.days } });
+      const r = await api<{ days: number; total: number; manual_days: number }>("/admin/spend/import", { body: { source: read.shopee ? "shopee" : source, client_id: client, rows: read.days, from: read.from, to: read.to } });
       setMessage(r.manual_days
         ? { tone: "warn", text: `Saved ${fmtRp(r.total)}. ${r.manual_days} of these days also have an entry typed by hand: delete it below if it is the same cost.` }
         : { tone: "good", text: `Saved ${fmtRp(r.total)} over ${r.days} days.` });
@@ -60,8 +65,8 @@ export function AdReportImport({ clients, onSaved }: { clients: Array<{ id: numb
             <option value="">Company-wide</option>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </NativeSelect>
-          <input ref={input} type="file" accept=".xlsx" className="hidden" aria-label="Ad report file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ""; }} />
-          <Btn tone="secondary" onClick={() => input.current?.click()}>Choose .xlsx file</Btn>
+          <input ref={input} type="file" accept=".xlsx,.csv" className="hidden" aria-label="Ad report file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ""; }} />
+          <Btn tone="secondary" onClick={() => input.current?.click()}>Choose report file</Btn>
         </div>
         {read && (
           <div className="flex flex-wrap items-center gap-3 text-sm text-ink2">
@@ -72,7 +77,7 @@ export function AdReportImport({ clients, onSaved }: { clients: Array<{ id: numb
           </div>
         )}
         {message && <Callout tone={message.tone} compact>{message.text}</Callout>}
-        <p className="text-xs text-muted">Importing the same dates again replaces the earlier import. Pick the client the report belongs to.</p>
+        <p className="text-xs text-muted">TikTok: the campaign overview (.xlsx). Shopee: Data Keseluruhan Iklan (.csv), one month per file. Importing the same dates again replaces the earlier import. Pick the client first.</p>
       </div>
     </Nested>
   );

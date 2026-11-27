@@ -65,3 +65,17 @@ test("Sync now also reads Jubelio for the brand it belongs to", async () => {
     globalThis.fetch = real;
   }
 });
+
+test("each platform is shown month by month with its own results and its shop orders", async () => {
+  const { DB, call } = await setup();
+  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-10-31',100),(1,'shopee','ads','2026-11-27',200)").run();
+  await DB.prepare("INSERT INTO ad_results (client_id,source,date,revenue,orders) VALUES (1,'shopee','2026-11-27',500,4)").run();
+  await DB.prepare("INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','INTERNAL',9,0,1)").run();
+  const body: any = await (await call("GET", "/api/clients/1/platforms?from=2026-10-01&to=2026-11-30")).json();
+  assert.deepEqual(body.detail.shopee, [
+    { month: "2026-10", spend: 100, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0 },
+    { month: "2026-11", spend: 200, result: 500, adOrders: 4, shopOrders: 1, shopSales: 400 },
+  ]);
+  assert.deepEqual(body.detail.meta, []);
+  assert.deepEqual(body.detail.tiktok, []);
+});

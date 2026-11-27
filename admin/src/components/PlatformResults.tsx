@@ -1,16 +1,22 @@
 // A client's overview: three totals, then ad spend per ad platform next to (not mixed with) where the orders were placed.
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { fmtDateTime, fmtNum, fmtRp } from "../lib/format";
 import { Callout } from "./Callout";
 import { CardSkeleton, ErrorState } from "./ui";
 import { Empty } from "./kit";
+import { PlatformDetail, type MonthRow, type PlatformKey } from "./PlatformDetail";
+import { Segmented } from "./Segmented";
 
 export type Platforms = {
   ads: Array<{ key: string; name: string; spend: number; leads: number | null }>;
   channels: Array<{ name: string; orders: number; sales: number }>;
   jubelio: { last_sync_at: string | null; last_error: string | null } | null;
   samples?: { orders: number; value: number };
+  detail?: Record<PlatformKey, MonthRow[]>;
 };
+
+const VIEWS = [{ value: "all", label: "All" }, { value: "meta", label: "Meta" }, { value: "shopee", label: "Shopee" }, { value: "tiktok", label: "TikTok" }] as const;
 
 const share = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
@@ -40,6 +46,7 @@ function Row({ name, value, percent, detail }: { name: string; value: string; pe
 }
 
 export function PlatformResults({ data, loading, error, onRetry }: { data?: Platforms; loading: boolean; error?: string; onRetry: () => void }) {
+  const [view, setView] = useState<"all" | PlatformKey>("all");
   if (error) return <ErrorState message={error} onRetry={onRetry} />;
   if (loading && !data) return <CardSkeleton lines={4} />;
   const ads = data?.ads ?? [];
@@ -48,9 +55,12 @@ export function PlatformResults({ data, loading, error, onRetry }: { data?: Plat
   const sales = channels.reduce((s, c) => s + c.sales, 0);
   const orders = channels.reduce((s, c) => s + c.orders, 0);
   if (!spend && !sales) return <Empty title="No spend or sales in this period" />;
+  const choose = <Segmented label="Platform" value={view} onChange={setView} options={[...VIEWS]} />;
+  if (view !== "all") return <div className="space-y-4">{choose}<PlatformDetail platform={view} rows={data?.detail?.[view] ?? []} /></div>;
   const empty = ads.filter((a) => !a.spend && a.key !== "meta").map((a) => a.name);
   return (
     <div className="space-y-5">
+      {choose}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Total label="Ad spend" value={fmtRp(spend)} hint={empty.length ? `Without ${empty.join(" and ")}` : undefined} />
         <Total label="Sales" value={fmtRp(sales)} hint={`${fmtNum(orders)} paid ${orders === 1 ? "order" : "orders"}`} />

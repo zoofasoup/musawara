@@ -17,7 +17,7 @@ async function setup() {
   const post = async (userId: number, body: unknown) =>
     app.request(HOST + "/api/admin/spend/import", { method: "POST", headers: { "content-type": "application/json", cookie: await sessionCookie(env, userId, HOST) }, body: JSON.stringify(body) }, env);
   const rows = async () => (await DB.prepare("SELECT date, amount FROM spend_entries WHERE client_id=1 AND source='tiktok' ORDER BY date, amount").all<{ date: string; amount: number }>()).results.map((r) => `${r.date}:${r.amount}`);
-  return { post, rows };
+  return { post, rows, DB };
 }
 
 test("a second import replaces the first and keeps hand-typed entries", async () => {
@@ -42,4 +42,16 @@ test("bad input and other people's clients are refused", async () => {
   assert.equal((await post(2, { source: "tiktok", client_id: 2, rows: [{ date: "2026-09-01", amount: 1 }] })).status, 403);
   assert.equal((await post(2, { source: "tiktok", client_id: null, rows: [{ date: "2026-09-01", amount: 1 }] })).status, 403);
   assert.deepEqual(await rows(), ["2026-09-01:7"]);
+});
+
+test("a period replaces what was imported inside it, and the platform's own results are kept per client", async () => {
+  const { post, rows, DB } = await setup();
+  const month = (to: string, amount: number) => ({ source: "tiktok", client_id: 1, from: "2026-11-01", to, rows: [{ date: to, amount, revenue: amount * 2, orders: 3 }] });
+  assert.equal((await post(1, month("2026-11-27", 500))).status, 200);
+  assert.equal((await post(1, month("2026-11-30", 700))).status, 200);
+  assert.deepEqual(await rows(), ["2026-09-01:7", "2026-11-30:700"]);
+  const results = (await DB.prepare("SELECT date, revenue, orders FROM ad_results").all<any>()).results.map((r: any) => ({ ...r }));
+  assert.deepEqual(results, [{ date: "2026-11-30", revenue: 1400, orders: 3 }]);
+  assert.equal((await post(1, { ...month("2026-11-30", 1), from: "2026-12-01" })).status, 400, "rows must lie inside the period");
+  assert.equal((await post(1, { source: "tiktok", client_id: 1, rows: [{ date: "2026-11-01", amount: 1, revenue: -2 }] })).status, 400);
 });
