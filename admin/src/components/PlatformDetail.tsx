@@ -1,8 +1,8 @@
-// One ad platform month by month: what it cost, what the platform says it brought, and the orders in that platform's shop.
+// One ad platform month by month: what it cost, what it brought (the platform's own claim, or for Meta the closings CS recorded), and the orders in that platform's shop.
 import { fmtNum, fmtRp } from "../lib/format";
 import { Empty } from "./kit";
 
-export type MonthRow = { month: string; spend: number; result: number; adOrders: number; shopOrders: number; shopSales: number };
+export type MonthRow = { month: string; spend: number; result: number; adOrders: number; shopOrders: number; shopSales: number; closings: number; closingValue: number };
 export type PlatformKey = "meta" | "shopee" | "tiktok";
 
 const NAME: Record<PlatformKey, string> = { meta: "Meta", shopee: "Shopee", tiktok: "TikTok" };
@@ -27,20 +27,28 @@ export function PlatformDetail({ platform, rows }: { platform: PlatformKey; rows
   const spend = sum("spend"), result = sum("result");
   const per = (s: number, r: number) => (s && r ? (meta ? fmtRp(s / r) : `Rp ${fmtNum(r / s, 2)}`) : "–");
   const noResults = !meta && !result;
+  const closings = sum("closings"), closingValue = sum("closingValue");
   const head = meta
-    ? ["Month", "Ad spend", "Chat leads", "Cost per lead"]
+    ? ["Month", "Ad spend", "Chat leads", "Cost per lead", "Purchases", "Purchase value", "Spend per purchase"]
     : ["Month", "Ad spend", `Revenue by ${name}`, "Ad orders", "Per Rp 1 of ads", "Shop orders", "Shop sales"];
   const line = (label: string, r: Omit<MonthRow, "month">) =>
     meta
-      ? [label, money(r.spend), r.result ? fmtNum(r.result) : "–", per(r.spend, r.result)]
+      ? [label, money(r.spend), r.result ? fmtNum(r.result) : "–", per(r.spend, r.result), r.closings ? fmtNum(r.closings) : "–", money(r.closingValue), r.spend && r.closings ? fmtRp(r.spend / r.closings) : "–"]
       : [label, money(r.spend), money(r.result), r.adOrders ? fmtNum(r.adOrders) : "–", per(r.spend, r.result), r.shopOrders ? fmtNum(r.shopOrders) : "–", money(r.shopSales)];
-  const total = { spend, result, adOrders: sum("adOrders"), shopOrders: sum("shopOrders"), shopSales: sum("shopSales") };
+  const total = { spend, result, adOrders: sum("adOrders"), shopOrders: sum("shopOrders"), shopSales: sum("shopSales"), closings, closingValue };
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Total label={`${name} ad spend`} value={money(spend)} />
         <Total label={meta ? "Chat leads" : `Revenue ${name} credits to its ads`} value={meta ? fmtNum(result) : money(result)} hint={noResults ? "Not imported yet" : meta ? undefined : `${fmtNum(total.adOrders)} orders`} />
         <Total label={meta ? "Cost per lead" : "Back for every Rp 1 of ads"} value={per(spend, result)} />
+        {meta && (
+          <>
+            <Total label="Purchases from Meta (CS sheet)" value={closings ? fmtNum(closings) : "–"} hint={closings ? undefined : "No closing sheet imported yet"} />
+            <Total label="Value of those purchases" value={money(closingValue)} />
+            <Total label="Ad spend per purchase" value={spend && closings ? fmtRp(spend / closings) : "–"} />
+          </>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -56,7 +64,7 @@ export function PlatformDetail({ platform, rows }: { platform: PlatformKey; rows
       </div>
       <p className="text-xs text-muted">
         {meta
-          ? "Meta does not know which orders came from its ads, so it is judged on chat leads here."
+          ? "Purchases are the closings CS recorded with a Facebook, Instagram or Ads lead source, so they are a minimum. They show where a sale came from and are not extra sales: do not add them on top of the sales figures."
           : `Revenue and ad orders are what ${name} itself credits to its ads; platforms can claim the same sale, so do not add them together. Shop sales are all orders placed there, from any source.`}
       </p>
     </div>

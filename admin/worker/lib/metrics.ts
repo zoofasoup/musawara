@@ -18,12 +18,13 @@ export type Totals = {
   purchases: number;
   purchase_value: number;
   purchases_sent: number; // of the purchases, how many reached Meta
+  ad_spend: number; // every ad platform; `spend` is Meta only
   ctr: number | null;
   cpm: number | null;
   cpr: number | null;
   cpl: number | null; // cost per lead
-  cpa: number | null; // spend / purchases (purchases = uploaded offline sales)
-  roas: number | null; // purchase value / spend
+  cpa: number | null; // ad_spend / purchases (sales come from every channel, so every ad platform's cost counts)
+  roas: number | null; // purchase value / ad_spend
   frequency: number | null;
 };
 
@@ -38,6 +39,7 @@ type RawSums = {
   purchases: number | null;
   purchase_value: number | null;
   purchases_sent?: number | null;
+  ad_spend?: number | null; // left out for campaign, ad set and ad rows: those are Meta only
 };
 
 export function finalize(r: RawSums | null | undefined): Totals {
@@ -48,6 +50,7 @@ export function finalize(r: RawSums | null | undefined): Totals {
   const results = r?.results ?? 0;
   const leads = r?.leads ?? 0;
   const purchase_value = r?.purchase_value ?? 0;
+  const ad_spend = r?.ad_spend ?? spend;
   return {
     spend,
     impressions,
@@ -59,12 +62,13 @@ export function finalize(r: RawSums | null | undefined): Totals {
     purchases: r?.purchases ?? 0,
     purchase_value,
     purchases_sent: r?.purchases_sent ?? 0,
+    ad_spend,
     ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
     cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
     cpr: results > 0 ? spend / results : null,
     cpl: leads > 0 ? spend / leads : null,
-    cpa: (r?.purchases ?? 0) > 0 ? spend / (r!.purchases as number) : null,
-    roas: spend > 0 && purchase_value > 0 ? purchase_value / spend : null,
+    cpa: (r?.purchases ?? 0) > 0 ? ad_spend / (r!.purchases as number) : null,
+    roas: ad_spend > 0 && purchase_value > 0 ? purchase_value / ad_spend : null,
     frequency: reach > 0 ? impressions / reach : null,
   };
 }
@@ -95,8 +99,14 @@ export async function offlineSales(
 
 /** Whole-client totals for a date range (campaign level avoids double counting). */
 export async function clientTotals(env: Env, clientId: number, from: string, to: string): Promise<Totals> {
-  const [totals, sales] = await Promise.all([clientInsightTotals(env, clientId, from, to), offlineSales(env, clientId, from, to)]);
-  return finalize({ ...totals, ...sales });
+  const [totals, sales, ads] = await Promise.all([
+    clientInsightTotals(env, clientId, from, to),
+    offlineSales(env, clientId, from, to),
+    env.DB.prepare("SELECT COALESCE(SUM(amount), 0) amount FROM spend_daily WHERE client_id=? AND category='ads' AND date BETWEEN ? AND ?")
+      .bind(clientId, from, to)
+      .first<{ amount: number }>(),
+  ]);
+  return finalize({ ...totals, ...sales, ad_spend: ads?.amount ?? 0 });
 }
 
 async function clientInsightTotals(env: Env, clientId: number, from: string, to: string): Promise<RawSums> {

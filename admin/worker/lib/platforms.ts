@@ -33,11 +33,17 @@ export function channelRows(sales: Array<{ source: string | null; orders: number
   return [...rows.values()].sort((a, b) => b.sales - a.sales);
 }
 
-export type MonthRow = { month: string; spend: number; result: number; adOrders: number; shopOrders: number; shopSales: number };
+export type MonthRow = { month: string; spend: number; result: number; adOrders: number; shopOrders: number; shopSales: number; closings: number; closingValue: number };
 
-/** One platform month by month. `result` is what the platform itself reports: chat leads for Meta, attributed revenue elsewhere. */
+/** Lead sources, as the CS team types them, that mean the customer came from Meta ("Instagram", "Web IG", "Ads IG", or just "Ads"). */
+const META_LEAD = /\b(facebook|fb|instagram|ig|meta|ads)\b/i;
+const NOT_META = /organi[ck]|tiktok|shopee|tokopedia|google/i;
+
+/** One platform month by month. `result` is what the platform itself reports: chat leads for Meta, attributed revenue elsewhere.
+ * `closings` are sales the CS team wrote down with a Meta lead source (table `sales`, not dashboard_sales: a Jubelio brand's
+ * closings are a record of where a sale came from, and the order itself is already in its shop sales). */
 async function platformMonths(db: D1Database, clientId: number, from: string, to: string) {
-  const [spend, leads, results, shop] = await Promise.all([
+  const [spend, leads, results, shop, closed] = await Promise.all([
     db.prepare("SELECT substr(date,1,7) month, source, SUM(amount) amount FROM spend_daily WHERE client_id=? AND category='ads' AND date BETWEEN ? AND ? GROUP BY 1,2").bind(clientId, from, to).all<{ month: string; source: string; amount: number }>(),
     db.prepare(
       "SELECT substr(i.date,1,7) month, COALESCE(SUM(i.leads), 0) leads FROM insights_daily i JOIN ad_accounts a ON a.id=i.ad_account_id WHERE a.client_id=? AND i.level='campaign' AND i.date BETWEEN ? AND ? GROUP BY 1"
@@ -47,13 +53,20 @@ async function platformMonths(db: D1Database, clientId: number, from: string, to
       `SELECT substr(sale_date,1,7) month, source, COUNT(*) orders, COALESCE(SUM(value), 0) value FROM dashboard_sales
         WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled' GROUP BY 1,2`
     ).bind(clientId, from, to).all<{ month: string; source: string | null; orders: number; value: number }>(),
+    db.prepare(
+      `SELECT substr(sale_date,1,7) month, source, COUNT(*) orders, COALESCE(SUM(value), 0) value FROM sales
+        WHERE client_id=? AND sale_date BETWEEN ? AND ? AND deleted_at IS NULL AND COALESCE(pay_status, '') <> 'cancelled' GROUP BY 1,2`
+    ).bind(clientId, from, to).all<{ month: string; source: string | null; orders: number; value: number }>(),
   ]);
   const of = (sources: string[], channel: string | null) => {
     const rows = new Map<string, MonthRow>();
-    const row = (month: string) => rows.get(month) ?? rows.set(month, { month, spend: 0, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0 }).get(month)!;
+    const row = (month: string) => rows.get(month) ?? rows.set(month, { month, spend: 0, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0, closings: 0, closingValue: 0 }).get(month)!;
     for (const s of spend.results) if (sources.includes(s.source) && s.amount > 0) row(s.month).spend += s.amount;
     for (const r of results.results) if (sources.includes(r.source)) { const x = row(r.month); x.result += r.revenue; x.adOrders += r.orders; }
-    if (sources.includes("meta")) for (const l of leads.results) if (l.leads > 0) row(l.month).result += l.leads;
+    if (sources.includes("meta")) {
+      for (const l of leads.results) if (l.leads > 0) row(l.month).result += l.leads;
+      for (const s of closed.results) if (META_LEAD.test(s.source ?? "") && !NOT_META.test(s.source ?? "")) { const x = row(s.month); x.closings += s.orders; x.closingValue += s.value; }
+    }
     if (channel) for (const s of shop.results) if ((CHANNEL[s.source ?? ""] ?? s.source) === channel) { const x = row(s.month); x.shopOrders += s.orders; x.shopSales += s.value; }
     return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month));
   };

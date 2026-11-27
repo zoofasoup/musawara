@@ -193,7 +193,7 @@ test("sales summary sentence", () => {
   assert.match(salesSummary(cur, summarizeSales([]), false, null), /nothing to compare with/);
 });
 
-const totals = (o: any): any => ({ spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, leads: 0, purchases: 0, purchase_value: 0, purchases_sent: 0, ctr: null, cpm: null, cpr: null, cpl: null, cpa: null, roas: null, frequency: null, ...o });
+const totals = (o: any): any => ({ spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, leads: 0, purchases: 0, purchase_value: 0, purchases_sent: 0, ctr: null, cpm: null, cpr: null, cpl: null, cpa: null, roas: null, frequency: null, ad_spend: o.spend ?? 0, ...o });
 
 test("buildReport leaves out sections without data and keeps the comparison honest", () => {
   const range: any = { from: "2026-10-01", to: "2026-10-31", prevFrom: "2026-09-01", prevTo: "2026-09-30", customComparison: false };

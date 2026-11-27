@@ -57,6 +57,7 @@ export function PlatformResults({ data, loading, error, onRetry }: { data?: Plat
   if (!spend && !sales) return <Empty title="No spend or sales in this period" />;
   const choose = <Segmented label="Platform" value={view} onChange={setView} options={[...VIEWS]} />;
   if (view !== "all") return <div className="space-y-4">{choose}<PlatformDetail platform={view} rows={data?.detail?.[view] ?? []} /></div>;
+  const closings = (data?.detail?.meta ?? []).reduce((n, r) => n + r.closings, 0);
   const empty = ads.filter((a) => !a.spend && a.key !== "meta").map((a) => a.name);
   return (
     <div className="space-y-5">
@@ -81,7 +82,7 @@ export function PlatformResults({ data, loading, error, onRetry }: { data?: Plat
                   !a.spend
                     ? a.key === "meta" ? "No Meta spend synced for this period." : <>Nothing recorded. <Link to="/spend" className="font-medium text-musawara-ink underline">Add it on the Spend page</Link></>
                     : a.leads
-                      ? `${share(a.spend, spend)}% of ad spend · ${fmtNum(a.leads)} chat leads · ${fmtRp(a.spend / a.leads)} per lead`
+                      ? `${share(a.spend, spend)}% of ad spend · ${fmtNum(a.leads)} chat leads · ${fmtRp(a.spend / a.leads)} per lead${closings ? ` · ${fmtNum(closings)} ${closings === 1 ? "purchase" : "purchases"} (CS sheet)` : ""}`
                       : `${share(a.spend, spend)}% of ad spend`
                 }
               />

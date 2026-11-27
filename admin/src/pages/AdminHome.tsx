@@ -24,7 +24,7 @@ type Overview = {
     name: string;
     logo_url: string | null;
     brand_color: string;
-    totals: { spend: number; leads: number; purchases: number; cpl: number | null; cpa: number | null };
+    totals: { spend: number; ad_spend: number; leads: number; purchases: number; cpl: number | null; cpa: number | null };
     spark: Array<{ date: string; spend: number }>;
     target_cpa: number | null;
     unacknowledged_alerts: number;
@@ -69,6 +69,7 @@ export function AdminHome() {
     const spend = clients.reduce((a, c) => a + c.totals.spend, 0);
     const leads = clients.reduce((a, c) => a + c.totals.leads, 0);
     const purchases = clients.reduce((a, c) => a + c.totals.purchases, 0);
+    const adSpend = clients.reduce((a, c) => a + c.totals.ad_spend, 0);
     const alerts = clients.reduce((a, c) => a + c.unacknowledged_alerts, 0);
     const byDate = new Map<string, number>();
     for (const c of clients) for (const p of c.spark) byDate.set(p.date, (byDate.get(p.date) ?? 0) + p.spend);
@@ -78,7 +79,7 @@ export function AdminHome() {
     const good = targeted.filter(onTarget).length;
     const attention = clients.filter((c) => c.unacknowledged_alerts > 0 || (hasTarget(c) && !onTarget(c)));
     const share = [...clients].filter((c) => c.totals.spend > 0).sort((a, b) => b.totals.spend - a.totals.spend);
-    return { clients, spend, leads, purchases, alerts, days, peak, targeted, good, attention, share };
+    return { clients, spend, adSpend, leads, purchases, alerts, days, peak, targeted, good, attention, share };
   }, [d]);
 
   if (loading)
@@ -110,7 +111,7 @@ export function AdminHome() {
           <div className="grid grid-cols-2 gap-4 xl:col-span-5">
             <StatTile dense={dense} label="Total spend" icon="spend" value={fmtRp(m.spend)}>{`across ${m.clients.length} client${m.clients.length === 1 ? "" : "s"}`}</StatTile>
             <StatTile dense={dense} label="Leads" icon="users" value={fmtNum(m.leads)}>{m.leads > 0 ? `avg ${fmtRp(m.spend / m.leads)} per lead` : "no leads yet"}</StatTile>
-            <StatTile dense={dense} label="Purchases" icon="chart" value={fmtNum(m.purchases)}>{m.purchases > 0 ? `avg ${fmtRp(m.spend / m.purchases)} per purchase` : "no purchases yet"}</StatTile>
+            <StatTile dense={dense} label="Purchases" icon="chart" value={fmtNum(m.purchases)}>{m.purchases > 0 ? `avg ${fmtRp(m.adSpend / m.purchases)} per purchase` : "no purchases yet"}</StatTile>
             <StatTile dense={dense} label="Open alerts" icon="alert" value={fmtNum(m.alerts)}>{m.alerts ? `${m.clients.filter((c) => c.unacknowledged_alerts > 0).length} client(s) affected` : "all clear"}</StatTile>
           </div>
 

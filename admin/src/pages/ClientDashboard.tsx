@@ -48,6 +48,7 @@ type Totals = {
   purchases: number;
   purchases_sent: number;
   purchase_value: number;
+  ad_spend: number;
   reach: number;
   ctr: number | null;
   cpm: number | null;
@@ -150,6 +151,10 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         ? { text: `Above the ${fmtNum(needRoas, 1)}x needed`, tone: "good" }
         : { text: `Needs ${fmtNum(needRoas, 1)}x to break even`, tone: c?.roas != null ? "crit" : "muted" }
       : undefined;
+    // CPA and ROAS divide by every ad platform's cost, so say so when that differs from the Meta-only Spend tile.
+    const allAds = c && c.ad_spend > c.spend ? `all ads ${fmtRp(c.ad_spend)}` : null;
+    const withAds = (n?: { text: string; tone?: "good" | "crit" | "muted" }) =>
+      !allAds ? n : n ? { ...n, text: `${n.text} · ${allAds}` } : { text: `Counts ${allAds}`, tone: "muted" as const };
     // Leads and purchases are the numbers that matter. Purchases are real sales
     // uploaded as offline conversions; Meta's own purchase counts are not used.
     const pct = (n: number | null | undefined) => fmtPct(n);
@@ -175,8 +180,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
       item("Purchases", fmtNum, "purchases", "higher-better", c && c.purchases > 0 ? { text: `${fmtNum(c.purchases_sent)} of ${fmtNum(c.purchases)} sent to Meta`, tone: "muted" } : undefined),
       leadToSale(c, p),
       item("Purchase value", fmtRp, "purchase_value", "higher-better"),
-      item("CPA", fmtRp, "cpa", "lower-better", cpaNote),
-      item("ROAS", x, "roas", "higher-better", roasNote),
+      item("CPA", fmtRp, "cpa", "lower-better", withAds(cpaNote)),
+      item("ROAS", x, "roas", "higher-better", withAds(roasNote)),
       item("CTR", pct, "ctr", "higher-better"),
       item("CPM", fmtRp, "cpm", "lower-better"),
       item("Frequency", f2, "frequency", "neutral"),

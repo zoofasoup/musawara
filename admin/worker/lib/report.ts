@@ -383,7 +383,7 @@ export function buildReport(i: ReportInput) {
 
   const organicPrevHas = !!op && op.posts + op.stories > 0;
   const salesPrevHas = sp.count + sp.cancelled > 0;
-  const adSpend = sections.ads ? i.ads.current.spend : null;
+  const adSpend = sections.ads ? i.ads.current.ad_spend : null;
 
   return {
     client: i.client,

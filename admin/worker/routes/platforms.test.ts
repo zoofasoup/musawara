@@ -73,9 +73,29 @@ test("each platform is shown month by month with its own results and its shop or
   await DB.prepare("INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','INTERNAL',9,0,1)").run();
   const body: any = await (await call("GET", "/api/clients/1/platforms?from=2026-10-01&to=2026-11-30")).json();
   assert.deepEqual(body.detail.shopee, [
-    { month: "2026-10", spend: 100, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0 },
-    { month: "2026-11", spend: 200, result: 500, adOrders: 4, shopOrders: 1, shopSales: 400 },
+    { month: "2026-10", spend: 100, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0, closings: 0, closingValue: 0 },
+    { month: "2026-11", spend: 200, result: 500, adOrders: 4, shopOrders: 1, shopSales: 400, closings: 0, closingValue: 0 },
   ]);
   assert.deepEqual(body.detail.meta, []);
   assert.deepEqual(body.detail.tiktok, []);
+});
+
+test("CS closings from Meta are listed on the Meta tab and never added to a Jubelio brand's sales", async () => {
+  const { DB, call } = await setup();
+  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'shopee','fee','2026-11-02',77)").run();
+  await DB.prepare("INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES (1,1,'a','2026-11-03','SHOPEE',400,0,1)").run();
+  await DB.prepare(
+    `INSERT INTO sales (client_id,sale_key,sale_date,value,source,pay_status) VALUES
+     (1,'a','2026-11-03',150,'Instagram',NULL),(1,'b','2026-11-04',50,'Web IG',NULL),(1,'c','2026-11-05',9,NULL,NULL),(1,'e','2026-11-05',9,'Instagram Organik',NULL),(1,'f','2026-11-05',9,'Ads TikTok',NULL),(1,'d','2026-11-05',9,'Facebook','cancelled')`
+  ).run();
+  const range = "from=2026-11-01&to=2026-11-30";
+  const platforms: any = await (await call("GET", `/api/clients/1/platforms?${range}`)).json();
+  assert.deepEqual(platforms.detail.meta, [{ month: "2026-11", spend: 0, result: 0, adOrders: 0, shopOrders: 0, shopSales: 0, closings: 2, closingValue: 200 }]);
+  const { current }: any = await (await call("GET", `/api/clients/1/summary?${range}`)).json();
+  assert.equal(current.purchases, 1);
+  assert.equal(current.purchase_value, 400);
+  assert.equal(current.spend, 0, "Spend stays Meta only");
+  assert.equal(current.ad_spend, 100, "fees are not ads");
+  assert.equal(current.roas, 4);
+  assert.equal(current.cpa, 100);
 });
