@@ -6,6 +6,7 @@ import { encryptString } from "../lib/secretbox";
 import { fetchAccountInfo, fetchInsights, getMetaToken, validateToken } from "../lib/meta";
 import { pullInsights, rederiveResults, syncAccount, syncAccounts } from "../lib/sync";
 import { sheetTriggerReady, triggerSheetSync } from "../lib/sheetSync";
+import { jubelioCfg, syncJubelio } from "../lib/jubelio";
 import { halfMonthChunks, isCovered, MAX_HISTORY_DAYS, mergeRanges, REACH_WINDOW_DAYS } from "../lib/history";
 import { DEFAULT_ALERT_CONFIG, resolveAlertConfig, runAlertRules } from "../lib/alerts";
 import { clientSparkline, clientTotals } from "../lib/metrics";
@@ -511,7 +512,9 @@ admin.post("/clients/:id/sync", async (c) => {
     ? (await c.env.DB.prepare("SELECT * FROM ad_accounts WHERE client_id=? AND status='active'").bind(clientId).all<AdAccountRow>()).results
     : [];
   const sheet = await sheetTriggerReady(c.env, clientId);
-  if (accounts.length === 0 && !sheet) {
+  const jubelio = jubelioCfg(c.env);
+  const orders = jubelio?.clientId === clientId;
+  if (accounts.length === 0 && !sheet && !orders) {
     return c.json({ error: token ? "This client has no active ad account." : "No Meta access token configured. Add one in Settings → Meta Token." }, 400);
   }
   if (accounts.length > 0) {
@@ -522,8 +525,9 @@ admin.post("/clients/:id/sync", async (c) => {
       .first();
     if (running) return c.json({ error: "A sync is already running. Please wait a minute." }, 429);
   }
-  c.executionCtx.waitUntil(Promise.all([syncAccounts(c.env, accounts, true), sheet ? triggerSheetSync(c.env) : null]));
-  return c.json({ ok: true, started: true, ads: accounts.length > 0, sheet }, 202);
+  // Each source records its own failure, so one failing never stops the others.
+  c.executionCtx.waitUntil(Promise.allSettled([syncAccounts(c.env, accounts, true), sheet ? triggerSheetSync(c.env) : null, orders ? syncJubelio(c.env, jubelio!) : null]));
+  return c.json({ ok: true, started: true, ads: accounts.length > 0, sheet, orders }, 202);
 });
 
 /**

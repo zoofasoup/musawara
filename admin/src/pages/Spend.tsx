@@ -13,6 +13,7 @@ import { presetByKey, todayJakarta, type DateRange } from "../lib/dates";
 import { fmtCompact, fmtDay, fmtDigits, fmtDayFull, fmtPct, fmtRp } from "../lib/format";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { KpiCard } from "../components/KpiCard";
+import { AdReportImport } from "../components/AdReportImport";
 import { CardSkeleton, ErrorState, SectionTitle } from "../components/ui";
 import { Btn, Nested, RowList, Empty } from "../components/kit";
 
@@ -215,6 +216,8 @@ export function Spend() {
           </>
         )
       )}
+
+      <AdReportImport clients={clients.data?.clients ?? []} onSaved={() => { summary.reload(); entries.reload(); }} />
 
       <div>
         <SectionTitle>Marketplace spend</SectionTitle>

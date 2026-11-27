@@ -103,6 +103,38 @@ spend.post("/entries", async (c) => {
   return c.json({ id: res.meta.last_row_id });
 });
 
+const IMPORT_NOTE = "Imported from ad report";
+const MAX_IMPORT_DAYS = 400;
+
+/**
+ * Daily ad cost from a marketplace report. Importing a day again replaces what an earlier import wrote for it;
+ * entries typed by hand are never touched, and the number of days that also have one is reported so nobody counts twice.
+ */
+spend.post("/import", async (c) => {
+  const b: any = await c.req.json().catch(() => null);
+  const clientId = b?.client_id === "" || b?.client_id == null ? null : Number(b.client_id);
+  const rows: Array<{ date: string; amount: number }> = Array.isArray(b?.rows) ? b.rows : [];
+  if (!SOURCES.includes(b?.source)) return c.json({ error: "Invalid source" }, 400);
+  if (!rows.length || rows.length > MAX_IMPORT_DAYS) return c.json({ error: `Send 1 to ${MAX_IMPORT_DAYS} days.` }, 400);
+  if (!rows.every((r) => typeof r?.date === "string" && YMD.test(r.date) && typeof r.amount === "number" && Number.isFinite(r.amount) && r.amount >= 0)) {
+    return c.json({ error: "Every row needs a date and an amount of 0 or more." }, 400);
+  }
+  if (new Set(rows.map((r) => r.date)).size !== rows.length) return c.json({ error: "Each date may appear only once." }, 400);
+  if (clientId === null ? c.get("user").client_ids !== null : !canReachClient(c.get("user"), clientId)) return c.json({ error: "Forbidden" }, 403);
+  if (clientId !== null && !(await c.env.DB.prepare("SELECT 1 FROM clients WHERE id=?").bind(clientId).first())) return c.json({ error: "Unknown client" }, 400);
+
+  const manual = await c.env.DB.prepare(
+    "SELECT date FROM spend_entries WHERE client_id IS ? AND source=? AND category='ads' AND COALESCE(note,'') <> ? AND date BETWEEN ? AND ?"
+  ).bind(clientId, b.source, IMPORT_NOTE, rows.map((r) => r.date).sort()[0], rows.map((r) => r.date).sort().at(-1)).all<{ date: string }>();
+  const manualDates = new Set(manual.results.map((r) => r.date));
+
+  await c.env.DB.batch(rows.flatMap((r) => [
+    c.env.DB.prepare("DELETE FROM spend_entries WHERE client_id IS ? AND source=? AND category='ads' AND note=? AND date=?").bind(clientId, b.source, IMPORT_NOTE, r.date),
+    ...(r.amount > 0 ? [c.env.DB.prepare("INSERT INTO spend_entries (client_id, source, category, date, amount, note) VALUES (?,?,'ads',?,?,?)").bind(clientId, b.source, r.date, r.amount, IMPORT_NOTE)] : []),
+  ]));
+  return c.json({ days: rows.length, total: rows.reduce((s, r) => s + r.amount, 0), manual_days: rows.filter((r) => manualDates.has(r.date)).length });
+});
+
 spend.delete("/entries/:id", reachVia("id", "SELECT client_id FROM spend_entries WHERE id=?"), async (c) => {
   await c.env.DB.prepare("DELETE FROM spend_entries WHERE id=?").bind(c.req.param("id")).run();
   return c.json({ ok: true });

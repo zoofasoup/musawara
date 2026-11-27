@@ -1,11 +1,10 @@
 // A brand's orders from Jubelio, per month and per sales channel, next to what was spent on ads that month. Ad spend comes from
 // the platform (Meta syncs by itself; Shopee, TikTok and Tokopedia are typed in on the Spend page). No buyer details are stored.
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, useApi } from "../lib/api";
+import { useApi } from "../lib/api";
 import { fmtDateTime, fmtNum, fmtRp } from "../lib/format";
 import { CardSkeleton, ErrorState } from "../components/ui";
-import { Btn, Empty, Panel, useNotify } from "../components/kit";
+import { Empty, Panel } from "../components/kit";
 import { Callout } from "../components/Callout";
 import { PageHeader } from "../components/PageHeader";
 import { NeedsClient } from "../components/NeedsClient";
@@ -32,32 +31,21 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
 }
 
 export function Orders() {
-  const { notify, node } = useNotify();
   const { clientId } = useClientScope();
   const report = useApi<Report>(clientId ? `/jubelio/report?client_id=${clientId}` : null);
-  const [busy, setBusy] = useState(false);
   if (!clientId) return <NeedsClient what="orders" />;
   if (report.error) return <ErrorState message={report.error} onRetry={report.reload} />;
   const d = report.data;
 
-  const sync = async () => {
-    setBusy(true);
-    try { const r = await api<{ orders: number }>("/jubelio/sync", { method: "POST", body: { client_id: clientId } }); notify(`${fmtNum(r.orders)} orders read from Jubelio.`); report.reload(); }
-    catch (e: any) { notify(e.message, "err"); }
-    setBusy(false);
-  };
-
   return (
     <div className="space-y-4">
-      {node}
       <PageHeader title="Orders" subtitle="From Jubelio, every sales channel. Buyer details are never stored. Months follow Asia/Jakarta." />
       {!d ? <CardSkeleton /> : (
         <>
           {d.connected ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <Btn tone="secondary" size="sm" icon="refresh" loading={busy} onClick={() => void sync()}>Sync now</Btn>
-              <span className="text-xs text-muted">{d.last_sync_at ? `Last synced ${fmtDateTime(d.last_sync_at)}` : "Not synced yet"}. It also syncs every hour.</span>
-            </div>
+            <p className="text-xs text-muted">
+              {d.last_sync_at ? `Last synced ${fmtDateTime(d.last_sync_at)}` : "Not synced yet"}. It syncs every hour; to sync now use the button on the <Link to={`/c/${clientId}`} className="underline">Overview</Link>.
+            </p>
           ) : (
             <Callout tone="warn">Jubelio is not connected for this client yet.</Callout>
           )}

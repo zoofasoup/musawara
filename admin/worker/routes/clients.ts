@@ -8,13 +8,14 @@ import { clientAccess, clientFeature } from "../middleware";
 import publish from "./publish";
 import planning from "./planning";
 import { clientCreatives, clientEntities, clientTotals, clientTrend } from "../lib/metrics";
+import { platformResults } from "../lib/platforms";
 import { SECTIONS, brandMarkdown } from "../lib/brand";
 import { addDays, dayOfMonth, daysInMonth, monthStart, ymdInTz } from "../lib/dates";
 
 const clients = new Hono<{ Bindings: Env; Variables: Vars }>();
 clients.use("/:clientId/*", clientAccess);
 // A team member needs the matching feature in their role; client logins and share links are decided by the handlers.
-for (const part of ["summary", "trend", "entities", "creatives", "alerts", "pacing"]) clients.use(`/:clientId/${part}`, clientFeature("ads"));
+for (const part of ["summary", "trend", "platforms", "entities", "creatives", "alerts", "pacing"]) clients.use(`/:clientId/${part}`, clientFeature("ads"));
 clients.use("/:clientId/publish/*", clientFeature("content"));
 clients.route("/:clientId/publish", publish);
 clients.route("/:clientId/plan", planning);
@@ -72,6 +73,11 @@ clients.get("/:clientId/summary", async (c) => {
     clientTotals(c.env, clientId, prevFrom, prevTo),
   ]);
   return c.json({ range: { from, to, prevFrom, prevTo }, current, previous });
+});
+
+clients.get("/:clientId/platforms", async (c) => {
+  const { from, to } = range(c);
+  return c.json(await platformResults(c.env.DB, c.get("access").clientId, from, to));
 });
 
 clients.get("/:clientId/trend", async (c) => {

@@ -15,6 +15,7 @@ import { CampaignRanking } from "../components/CampaignRanking";
 import type { Entity } from "../components/EntityTable";
 import { Callout } from "../components/Callout";
 import { KpiCard } from "../components/KpiCard";
+import { PlatformResults, type Platforms } from "../components/PlatformResults";
 import { MetricTrend, type TrendDay } from "../components/MetricTrend";
 import { EntityTable } from "../components/EntityTable";
 import type { Alert } from "../components/AlertFeed";
@@ -88,6 +89,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   const meta = useApi<Meta>(`/clients/${clientId}/meta`);
   const summary = useApi<Summary>(`/clients/${clientId}/summary?${query}`);
   const trend = useApi<{ days: TrendDay[]; compare?: TrendDay[]; bucket?: "day" | "week" | "month" }>(`/clients/${clientId}/trend?${query}`);
+  const platforms = useApi<Platforms>(share ? null : `/clients/${clientId}/platforms?${query}`);
   const alerts = useApi<{ alerts: Alert[] }>(`/clients/${clientId}/alerts`);
   // the same address EntityTable asks for, so the two share one answer
   const campaigns = useApi<{ entities: Entity[] }>(`/clients/${clientId}/entities?level=campaign&${query}`);
@@ -104,11 +106,13 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
   async function syncNow() {
     setSyncing(true);
     try {
-      const r = await api<{ sheet: boolean }>(`/admin/clients/${clientId}/sync`, { method: "POST", body: {} });
-      notify(r.sheet ? "Sync started for ads and the Google Sheet. Numbers refresh in a moment." : "Sync started. Numbers refresh in a moment.");
+      const r = await api<{ ads: boolean; sheet: boolean; orders: boolean }>(`/admin/clients/${clientId}/sync`, { method: "POST", body: {} });
+      const what = [r.ads && "ads", r.sheet && "the Google Sheet", r.orders && "Jubelio orders"].filter(Boolean).join(", ");
+      notify(`Sync started for ${what}. Numbers refresh in a moment.`);
       setTimeout(() => {
         meta.reload();
         summary.reload();
+        platforms.reload();
         trend.reload();
         alerts.reload();
         pacing.reload();
@@ -289,6 +293,12 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
             ))}
           </div>
         </Bento>
+
+        {!share && (
+          <Bento title="Results per platform" subtitle="Ad spend and sales in the chosen period" className="xl:col-span-12">
+            <PlatformResults data={platforms.data} loading={platforms.loading} error={platforms.error} onRetry={platforms.reload} />
+          </Bento>
+        )}
 
         {/* trend */}
         <Bento title={trend.data?.bucket === "month" ? "Monthly trend" : trend.data?.bucket === "week" ? "Weekly trend" : "Daily trend"} subtitle="Spend, leads and purchases" className="xl:col-span-12">

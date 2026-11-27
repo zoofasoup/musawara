@@ -47,6 +47,7 @@ const MATRIX: Array<[string, string, Who[]]> = [
   ["GET", "/api/admin/accounts", ["owner", "ads"]],
   ["POST", "/api/admin/clients/1/sync", ["owner", "ads"]],
   ["GET", "/api/admin/spend?from=2026-01-01&to=2026-01-31", ["owner", "ads"]],
+  ["POST", "/api/admin/spend/import", ["owner", "ads"]],
   ["GET", "/api/admin/conversions/sales?client_id=1", ["owner", "ads", "crm"]],
   ["POST", "/api/admin/conversions/token", ["owner"]],
   ["GET", "/api/admin/plan/board", ["owner", "content"]],
