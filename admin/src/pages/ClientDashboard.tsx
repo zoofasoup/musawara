@@ -295,7 +295,7 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
         </Bento>
 
         {!share && (
-          <Bento title="Results per platform" subtitle="Ad spend and sales in the chosen period" className="xl:col-span-12">
+          <Bento title="Ads and sales" subtitle="In the chosen period" className="xl:col-span-12">
             <PlatformResults data={platforms.data} loading={platforms.loading} error={platforms.error} onRetry={platforms.reload} />
           </Bento>
         )}
@@ -330,8 +330,8 @@ export function ClientDashboard({ clientId, share = false }: { clientId: number;
 
         {/* winners and boncos */}
         {(campaigns.data?.entities.length ?? 0) > 0 && (
-          <Bento title="Winners and boncos" subtitle="Campaigns by spend, judged against this client's typical cost per lead" className="xl:col-span-12">
-            <CampaignRanking rows={campaigns.data!.entities.map((e) => ({ id: e.entity_id, name: e.name ?? e.entity_id, spend: e.spend, leads: e.leads }))} />
+          <Bento title="Winners and boncos" subtitle="Campaigns by spend, each judged on what it was run for" className="xl:col-span-12">
+            <CampaignRanking rows={campaigns.data!.entities.map((e) => ({ id: e.entity_id, name: e.name ?? e.entity_id, spend: e.spend, leads: e.leads, objective: e.objective, link_clicks: e.link_clicks, reach: e.reach, impressions: e.impressions }))} />
           </Bento>
         )}
 

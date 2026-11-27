@@ -58,3 +58,25 @@ test("a winner must also have spent at least the median, so tiny budgets do not 
   const cheap = ad({ spend: 200_000, leads: 6 }); // CPL 33k vs median 100k but spent far less than the median
   assert.equal(verdicts([...base, cheap])[cheap.entity_id], "ok");
 });
+
+test("an awareness ad is not weak for having no leads, and is judged against other awareness ads", () => {
+  const lead = [ad({}), ad({}), ad({})];
+  const aware = (reach: number) => ad({ objective: "OUTCOME_AWARENESS", campaign_id: "c-aw", leads: 0, reach, impressions: reach });
+  const [a, b, c] = [aware(400_000), aware(200_000), aware(50_000)];
+  const v = verdicts([...lead, a, b, c]);
+  assert.equal(v[a.entity_id], "winner");
+  assert.equal(v[b.entity_id], "ok");
+  assert.equal(v[c.entity_id], "weak");
+});
+
+test("a goal with fewer than three ads is left unrated", () => {
+  const solo = ad({ objective: "OUTCOME_AWARENESS", leads: 0 });
+  assert.equal(verdicts([ad({}), ad({}), ad({}), solo])[solo.entity_id], "unrated");
+});
+
+test("in an engagement campaign that brings chats, an ad without any is still judged on leads", () => {
+  const eng = (leads: number) => ad({ objective: "OUTCOME_ENGAGEMENT", campaign_id: "c-eng", leads });
+  const none = eng(0);
+  const out = buildCreatives([eng(10), eng(10), eng(10), none]).find((c) => c.entity_id === none.entity_id)!;
+  assert.deepEqual([out.goal, out.verdict], ["lead", "weak"]);
+});

@@ -1,6 +1,7 @@
-// Campaigns ranked by spend, each judged against the client's own typical cost per lead: winning, on par, watch, weak.
+// Campaigns ranked by spend, each judged against the client's other campaigns with the same goal: winning, on par, watch, weak.
 // Under it, one plain sentence when there is an honest budget move to suggest.
 
+import { GOAL_LABEL } from "../../shared/goals";
 import { fmtNum, fmtRp } from "../lib/format";
 import { budgetHint, rank, type RankInput } from "../lib/rank";
 import { Pill } from "./kit";
@@ -29,12 +30,14 @@ export function CampaignRanking({ rows, limit = 8 }: { rows: RankInput[]; limit?
               <span className="tnum w-28 shrink-0 text-right text-xs text-ink2">{fmtRp(r.spend)}</span>
             </div>
             <p className="tnum mt-0.5 text-xs text-muted">
-              {r.cpl == null ? "No leads yet" : `Cost / lead ${fmtRp(r.cpl)} · ${fmtNum(r.leads)} leads · ${pct(r.ratio)}`}
+              {r.goal !== "lead"
+                ? [r.cost == null ? "Nothing delivered yet" : `${GOAL_LABEL[r.goal]} ${fmtRp(r.cost)}`, pct(r.ratio)].filter(Boolean).join(" · ")
+                : r.cpl == null ? "No leads yet" : [`Cost / lead ${fmtRp(r.cpl)}`, `${fmtNum(r.leads)} leads`, pct(r.ratio)].filter(Boolean).join(" · ")}
             </p>
           </li>
         ))}
       </ul>
-      {typical != null && <p className="mt-3 text-xs text-muted">Typical cost per lead for this client: <span className="tnum text-ink2">{fmtRp(typical)}</span>. Winning is 20% or more below it; weak is 50% or more above.</p>}
+      {typical != null && <p className="mt-3 text-xs text-muted">Typical cost per lead for this client: <span className="tnum text-ink2">{fmtRp(typical)}</span>. Each campaign is compared with others of the same goal (at least three): winning is 20% or more below typical, weak 50% or more above.</p>}
       {hint && (
         <p className="mt-3 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,white)] px-4 py-3 text-sm text-ink">
           Consider moving budget from <b>{hint.from.name}</b> ({hint.from.cpl ? fmtRp(hint.from.cpl) : "no leads"} per lead) to <b>{hint.to.name}</b> ({fmtRp(hint.to.cpl)} per lead).

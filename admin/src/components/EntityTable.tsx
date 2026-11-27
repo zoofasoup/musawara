@@ -25,6 +25,7 @@ export type Entity = {
   impressions: number;
   clicks: number;
   link_clicks: number;
+  reach: number;
   leads: number;
   cpl: number | null;
   ctr: number | null;

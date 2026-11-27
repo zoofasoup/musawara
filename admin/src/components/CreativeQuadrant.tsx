@@ -14,8 +14,9 @@ const COLOR: Record<Creative["verdict"], string> = {
   weak: "var(--color-warn)",
   fatigued: "var(--color-crit)",
   low_data: "var(--color-muted)",
+  unrated: "var(--color-muted)",
 };
-const NAME: Record<Creative["verdict"], string> = { winner: "Winner", ok: "OK", weak: "Weak", fatigued: "Fatigued", low_data: "Low data" };
+const NAME: Record<Creative["verdict"], string> = { winner: "Winner", ok: "OK", weak: "Weak", fatigued: "Fatigued", low_data: "Low data", unrated: "Not compared" };
 
 type P = Creative & { x: number; y: number; noLeads: boolean };
 
@@ -26,13 +27,16 @@ const median = (v: number[]) => {
 
 export function CreativeQuadrant({ ads, onSelect }: { ads: Creative[]; onSelect?: (id: string) => void }) {
   const { points, medSpend, medCpl, maxX, maxY } = useMemo(() => {
-    const live = ads.filter((a) => a.spend > 0);
+    // one axis, one goal: only ads judged on cost per lead belong on this chart
+    const live = ads.filter((a) => a.spend > 0 && (a.goal ?? "lead") === "lead");
     const maxCpl = Math.max(1, ...live.map((a) => a.cpl ?? 0));
     const points: P[] = live.map((a) => ({ ...a, x: a.spend, y: a.cpl ?? maxCpl * 1.15, noLeads: a.cpl == null }));
     return { points, medSpend: median(live.map((a) => a.spend)), medCpl: typicalCpl(live) ?? 0, maxX: Math.max(1, ...live.map((a) => a.spend)) * 1.1, maxY: maxCpl * 1.3 };
   }, [ads]);
 
-  if (points.length < 3) return <p className="py-10 text-center text-xs text-muted">Needs at least three ads with spend to compare.</p>;
+  const others = ads.filter((a) => a.spend > 0 && (a.goal ?? "lead") !== "lead").length;
+  const note = others > 0 ? `${others} ${others === 1 ? "ad has" : "ads have"} another goal (awareness, traffic or views) and ${others === 1 ? "is" : "are"} not on this chart.` : "";
+  if (points.length < 3) return <p className="py-10 text-center text-xs text-muted">Needs at least three lead ads with spend to compare. {note}</p>;
 
   const dot = (p: any) => {
     const a = p.payload as P;
@@ -85,7 +89,7 @@ export function CreativeQuadrant({ ads, onSelect }: { ads: Creative[]; onSelect?
           <span key={v} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLOR[v] }} />{NAME[v]}</span>
         ))}
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-dashed border-ink2" />No leads</span>
-        <span className="text-muted">Dot size = leads. Dashed lines = this client's typical spend and cost per lead.</span>
+        <span className="text-muted">Dot size = leads. Dashed lines = this client's typical spend and cost per lead. {note}</span>
       </div>
     </div>
   );

@@ -255,7 +255,7 @@ export async function clientCreatives(env: Env, clientId: number, from: string, 
        WHERE x.ad_account_id=i.ad_account_id AND x.level='ad' AND x.entity_id=i.entity_id
          AND json_extract(x.extras_json, '$.rank.${field}') IS NOT NULL ORDER BY x.date DESC LIMIT 1)`;
   const rows = await env.DB.prepare(
-    `SELECT i.entity_id, MAX(i.entity_name) AS entity_name,
+    `SELECT i.entity_id, MAX(i.entity_name) AS entity_name, MAX(i.campaign_id) AS campaign_id,
             SUM(i.spend) spend, SUM(i.impressions) impressions, SUM(i.reach) reach,
             SUM(i.link_clicks) link_clicks, SUM(i.leads) leads,
             SUM((SELECT SUM(CAST(json_extract(j.value, '$.value') AS REAL)) FROM json_each(i.actions_json) j
@@ -280,12 +280,20 @@ export async function clientCreatives(env: Env, clientId: number, from: string, 
     .bind(clientId)
     .all<any>();
   const byId = new Map(meta.results.map((m: any) => [m.entity_id, m]));
+  const campaigns = await env.DB.prepare(
+    `SELECT e.entity_id, e.objective FROM entities e JOIN ad_accounts a ON a.id = e.ad_account_id WHERE a.client_id=? AND e.level='campaign'`
+  )
+    .bind(clientId)
+    .all<{ entity_id: string; objective: string | null }>();
+  const objectiveOf = new Map(campaigns.results.map((r) => [r.entity_id, r.objective]));
   const raws: CreativeRaw[] = rows.results.map((r: any) => {
     const m = byId.get(r.entity_id);
     const rank = (v: string | null) => (v && v !== "UNKNOWN" ? v : null);
     return {
       entity_id: r.entity_id,
       name: m?.name ?? r.entity_name,
+      campaign_id: r.campaign_id ?? null,
+      objective: objectiveOf.get(r.campaign_id) ?? null,
       thumbnail_url: m?.thumbnail_url ?? null,
       status: m?.status ?? null,
       effective_status: m?.effective_status ?? null,

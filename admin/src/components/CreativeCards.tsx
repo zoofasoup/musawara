@@ -1,6 +1,7 @@
 // Creative cards: thumbnail, a verdict against the client's own ads, and the metrics
 // that tell a creative's story (cost per lead, link CTR, hook and hold rate, frequency).
 
+import { GOAL_LABEL, type Goal } from "../../shared/goals";
 import { fmtDay, fmtNum, fmtPct, fmtRp } from "../lib/format";
 import { StatusBadge } from "./ui";
 
@@ -26,7 +27,9 @@ export type Creative = {
   quality: string | null;
   engagement: string | null;
   conversion: string | null;
-  verdict: "winner" | "ok" | "weak" | "fatigued" | "low_data";
+  verdict: "winner" | "ok" | "weak" | "fatigued" | "low_data" | "unrated";
+  goal?: Goal;
+  cost?: number | null;
 };
 
 const VERDICT: Record<Creative["verdict"], { text: string; cls: string } | null> = {
@@ -35,6 +38,7 @@ const VERDICT: Record<Creative["verdict"], { text: string; cls: string } | null>
   weak: { text: "Weak", cls: "bg-warn text-white" },
   low_data: { text: "Low data", cls: "bg-ink/70 text-white" },
   ok: null,
+  unrated: null,
 };
 
 const RANK_TEXT: Record<string, string> = { BELOW_AVERAGE_10: "bottom 10%", BELOW_AVERAGE_20: "bottom 20%", BELOW_AVERAGE_35: "bottom 35%" };
@@ -72,7 +76,7 @@ export function CreativeCard({ ad }: { ad: Creative }) {
           <StatusBadge status={ad.effective_status ?? ad.status} />
         </div>
         <dl className="tnum grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
-          <Stat label="Cost / Lead" value={fmtRp(ad.cpl)} />
+          {ad.goal && ad.goal !== "lead" ? <Stat label={GOAL_LABEL[ad.goal]} value={fmtRp(ad.cost ?? null)} /> : <Stat label="Cost / Lead" value={fmtRp(ad.cpl)} />}
           <Stat label="Spend" value={fmtRp(ad.spend)} />
           <Stat label="Leads" value={fmtNum(ad.leads)} />
           <Stat label="Link CTR" value={fmtPct(ad.link_ctr)} />

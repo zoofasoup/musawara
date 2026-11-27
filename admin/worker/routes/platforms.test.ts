@@ -4,22 +4,21 @@ import assert from "node:assert/strict";
 import { sessionCookie } from "../testkit/session.ts";
 import { makeDb } from "../testkit/d1.ts";
 import { app } from "../index.ts";
-import { platformRows } from "../lib/platforms.ts";
+import { adRows, channelRows } from "../lib/platforms.ts";
 
 const HOST = "https://app.musawara.id";
 
-test("rows pair spend with the sales channel of the same platform and never invent a return", () => {
+test("ad spend is listed per ad platform and sales per place of order, never mixed in one row", () => {
+  const spend = [{ source: "meta", amount: 1000 }, { source: "tiktok", amount: 40 }, { source: "tokopedia", amount: 10 }];
+  assert.deepEqual(adRows(spend, 4), [
+    { key: "meta", name: "Meta Ads", spend: 1000, leads: 4 },
+    { key: "shopee", name: "Shopee Ads", spend: 0, leads: null },
+    { key: "tiktok", name: "TikTok / Tokopedia Ads", spend: 50, leads: null },
+  ]);
+  assert.deepEqual(adRows([...spend, { source: "other", amount: 5 }], 0).at(-1), { key: "other", name: "Other ads", spend: 5, leads: null });
   assert.deepEqual(
-    platformRows(
-      [{ source: "meta", amount: 1000 }, { source: "shopee", amount: 100 }, { source: "tiktok", amount: 40 }, { source: "tokopedia", amount: 10 }],
-      [{ source: "Shopee", orders: 3, value: 500 }, { source: "TikTok / Tokopedia Shop", orders: 1, value: 80 }, { source: "Tokopedia", orders: 1, value: 20 }, { source: "Manual (internal)", orders: 2, value: 300 }],
-    ),
-    [
-      { platform: "Meta ads", spend: 1000, orders: 0, sales: 0, ratio: null },
-      { platform: "Shopee", spend: 100, orders: 3, sales: 500, ratio: 5 },
-      { platform: "TikTok / Tokopedia", spend: 50, orders: 2, sales: 100, ratio: 2 },
-      { platform: "Manual (internal)", spend: 0, orders: 2, sales: 300, ratio: null },
-    ],
+    channelRows([{ source: "Manual (internal)", orders: 2, value: 300 }, { source: "Tokopedia", orders: 1, value: 20 }, { source: "TikTok / Tokopedia Shop", orders: 1, value: 80 }, { source: "Shopee", orders: 3, value: 500 }]),
+    [{ name: "Shopee", orders: 3, sales: 500 }, { name: "Manual (internal)", orders: 2, sales: 300 }, { name: "TikTok / Tokopedia", orders: 2, sales: 100 }],
   );
 });
 
@@ -34,16 +33,18 @@ async function setup(env: Record<string, string> = {}) {
   return { DB, call, jobs };
 }
 
-test("the platforms route counts paid orders and spend inside the range", async () => {
+test("the platforms route counts paid orders and ad spend (not fees) inside the range", async () => {
   const { DB, call } = await setup();
-  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'shopee','ads','2026-10-30',999)").run();
+  await DB.prepare("INSERT INTO spend_entries (client_id,source,category,date,amount) VALUES (1,'shopee','ads','2026-11-02',100),(1,'shopee','ads','2026-10-30',999),(1,'shopee','fee','2026-11-02',77)").run();
   await DB.prepare(
     `INSERT INTO jubelio_orders (client_id,salesorder_id,order_no,day,channel,total,canceled,paid) VALUES
      (1,1,'a','2026-11-03','SHOPEE',400,0,1),(1,2,'b','2026-11-03','SHOPEE',700,1,0),(1,3,'c','2026-10-01','SHOPEE',5,0,1)`
   ).run();
   const res = await call("GET", "/api/clients/1/platforms?from=2026-11-01&to=2026-11-30");
   assert.equal(res.status, 200);
-  assert.deepEqual(((await res.json()) as any).rows, [{ platform: "Shopee", spend: 100, orders: 1, sales: 400, ratio: 4 }]);
+  const body: any = await res.json();
+  assert.deepEqual(body.ads.map((a: any) => [a.key, a.spend]), [["meta", 0], ["shopee", 100], ["tiktok", 0]]);
+  assert.deepEqual(body.channels, [{ name: "Shopee", orders: 1, sales: 400 }]);
 });
 
 test("Sync now also reads Jubelio for the brand it belongs to", async () => {

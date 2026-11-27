@@ -1,5 +1,7 @@
 // Creative (ad level) metrics: the raw sums come from SQL, the rates and the verdict are computed here.
 
+import { costOf, goalOf, MIN_PEERS, type Goal } from "../../shared/goals";
+
 export type CreativeRaw = {
   entity_id: string;
   name: string | null;
@@ -20,9 +22,12 @@ export type CreativeRaw = {
   quality: string | null;
   engagement: string | null;
   conversion: string | null;
+  campaign_id?: string | null;
+  /** The campaign's Meta objective: what the ad was run for. */
+  objective?: string | null;
 };
 
-export type Verdict = "winner" | "ok" | "weak" | "fatigued" | "low_data";
+export type Verdict = "winner" | "ok" | "weak" | "fatigued" | "low_data" | "unrated";
 
 export type Creative = CreativeRaw & {
   cpl: number | null;
@@ -33,6 +38,9 @@ export type Creative = CreativeRaw & {
   hold_rate: number | null; // ThruPlays / 3-second views, %
   avg_watch_s: number | null;
   verdict: Verdict;
+  goal: Goal;
+  /** The cost this ad's goal is judged on. */
+  cost: number | null;
 };
 
 export const FATIGUE_FREQUENCY = 3.5;
@@ -47,23 +55,38 @@ const median = (v: number[]) => {
   return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null;
 };
 
-/** Rates for one ad plus a verdict relative to the client's other ads in the same period. */
+/** Rates for one ad plus a verdict relative to the client's other ads with the same goal in the same period. */
 export function buildCreatives(raws: CreativeRaw[]): Creative[] {
-  const withCpl = raws.filter((r) => r.leads > 0 && r.spend > 0);
-  const medCpl = median(withCpl.map((r) => r.spend / r.leads));
-  const medSpend = median(raws.filter((r) => r.spend > 0).map((r) => r.spend));
+  const chatCampaigns = new Set(raws.filter((r) => r.leads > 0 && r.campaign_id).map((r) => r.campaign_id));
+  const judged = raws.map((r) => {
+    const goal = goalOf(r.objective, r.campaign_id ? chatCampaigns.has(r.campaign_id) : r.leads > 0);
+    return { r, goal, ...costOf(goal, r) };
+  });
+  const peers = new Map<Goal, { medCost: number | null; medSpend: number | null; enough: boolean }>();
+  for (const goal of new Set(judged.map((j) => j.goal))) {
+    const same = judged.filter((j) => j.goal === goal);
+    peers.set(goal, {
+      medCost: median(same.filter((j) => j.cost != null && j.r.spend > 0).map((j) => j.cost!)),
+      medSpend: median(same.filter((j) => j.r.spend > 0).map((j) => j.r.spend)),
+      enough: same.filter((j) => j.r.spend > 0 && j.r.impressions >= MIN_IMPRESSIONS).length >= MIN_PEERS,
+    });
+  }
 
-  return raws.map((r) => {
-    const cpl = r.leads > 0 ? r.spend / r.leads : null;
+  return judged.map(({ r, goal, cost, count }) => {
+    const { medCost, medSpend, enough } = peers.get(goal)!;
     const frequency = r.reach > 0 ? r.impressions / r.reach : null;
+    const big = medSpend != null && r.spend >= medSpend;
     let verdict: Verdict = "ok";
     if (r.impressions < MIN_IMPRESSIONS) verdict = "low_data";
     else if ((frequency ?? 0) > FATIGUE_FREQUENCY) verdict = "fatigued";
-    else if (cpl != null && medCpl != null && medSpend != null && r.spend >= medSpend && r.leads >= WINNER_MIN_LEADS && cpl <= medCpl * WINNER_CPL_RATIO) verdict = "winner";
-    else if (medSpend != null && r.spend >= medSpend && (r.leads === 0 || (cpl != null && medCpl != null && cpl >= medCpl * WEAK_CPL_RATIO))) verdict = "weak";
+    else if (!enough) verdict = "unrated";
+    else if (big && cost != null && medCost != null && count >= WINNER_MIN_LEADS && cost <= medCost * WINNER_CPL_RATIO) verdict = "winner";
+    else if (big && (cost == null || (medCost != null && cost >= medCost * WEAK_CPL_RATIO))) verdict = "weak";
     return {
       ...r,
-      cpl,
+      goal,
+      cost,
+      cpl: r.leads > 0 ? r.spend / r.leads : null,
       frequency,
       link_ctr: r.impressions > 0 ? (r.link_clicks / r.impressions) * 100 : null,
       cost_per_link_click: r.link_clicks > 0 ? r.spend / r.link_clicks : null,
